@@ -25,7 +25,7 @@ Debian/Ubuntu Dependencies
     sudo apt-get upgrade # make sure already installed packages are latest
     sudo apt-get install git python3 python3-venv python3-pip screen
 
-Rosie CI
+Adabot
 ++++++++++
 
 Once the dependencies are installed, now clone the git repo into your home directory.
@@ -59,6 +59,25 @@ So, copy the example ``template-env.sh``, edit it and save it as ``env.sh``.
     nano env.sh
 
 Do CTRL-X to exit and press Y to save the file before exiting.
+
+Git
++++++++++
+
+Adabot can automatically commit information so git must know an email and name
+for the author.
+
+.. code-block:: shell
+
+    git config --global user.email "<adabot's email>"
+    git config --global user.name "Adafruit Adabot"
+    git config --global credential.helper 'store --file ~/.adabot-git-
+credentials'
+    git push
+
+The git push won't actually push anything but it prompt for the bot's username
+and password. These will be stored in the ~/.adabot-git-credentials file which
+makes this not very secure. Make sure your OAUTH token has only the permissions
+it needs in case it ends up in someone else's hands.
 
 Usage Example
 =============
