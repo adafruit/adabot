@@ -31,9 +31,9 @@ from sh.contrib import git
 
 bundles = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
 
-def fetch_bundle(bundle, directory):
+def fetch_bundle(bundle, bundle_path):
     if not os.path.isdir(bundle_path):
-        os.makedirs(directory, exist_ok=True)
+        os.makedirs(bundle_path, exist_ok=True)
         git.clone("-o", "adafruit", "https://github.com/adafruit/" + bundle + ".git", bundle_path)
     working_directory = os.getcwd()
     os.chdir(bundle_path)
@@ -131,11 +131,19 @@ def commit_updates(bundle_path, update_info):
     git.commit(message=message)
     os.chdir(working_directory)
 
+def push_updates(bundle_path):
+    working_directory = os.path.abspath(os.getcwd())
+    os.chdir(bundle_path)
+    git.push(_in=os.environ["ADABOT_GITHUB_USERNAME"] + "\n" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "\n")
+    os.chdir(working_directory)
+
 if __name__ == "__main__":
     directory = ".bundles"
     for bundle in bundles[:1]:
         bundle_path = os.path.abspath(os.path.join(directory, bundle))
-        #fetch_bundle(bundle, bundle_path)
+        fetch_bundle(bundle, bundle_path)
         update_info = update_bundle(bundle_path)
         if update_info:
             commit_updates(bundle_path, update_info)
+            push_updates(bundle_path)
+
