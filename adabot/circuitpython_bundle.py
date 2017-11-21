@@ -113,7 +113,9 @@ def update_bundle(bundle_path):
     os.chdir(working_directory)
     return updates
 
-def commit_updates(update_info):
+def commit_updates(bundle_path, update_info):
+    working_directory = os.path.abspath(os.getcwd())
+    os.chdir(bundle_path)
     message = ["Automated update by Adabot (adafruit/adabot@{})"
                .format(repo_version())]
     for url, old_commit, new_commit, summary in update_info:
@@ -127,7 +129,7 @@ def commit_updates(update_info):
     message = "\n\n".join(message)
     git.add(".")
     git.commit(message=message)
-    pass
+    os.chdir(working_directory)
 
 if __name__ == "__main__":
     directory = ".bundles"
@@ -136,4 +138,4 @@ if __name__ == "__main__":
         #fetch_bundle(bundle, bundle_path)
         update_info = update_bundle(bundle_path)
         if update_info:
-            commit_updates(update_info)
+            commit_updates(bundle_path, update_info)
