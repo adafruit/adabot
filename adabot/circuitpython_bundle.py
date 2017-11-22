@@ -20,14 +20,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from adabot import requests
+from adabot import github_requests as github
+import json
 import os
 import subprocess
 import shlex
 from io import StringIO
+from datetime import date
 
 import sh
 from sh.contrib import git
+
+import redis
+redis = redis.StrictRedis()
 
 bundles = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
 
@@ -75,6 +80,12 @@ def repo_version():
     return version.getvalue().strip()
 
 
+def repo_sha():
+    version = StringIO()
+    git.log(pretty="format:%H", n=1, _out=version)
+    return version.getvalue().strip()
+
+
 def repo_remote_url(repo_path):
     with Submodule(repo_path):
         output = StringIO()
@@ -94,22 +105,24 @@ def update_bundle(bundle_path):
     status = StringIO()
     result = git.status("--short", _out=status)
     updates = []
-    for status_line in status.getvalue().strip().split("\n"):
-        action, directory = status_line.split()
-        if action != "M" or not directory.startswith("libraries"):
-            RuntimeError("Unsupported updates")
+    status = status.getvalue().strip()
+    if status:
+        for status_line in status.split("\n"):
+            action, directory = status_line.split()
+            if action != "M" or not directory.startswith("libraries"):
+                RuntimeError("Unsupported updates")
 
-        # Compute the tag difference.
-        diff = StringIO()
-        result = git.diff("--submodule=log", directory, _out=diff)
-        diff_lines = diff.getvalue().split("\n")
-        commit_range = diff_lines[0].split()[2]
-        commit_range = commit_range.strip(":").split(".")
-        old_commit = commit_to_tag(directory, commit_range[0])
-        new_commit = commit_to_tag(directory, commit_range[-1])
-        url = repo_remote_url(directory)
-        summary = "\n".join(diff_lines[1:-1])
-        updates.append((url[:-4], old_commit, new_commit, summary))
+            # Compute the tag difference.
+            diff = StringIO()
+            result = git.diff("--submodule=log", directory, _out=diff)
+            diff_lines = diff.getvalue().split("\n")
+            commit_range = diff_lines[0].split()[2]
+            commit_range = commit_range.strip(":").split(".")
+            old_commit = commit_to_tag(directory, commit_range[0])
+            new_commit = commit_to_tag(directory, commit_range[-1])
+            url = repo_remote_url(directory)
+            summary = "\n".join(diff_lines[1:-1])
+            updates.append((url[:-4], old_commit, new_commit, summary))
     os.chdir(working_directory)
     return updates
 
@@ -134,7 +147,127 @@ def commit_updates(bundle_path, update_info):
 def push_updates(bundle_path):
     working_directory = os.path.abspath(os.getcwd())
     os.chdir(bundle_path)
-    git.push(_in=os.environ["ADABOT_GITHUB_USERNAME"] + "\n" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "\n")
+    git.push()
+    os.chdir(working_directory)
+
+def get_contributors(repo, commit_range):
+    output = StringIO()
+    git.log("--pretty=tformat:%H,%ae,%ce", commit_range, _out=output)
+    output = output.getvalue().strip()
+    contributors = {}
+    if not output:
+        return contributors
+    for log_line in output.split("\n"):
+        sha, author_email, committer_email = log_line.split(",")
+        author = redis.get("github_username:" + author_email)
+        committer = redis.get("github_username:" + committer_email)
+        if not author or not committer:
+            github_commit_info = github.get("/repos/" + repo + "/commits/" + sha)
+            github_commit_info = github_commit_info.json()
+            author = github_commit_info["author"]["login"]
+            committer = github_commit_info["committer"]["login"]
+            redis.set("github_username:" + author_email, author)
+            redis.set("github_username:" + committer_email, committer)
+        else:
+            author = author.decode("utf-8")
+            committer = committer.decode("utf-8")
+
+        if committer_email == "noreply@github.com":
+            committer = None
+        if author not in contributors:
+            contributors[author] = 0
+        if committer and committer not in contributors:
+            contributors[committer] = 0
+        contributors[author] += 1
+        if committer and committer != author:
+            contributors[committer] += 1
+    return contributors
+
+def repo_name(url):
+    # Strips off .git and splits on /
+    url = url[:-4].split("/")
+    return url[-2] + "/" + url[-1]
+
+def add_contributors(master_list, additions):
+    for contributor in additions:
+        if contributor not in master_list:
+            master_list[contributor] = 0
+        master_list[contributor] += additions[contributor]
+
+def new_release(bundle, bundle_path):
+    working_directory = os.path.abspath(os.getcwd())
+    os.chdir(bundle_path)
+    print(bundle)
+    current_release = github.get(
+        "/repos/adafruit/{}/releases/latest".format(bundle))
+    last_tag = current_release.json()["tag_name"]
+    contributors = get_contributors("adafruit/" + bundle, last_tag + "..")
+    added_submodules = []
+    updated_submodules = []
+    repo_links = {}
+
+    output = StringIO()
+    git.diff("--submodule=log", last_tag + "..", _out=output)
+    output = output.getvalue().strip()
+    if not output:
+        print("Everything is already released.")
+        return
+    for line in output.split("\n"):
+        if not line.startswith("Submodule"):
+            continue
+        line = line.split()
+        directory = line[1]
+        commit_range = line[2].strip(":")
+        library_name = directory.split("/")[-1]
+        if commit_range.startswith("0000000"):
+            added_submodules.append(library_name)
+            commit_range = commit_range.split(".")[-1]
+        else:
+            updated_submodules.append(library_name)
+
+        repo_url = repo_remote_url(directory)
+
+        new_commit = commit_range.split(".")[-1]
+        release_tag = commit_to_tag(directory, new_commit)
+        with Submodule(directory):
+            submodule_contributors = get_contributors(repo_name(repo_url),
+                                                      commit_range)
+            add_contributors(contributors, submodule_contributors)
+        repo_links[library_name] = repo_url[:-4] + "/releases/" + release_tag
+
+    release_description = []
+    if added_submodules:
+        additions = []
+        for library in added_submodules:
+            additions.append("[{}]({})".format(library, repo_links[library]))
+        release_description.append("New libraries: " + ", ".join(additions))
+
+    if updated_submodules:
+        updates = []
+        for library in updated_submodules:
+            updates.append("[{}]({})".format(library, repo_links[library]))
+        release_description.append("Updated libraries: " + ", ".join(updates))
+
+    release_description.append("")
+
+    contributors = sorted(contributors, key=contributors.__getitem__, reverse=True)
+    contributors = ["@" + x for x in contributors]
+
+    release_description.append("As always, thank you to all of our contributors: " + ", ".join(contributors))
+
+    release = {
+        "tag_name": "{0:%Y%m%d}".format(date.today()),
+        "target_commitish": repo_sha(),
+        "name": "{0:%B} {0:%d}, {0:%Y} auto-release".format(date.today()),
+        "body": "\n".join(release_description),
+        "draft": False,
+        "prerelease": False}
+
+    response = github.post("/repos/adafruit/" + bundle + "/releases", data=json.dumps(release))
+    if not response.ok:
+        print(response.request.url)
+        print(response.text)
+
     os.chdir(working_directory)
 
 if __name__ == "__main__":
@@ -146,4 +279,4 @@ if __name__ == "__main__":
         if update_info:
             commit_updates(bundle_path, update_info)
             push_updates(bundle_path)
-
+        new_release(bundle, bundle_path)

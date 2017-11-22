@@ -20,17 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from adabot import requests
+from adabot import github_requests as github
 import sys
 
 def list_repos():
-    result = requests.get("https://api.github.com/search/repositories?q=Adafruit_CircuitPython+in%3Aname")
+    result = github.get("/search/repositories?q=Adafruit_CircuitPython+in%3Aname")
     return result.json()["items"]
 
 def validate_teams(repo):
     if repo["owner"]["login"] != "adafruit":
         return True
-    result = requests.get(repo["teams_url"]+"?v=1")
+    result = github.get(repo["teams_url"])
     ok = False
     for team in result.json():
         ok = ok or team["name"] == "CircuitPythonLibrarians"

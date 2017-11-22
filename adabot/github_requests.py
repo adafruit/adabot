@@ -31,8 +31,30 @@ TODO(description)
 import os
 import requests
 
-def get(url):
+def _fix_url(url):
     if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
-        url += "&access_token=" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
-    headers = {"Accept": "application/vnd.github.hellcat-preview+json"}
-    return requests.get(url, headers=headers)
+        if "?" in url:
+            url += "&"
+        else:
+            url += "?"
+        url += "access_token=" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
+    if url.startswith("/"):
+        url = "https://api.github.com" + url
+    return url
+
+def _fix_kwargs(kwargs):
+    api_version = "application/vnd.github.hellcat-preview+json"
+    if "headers" in kwargs:
+        if "Accept" in kwargs["headers"]:
+            kwargs["headers"]["Accept"] += ";" + api_version
+        else:
+            kwargs["headers"]["Accept"] = api_version
+    else:
+        kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
+    return kwargs
+
+def get(url, **kwargs):
+    return requests.get(_fix_url(url), **_fix_kwargs(kwargs))
+
+def post(url, **kwargs):
+    return requests.post(_fix_url(url), **_fix_kwargs(kwargs))
