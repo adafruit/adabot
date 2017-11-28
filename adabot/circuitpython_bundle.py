@@ -272,7 +272,7 @@ def new_release(bundle, bundle_path):
 
 if __name__ == "__main__":
     directory = ".bundles"
-    for bundle in bundles[:1]:
+    for bundle in bundles:
         bundle_path = os.path.abspath(os.path.join(directory, bundle))
         fetch_bundle(bundle, bundle_path)
         update_info = update_bundle(bundle_path)
