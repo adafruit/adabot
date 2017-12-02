@@ -30,27 +30,31 @@ TODO(description)
 
 import os
 import requests
+import sys
 
 def _fix_url(url):
     if url.startswith("/"):
-        url = "https://api.github.com" + url
+        url = "https://api.travis-ci.org" + url
     return url
 
+def _auth_token():
+    if not "ADABOT_TRAVIS_ACCESS_TOKEN" in os.environ:
+        print("Please configure the ADABOT_TRAVIS_ACCESS_TOKEN environment variable.")
+        return "token "
+    return "token {}".format(os.environ["ADABOT_TRAVIS_ACCESS_TOKEN"])
+
 def _fix_kwargs(kwargs):
-    api_version = "application/vnd.github.scarlet-witch-preview+json;application/vnd.github.hellcat-preview+json"
+    user_agent = "AdafruitAdabot"
     if "headers" in kwargs:
-        if "Accept" in kwargs["headers"]:
-            kwargs["headers"]["Accept"] += ";" + api_version
-        else:
-            kwargs["headers"]["Accept"] = api_version
+        kwargs["headers"]["Authorization"] = _auth_token()
+        kwargs["headers"]["User-Agent"] = user_agent
+        kwargs["headers"]["Travis-API-Version"] = "3"
     else:
-        kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
-    if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
-        access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
-        if "params" in kwargs:
-            kwargs["params"]["access_token"] = access_token
-        else:
-            kwargs["params"] = {"access_token": access_token}
+        kwargs["headers"] = {
+            "Authorization": _auth_token(),
+            "User-Agent": user_agent,
+            "Travis-API-Version": "3"
+        }
     return kwargs
 
 def get(url, **kwargs):
@@ -58,3 +62,6 @@ def get(url, **kwargs):
 
 def post(url, **kwargs):
     return requests.post(_fix_url(url), **_fix_kwargs(kwargs))
+
+def put(url, **kwargs):
+    return requests.put(_fix_url(url), **_fix_kwargs(kwargs))

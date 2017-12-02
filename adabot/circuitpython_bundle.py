@@ -21,7 +21,6 @@
 # THE SOFTWARE.
 
 from adabot import github_requests as github
-import json
 import os
 import subprocess
 import shlex
@@ -269,7 +268,7 @@ def new_release(bundle, bundle_path):
         "draft": False,
         "prerelease": False}
 
-    response = github.post("/repos/adafruit/" + bundle + "/releases", data=json.dumps(release))
+    response = github.post("/repos/adafruit/" + bundle + "/releases", json=release)
     if not response.ok:
         print(response.request.url)
         print(response.text)
