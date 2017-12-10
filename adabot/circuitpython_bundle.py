@@ -127,9 +127,9 @@ def update_bundle(bundle_path):
 
 def commit_updates(bundle_path, update_info):
     working_directory = os.path.abspath(os.getcwd())
-    os.chdir(bundle_path)
     message = ["Automated update by Adabot (adafruit/adabot@{})"
                .format(repo_version())]
+    os.chdir(bundle_path)
     for url, old_commit, new_commit, summary in update_info:
         url_parts = url.split("/")
         user, repo = url_parts[-2:]
@@ -163,21 +163,24 @@ def get_contributors(repo, commit_range):
         if not author or not committer:
             github_commit_info = github.get("/repos/" + repo + "/commits/" + sha)
             github_commit_info = github_commit_info.json()
-            author = github_commit_info["author"]["login"]
-            committer = github_commit_info["committer"]["login"]
-            redis.set("github_username:" + author_email, author)
-            redis.set("github_username:" + committer_email, committer)
+            if github_commit_info["author"]:
+                author = github_commit_info["author"]["login"]
+                redis.set("github_username:" + author_email, author)
+            if github_commit_info["committer"]:
+                committer = github_commit_info["committer"]["login"]
+                redis.set("github_username:" + committer_email, committer)
         else:
             author = author.decode("utf-8")
             committer = committer.decode("utf-8")
 
         if committer_email == "noreply@github.com":
             committer = None
-        if author not in contributors:
+        if author and author not in contributors:
             contributors[author] = 0
         if committer and committer not in contributors:
             contributors[committer] = 0
-        contributors[author] += 1
+        if author:
+            contributors[author] += 1
         if committer and committer != author:
             contributors[committer] += 1
     return contributors
@@ -276,9 +279,9 @@ def new_release(bundle, bundle_path):
     os.chdir(working_directory)
 
 if __name__ == "__main__":
-    directory = ".bundles"
+    directory = os.path.abspath(".bundles")
     for bundle in bundles:
-        bundle_path = os.path.abspath(os.path.join(directory, bundle))
+        bundle_path = os.path.join(directory, bundle)
         fetch_bundle(bundle, bundle_path)
         update_info = update_bundle(bundle_path)
         if update_info:
