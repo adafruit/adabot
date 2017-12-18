@@ -45,7 +45,7 @@ def _fix_kwargs(kwargs):
             kwargs["headers"]["Accept"] = api_version
     else:
         kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
-    if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
+    if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ and "auth" not in kwargs:
         access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
         if "params" in kwargs:
             kwargs["params"]["access_token"] = access_token
@@ -54,7 +54,11 @@ def _fix_kwargs(kwargs):
     return kwargs
 
 def get(url, **kwargs):
-    return requests.get(_fix_url(url), **_fix_kwargs(kwargs))
+    response = requests.get(_fix_url(url), **_fix_kwargs(kwargs))
+    remaining = int(response.headers["X-RateLimit-Remaining"])
+    if remaining % 100 == 0:
+        print(remaining, "requests remaining this hour")
+    return response
 
 def post(url, **kwargs):
     return requests.post(_fix_url(url), **_fix_kwargs(kwargs))
