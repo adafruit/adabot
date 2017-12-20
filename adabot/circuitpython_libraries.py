@@ -58,30 +58,46 @@ def validate_contents(repo):
         return []
     if repo["name"] == "Adafruit_CircuitPython_Bundle":
         return []
+
     content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
     if not content_list.ok:
         return ["Unable to pull repo contents"]
+
     content_list = content_list.json()
     files = [x["name"] for x in content_list if x["type"] == "file"]
+
     errors = []
     if ".pylintrc" not in files:
         errors.append("Missing lint config")
+
     if ".travis.yml" in files:
         file_info = content_list[files.index(".travis.yml")]
         if file_info["size"] > 1000:
             errors.append("Old travis config")
     else:
         errors.append("Missing .travis.yml")
+
     if "readthedocs.yml" in files:
         file_info = content_list[files.index("readthedocs.yml")]
         if file_info["sha"] != "f4243ad548bc5e4431f2d3c5d486f6c9c863888b":
             errors.append("Mismatched readthedocs.yml")
     else:
         errors.append("Missing readthedocs.yml")
-    # TODO(tannewt): Check for an examples folder.
+
+    #Check for an examples folder.
     dirs = [x["name"] for x in content_list if x["type"] == "dir"]
-    if "examples" not in dirs:
+    if "examples" in dirs:
+        # check for at least on .py file
+        examples_list = github.get("/repos/" + repo["full_name"] + "/contents/examples")
+        if not examples_list.ok:
+            errors.append("Unable to retrieve examples folder contents")
+        examples_list = examples_list.json()
+        examples_files = [x["name"] for x in examples_list if x["type"] == "file" and x["name"].endswith(".py")]
+        if not examples_files:
+            errors.append("Missing .py files in examples folder")
+    else:
         errors.append("Missing examples folder")
+
     return errors
 
 full_auth = None
