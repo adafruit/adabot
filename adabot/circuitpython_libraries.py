@@ -62,7 +62,7 @@ def validate_contents(repo):
     if not content_list.ok:
         return ["Unable to pull repo contents"]
     content_list = content_list.json()
-    files = [x["name"] for x in content_list]
+    files = [x["name"] for x in content_list if x["type"] == "file"]
     errors = []
     if ".pylintrc" not in files:
         errors.append("Missing lint config")
@@ -79,6 +79,9 @@ def validate_contents(repo):
     else:
         errors.append("Missing readthedocs.yml")
     # TODO(tannewt): Check for an examples folder.
+    dirs = [x["name"] for x in content_list if x["type"] == "dir"]
+    if "examples" not in dirs:
+        errors.append("Missing examples folder")
     return errors
 
 full_auth = None
