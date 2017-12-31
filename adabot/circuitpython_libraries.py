@@ -64,7 +64,7 @@ def validate_contents(repo):
         return ["Unable to pull repo contents"]
 
     content_list = content_list.json()
-    files = [x["name"] for x in content_list if x["type"] == "file"]
+    files = [x["name"] for x in content_list]
 
     errors = []
     if ".pylintrc" not in files:
@@ -116,7 +116,8 @@ def validate_travis(repo):
     if not result["active"]:
         activate = travis.post(repo_url + "/activate")
         if not activate.ok:
-            #print(activate, activate.text)
+            print(activate.request.url)
+            print(activate, activate.text)
             return ["Unable to enable Travis build"]
 
     env_variables = travis.get(repo_url + "/env_vars")
@@ -143,7 +144,7 @@ def validate_travis(repo):
                             "note_url": "https://travis-ci.org/" + repo["full_name"]}
         token = github.post("/authorizations", json=new_access_token, auth=full_auth)
         if not token.ok:
-            #print(token.text)
+            print(token.text)
             return ["Token creation failed"]
 
         token = token.json()["token"]
@@ -204,6 +205,43 @@ def gather_insights(repo, insights, since):
                 insights["closed_issues"] += 1
                 insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
+    params = {"state": "open", "per_page": 100}
+    response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
+    if not response.ok:
+        print("request failed")
+    issues = response.json()
+    for issue in issues:
+        created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
+        if "pull_request" in issue:
+            insights["open_prs"].append(issue["pull_request"]["html_url"])
+        else:
+            insights["open_issues"].append(issue["html_url"])
+
+def print_circuitpython_download_stats():
+    response = github.get("/repos/adafruit/circuitpython/releases")
+    if not response.ok:
+        print("request failed")
+    releases = response.json()
+    found_unstable = False
+    found_stable = False
+    for release in releases:
+        published = datetime.datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ")
+        if not found_unstable and not release["draft"] and release["prerelease"]:
+            found_unstable = True
+        elif not found_stable and not release["draft"] and not release["prerelease"]:
+            found_stable = True
+        else:
+            continue
+
+        print("Download stats for {}".format(release["tag_name"]))
+        total = 0
+        for asset in release["assets"]:
+            if not asset["name"].startswith("adafruit-circuitpython"):
+                continue
+            board = asset["name"].split("-")[2]
+            print("* {} - {}".format(board, asset["download_count"]))
+            total += asset["download_count"]
+        print("{} total".format(total))
 
 if __name__ == "__main__":
     repos = list_repos()
@@ -218,17 +256,20 @@ if __name__ == "__main__":
         "closed_prs": 0,
         "new_prs": 0,
         "active_prs": 0,
+        "open_prs": [],
         "pr_authors": set(),
         "pr_merged_authors": set(),
         "pr_reviewers": set(),
         "closed_issues": 0,
         "new_issues": 0,
         "active_issues": 0,
+        "open_issues": [],
         "issue_authors": set(),
         "issue_closers": set(),
     }
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)
+    repos_by_error = {}
     for repo in repos:
         errors = []
         prs = github.get("/repos/" + repo["full_name"] + "/pulls")
@@ -240,11 +281,42 @@ if __name__ == "__main__":
         if errors:
             need_work += 1
             repo_needs_work.append(repo)
-            #print("\n".join(errors))
-            #print()
+            print(repo["full_name"])
+            print("\n".join(errors))
+            print()
+        for error in errors:
+            if error not in repos_by_error:
+                repos_by_error[error] = []
+            repos_by_error[error].append(repo["html_url"])
         gather_insights(repo, insights, since)
     circuitpython_repo = github.get("/repos/adafruit/circuitpython").json()
     gather_insights(circuitpython_repo, insights, since)
-    print(insights)
+    print("State of CircuitPython + Libraries")
+    print("* {} pull requests merged".format(insights["merged_prs"]))
+    authors = insights["pr_merged_authors"]
+    print("  * {} authors - {}".format(len(authors), ", ".join(authors)))
+    reviewers = insights["pr_reviewers"]
+    print("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
+    new_authors = insights["pr_authors"]
+    print("* {} new PRs, {} authors - {}".format(insights["new_prs"], len(new_authors), ", ".join(new_authors)))
+    print("* {} closed issues by {} people, {} opened by {} people"
+          .format(insights["closed_issues"], len(insights["issue_closers"]),
+                  insights["new_issues"], len(insights["issue_authors"])))
+    print("* {} open pull requests".format(len(insights["open_prs"])))
+    for pr in insights["open_prs"]:
+        print("  * {}".format(pr))
+    print("* {} open issues".format(len(insights["open_issues"])))
+    for issue in insights["open_issues"]:
+        print("  * {}".format(issue))
+    print_circuitpython_download_stats()
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
+
+    list_repos_for_errors = ["Wiki should be disabled", "Likely missing CircuitPythonLibrarians team.", "Unable to enable Travis build"]
+    for error in repos_by_error:
+        if len(repos_by_error[error]) == 0:
+            continue
+        print()
+        print(error, "- {}".format(len(repos_by_error[error])))
+        if error in list_repos_for_errors:
+            print("\n".join(repos_by_error[error]))
