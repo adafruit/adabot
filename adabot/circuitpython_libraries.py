@@ -22,19 +22,34 @@
 
 from adabot import github_requests as github
 from adabot import travis_requests as travis
+import requests
 import sys
 import datetime
 
 def list_repos():
+    repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Adafruit_CircuitPython in:name",
+                        params={"q":"Adafruit_CircuitPython in:name fork:true",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"})
-    result = result.json()
-    if result["total_count"] > len(result["items"]):
-        print("Implement pagination of results!!!")
-    return result["items"]
+    while result.ok:
+        links = result.headers["Link"]
+        repos.extend(result.json()["items"])
+        next_url = None
+        for link in links.split(","):
+            link, rel = link.split(";")
+            link = link.strip(" <>")
+            rel = rel.strip()
+            if rel == "rel=\"next\"":
+                next_url = link
+                break
+        if not next_url:
+            break
+        # Subsequent links have our access token already so we use requests directly.
+        result = requests.get(link)
+
+    return repos
 
 def validate_repo(repo):
     if not (repo["owner"]["login"] == "adafruit" and
@@ -271,19 +286,13 @@ if __name__ == "__main__":
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
     for repo in repos:
-        errors = []
-        prs = github.get("/repos/" + repo["full_name"] + "/pulls")
-        if prs.ok:
-            lint_pr_title = "Update to new build process and turn on lint."
-            if any([pr["title"] == lint_pr_title for pr in prs.json()]):
-                errors.append("Pending PR")
-        errors.extend(validate_repo(repo))
+        errors = validate_repo(repo)
         if errors:
             need_work += 1
             repo_needs_work.append(repo)
-            print(repo["full_name"])
-            print("\n".join(errors))
-            print()
+            # print(repo["full_name"])
+            # print("\n".join(errors))
+            # print()
         for error in errors:
             if error not in repos_by_error:
                 repos_by_error[error] = []
