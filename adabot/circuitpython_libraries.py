@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import datetime
+import re
 import sys
 
 import requests
@@ -27,6 +28,64 @@ import requests
 from adabot import github_requests as github
 from adabot import travis_requests as travis
 
+
+def parse_gitmodules(input_text):
+    """Parse a .gitmodules file and return a list of all the git submodules
+    defined inside of it.  Each list item is 2-tuple with:
+      - submodule name (string)
+      - submodule variables (dictionary with variables as keys and their values)
+    The input should be a string of text with the complete representation of
+    the .gitmodules file.
+
+    See this for the format of the .gitmodules file, it follows the git config
+    file format:
+      https://www.kernel.org/pub/software/scm/git/docs/git-config.html
+
+    Note although the format appears to be like a ConfigParser-readable ini file
+    it is NOT possible to parse with Python's built-in ConfigParser module.  The
+    use of tabs in the git config format breaks ConfigParser, and the subsection
+    values in double quotes are completely lost.  A very basic regular
+    expression-based parsing logic is used here to parse the data.  This parsing
+    is far from perfect and does not handle escaping quotes, line continuations
+    (when a line ends in '\;'), etc.  Unfortunately the git config format is
+    surprisingly complex and no mature parsing modules are available (outside
+    the code in git itself).
+    """
+    # Assume no results if invalid input.
+    if input_text is None:
+        return []
+    # Define a regular expression to match a basic submodule section line and
+    # capture its subsection value.
+    submodule_section_re = '^\[submodule "(.+)"\]$'
+    # Define a regular expression to match a variable setting line and capture
+    # the variable name and value.  This does NOT handle multi-line or quote
+    # escaping (far outside the abilities of a regular expression).
+    variable_re = '^\s*([a-zA-Z0-9\-]+) =\s+(.+?)\s*$'
+    # Process all the lines to parsing submodule sections and the variables
+    # within them as they're found.
+    results = []
+    submodule_name = None
+    submodule_variables = {}
+    for line in input_text.splitlines():
+        submodule_section_match = re.match(submodule_section_re, line, flags=re.IGNORECASE)
+        variable_match = re.match(variable_re, line)
+        if submodule_section_match:
+            # Found a new section.  End the current one if it had data and add
+            # it to the results, then start parsing a new section.
+            if submodule_name is not None:
+                results.append((submodule_name, submodule_variables))
+            submodule_name = submodule_section_match.group(1)
+            submodule_variables = {}
+        elif variable_match:
+            # Found a variable, add it to the current section variables.
+            # Force the variable name to lower case as variable names are
+            # case-insensitive in git config sections and this makes later
+            # processing easier (can assume lower-case names to find values).
+            submodule_variables[variable_match.group(1).lower()] = variable_match.group(2)
+    # Add the last parsed section if it exists.
+    if submodule_name is not None:
+        results.append((submodule_name, submodule_variables))
+    return results
 
 def list_repos():
     repos = []
