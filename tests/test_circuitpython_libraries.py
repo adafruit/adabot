@@ -67,5 +67,35 @@ class TestParseGitmodules(unittest.TestCase):
             })
 
 
+class TestIsRepoInBundle(unittest.TestCase):
+
+    def test_in_bundle(self):
+        bundle_submodules = [('libraries/register', {
+            'path': 'libraries/helpers/register',
+            'url': 'https://github.com/adafruit/Adafruit_CircuitPython_Register.git'})]
+        result = circuitpython_libraries.is_repo_in_bundle(
+            'https://github.com/adafruit/Adafruit_CircuitPython_Register.git',
+            bundle_submodules)
+        self.assertTrue(result)
+
+    def test_differing_url_scheme(self):
+        bundle_submodules = [('libraries/register', {
+            'path': 'libraries/helpers/register',
+            'url': 'https://github.com/adafruit/Adafruit_CircuitPython_Register.git'})]
+        result = circuitpython_libraries.is_repo_in_bundle(
+            'http://github.com/adafruit/Adafruit_CircuitPython_Register.git',
+            bundle_submodules)
+        self.assertTrue(result)
+
+    def test_not_in_bundle(self):
+        bundle_submodules = [('libraries/register', {
+            'path': 'libraries/helpers/register',
+            'url': 'https://github.com/adafruit/Adafruit_CircuitPython_Register.git'})]
+        result = circuitpython_libraries.is_repo_in_bundle(
+            'https://github.com/adafruit/Adafruit_CircuitPython_SimpleIO.git',
+            bundle_submodules)
+        self.assertFalse(result)
+
+
 if __name__=='__main__':
     unittest.main()

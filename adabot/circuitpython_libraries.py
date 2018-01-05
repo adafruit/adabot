@@ -87,6 +87,57 @@ def parse_gitmodules(input_text):
         results.append((submodule_name, submodule_variables))
     return results
 
+def get_bundle_submodules():
+    """Query Adafruit_CircuitPython_Bundle repository for all the submodules
+    (i.e. modules included inside) and return a list of the found submodules.
+    Each list item is a 2-tuple of submodule name and a dict of submodule
+    variables including 'path' (location of submodule in bundle) and
+    'url' (URL to git repository with submodule contents).
+    """
+    # Assume the bundle repository is public and get the .gitmodules file
+    # without any authentication or Github API usage.  Also assumes the
+    # master branch of the bundle is the canonical source of the bundle release.
+    result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules')
+    if result.status_code != 200:
+        raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
+    return parse_gitmodules(result.text)
+
+def is_repo_in_bundle(repo_clone_url, bundle_submodules):
+    """Return a boolean indicating if the specified repository (the clone URL
+    as a string) is in the bundle.  Specify bundle_submodules as a dictionary
+    of bundle submodule state returned by get_bundle_submodules.
+    """
+    # Strip out any preceding http://, https:// or git:// from the URL to
+    # make URL comparisons safe (probably better to explicitly parse using
+    # a URL module in the future).
+    scheme_end = repo_clone_url.find('://')
+    if scheme_end >= 0:
+        repo_clone_url = repo_clone_url[scheme_end:]
+    # Search all the bundle submodules for any that have a URL which matches
+    # this clone URL.  Not the most efficient search but it's a handful of
+    # items in the bundle.
+    for submodule in bundle_submodules:
+        name, variables = submodule
+        submodule_url = variables.get('url', '')
+        # Again strip off any preceding URL scheme to compare.
+        scheme_end = submodule_url.find('://')
+        if scheme_end >= 0:
+            submodule_url = submodule_url[scheme_end:]
+        # Compare URLs and skip to the next submodule if it's not a match.
+        # Right now this is a case sensitive compare, but perhaps it should
+        # be insensitive in the future (unsure if Github repos are sensitive).
+        if repo_clone_url != submodule_url:
+            continue
+        # URLs matched so now check if the submodule is placed in the libraries
+        # subfolder of the bundle.  Just look at the path from the submodule
+        # state.
+        if variables.get('path', '').startswith('libraries/'):
+            # Success! Found the repo as a submodule of the libraries folder
+            # in the bundle.
+            return True
+    # Failed to find the repo as a submodule of the libraries folders.
+    return False
+
 def list_repos():
     """Return a list of all Adafruit repositories that start with
     Adafruit_CircuitPython.  Each list item is a dictionary of GitHub API
@@ -116,17 +167,19 @@ def list_repos():
 
     return repos
 
-def validate_repo(repo):
+def validate_repo_state(repo):
     """Validate a repository meets current CircuitPython criteria.  Expects
     a dictionary with a GitHub API repository state (like from the list_repos
     function).  Returns a list of string error messages for the repository.
     """
+    global bundle_submodules
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
     full_repo = github.get("/repos/" + repo["full_name"])
     if not full_repo.ok:
         return ["Unable to pull repo details"]
+    full_repo = full_repo.json()
     errors = []
     if repo["has_wiki"]:
         errors.append("Wiki should be disabled")
@@ -134,6 +187,10 @@ def validate_repo(repo):
         errors.append("Missing license.")
     if not repo["permissions"]["push"]:
         errors.append("Likely missing CircuitPythonLibrarians team.")
+    if not is_repo_in_bundle(full_repo["clone_url"], bundle_submodules) and \
+       not repo["name"] == "Adafruit_CircuitPython_Bundle":  # Bundle doesn't
+                                                             # bundle itself.
+        errors.append("Not included in bundle.")
     return errors
 
 def validate_contents(repo):
@@ -350,12 +407,16 @@ full_auth = None
 # Functions to run on repositories to validate their state.  By convention these
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
-validators = [validate_repo, validate_travis, validate_contents]
+validators = [validate_repo_state, validate_travis, validate_contents]
+# Submodules inside the bundle (result of get_bundle_submodules)
+bundle_submodules = []
 
 
 if __name__ == "__main__":
     repos = list_repos()
     print("Found {} repos to check.".format(len(repos)))
+    bundle_submodules = get_bundle_submodules()
+    print("Found {} submodules in the bundle.".format(len(bundle_submodules)))
     github_user = github.get("/user").json()
     print("Running GitHub checks as " + github_user["login"])
     travis_user = travis.get("/user").json()
@@ -416,7 +477,7 @@ if __name__ == "__main__":
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
 
-    list_repos_for_errors = ["Wiki should be disabled", "Likely missing CircuitPythonLibrarians team.", "Unable to enable Travis build"]
+    list_repos_for_errors = ["Wiki should be disabled", "Likely missing CircuitPythonLibrarians team.", "Unable to enable Travis build", "Not included in bundle."]
     for error in repos_by_error:
         if len(repos_by_error[error]) == 0:
             continue
