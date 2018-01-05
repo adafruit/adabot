@@ -219,6 +219,8 @@ def new_release(bundle, bundle_path):
             continue
         line = line.split()
         directory = line[1]
+        if directory == "circuitpython":
+            continue
         commit_range = line[2].strip(":")
         library_name = directory.split("/")[-1]
         if commit_range.startswith("0000000"):
@@ -271,6 +273,7 @@ def new_release(bundle, bundle_path):
         "draft": False,
         "prerelease": False}
 
+    print("Releasing {}".format(release["tag_name"]))
     response = github.post("/repos/adafruit/" + bundle + "/releases", json=release)
     if not response.ok:
         print(response.request.url)
