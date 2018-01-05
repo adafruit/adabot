@@ -29,15 +29,6 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 
 
-# Define global state shared by the functions below:
-# Github authentication password/token.  Used to generate new tokens.
-full_auth = None
-# Functions to run on repositories to validate their state.  By convention these
-# return a list of string errors for the specified repository (a dictionary
-# of Github API repository object state).
-validators = [validate_repo, validate_travis, validate_contents]
-
-
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -351,6 +342,16 @@ def print_circuitpython_download_stats():
             print("* {} - {}".format(board, asset["download_count"]))
             total += asset["download_count"]
         print("{} total".format(total))
+
+
+# Define global state shared by the functions above:
+# Github authentication password/token.  Used to generate new tokens.
+full_auth = None
+# Functions to run on repositories to validate their state.  By convention these
+# return a list of string errors for the specified repository (a dictionary
+# of Github API repository object state).
+validators = [validate_repo, validate_travis, validate_contents]
+
 
 if __name__ == "__main__":
     repos = list_repos()
