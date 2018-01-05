@@ -29,6 +29,27 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 
 
+# Define constants for error strings to make checking against them more robust:
+ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
+ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yml"
+ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
+ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
+ERROR_MISSING_LIBRARIANS = "Likely missing CircuitPythonLibrarians team."
+ERROR_MISSING_LICENSE = "Missing license."
+ERROR_MISSING_LINT = "Missing lint config"
+ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yml"
+ERROR_MISSING_TRAVIS_CONFIG = "Missing .travis.yml"
+ERROR_NOT_IN_BUNDLE = "Not in bundle."
+ERROR_OLD_TRAVIS_CONFIG = "Old travis config"
+ERROR_TRAVIS_ENV = "Unable to read Travis env variables"
+ERROR_TRAVIS_GITHUB_TOKEN = "Unable to find or create (no auth) GITHUB_TOKEN env variable"
+ERROR_TRAVIS_TOKEN_CREATE = "Token creation failed"
+ERROR_UNABLE_PULL_REPO_CONTENTS = "Unable to pull repo contents"
+ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
+ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
+ERROR_WIKI_DISABLED = "Wiki should be disabled"
+
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -178,19 +199,19 @@ def validate_repo_state(repo):
         return []
     full_repo = github.get("/repos/" + repo["full_name"])
     if not full_repo.ok:
-        return ["Unable to pull repo details"]
+        return [ERROR_UNABLE_PULL_REPO_DETAILS]
     full_repo = full_repo.json()
     errors = []
     if repo["has_wiki"]:
-        errors.append("Wiki should be disabled")
+        errors.append(ERROR_WIKI_DISABLED)
     if not repo["license"]:
-        errors.append("Missing license.")
+        errors.append(ERROR_MISSING_LICENSE)
     if not repo["permissions"]["push"]:
-        errors.append("Likely missing CircuitPythonLibrarians team.")
+        errors.append(ERROR_MISSING_LIBRARIANS)
     if not is_repo_in_bundle(full_repo["clone_url"], bundle_submodules) and \
        not repo["name"] == "Adafruit_CircuitPython_Bundle":  # Bundle doesn't
                                                              # bundle itself.
-        errors.append("Not included in bundle.")
+        errors.append(ERROR_NOT_IN_BUNDLE)
     return errors
 
 def validate_contents(repo):
@@ -207,28 +228,28 @@ def validate_contents(repo):
 
     content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
     if not content_list.ok:
-        return ["Unable to pull repo contents"]
+        return [ERROR_UNABLE_PULL_REPO_CONTENTS]
 
     content_list = content_list.json()
     files = [x["name"] for x in content_list]
 
     errors = []
     if ".pylintrc" not in files:
-        errors.append("Missing lint config")
+        errors.append(ERROR_MISSING_LINT)
 
     if ".travis.yml" in files:
         file_info = content_list[files.index(".travis.yml")]
         if file_info["size"] > 1000:
-            errors.append("Old travis config")
+            errors.append(ERROR_OLD_TRAVIS_CONFIG)
     else:
-        errors.append("Missing .travis.yml")
+        errors.append(ERROR_MISSING_TRAVIS_CONFIG)
 
     if "readthedocs.yml" in files:
         file_info = content_list[files.index("readthedocs.yml")]
         if file_info["sha"] != "f4243ad548bc5e4431f2d3c5d486f6c9c863888b":
-            errors.append("Mismatched readthedocs.yml")
+            errors.append(ERROR_MISMATCHED_READTHEDOCS)
     else:
-        errors.append("Missing readthedocs.yml")
+        errors.append(ERROR_MISSING_READTHEDOCS)
 
     #Check for an examples folder.
     dirs = [x["name"] for x in content_list if x["type"] == "dir"]
@@ -236,13 +257,13 @@ def validate_contents(repo):
         # check for at least on .py file
         examples_list = github.get("/repos/" + repo["full_name"] + "/contents/examples")
         if not examples_list.ok:
-            errors.append("Unable to retrieve examples folder contents")
+            errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
         examples_list = examples_list.json()
         examples_files = [x["name"] for x in examples_list if x["type"] == "file" and x["name"].endswith(".py")]
         if not examples_files:
-            errors.append("Missing .py files in examples folder")
+            errors.append(ERROR_MISSING_EXAMPLE_FILES)
     else:
-        errors.append("Missing examples folder")
+        errors.append(ERROR_MISSING_EXAMPLE_FOLDER)
 
     return errors
 
@@ -268,13 +289,13 @@ def validate_travis(repo):
         if not activate.ok:
             print(activate.request.url)
             print(activate, activate.text)
-            return ["Unable to enable Travis build"]
+            return [ERROR_ENABLE_TRAVIS]
 
     env_variables = travis.get(repo_url + "/env_vars")
     if not env_variables.ok:
         #print(env_variables, env_variables.text)
         #print(env_variables.request.headers)
-        return ["Unable to read Travis env variables"]
+        return [ERROR_TRAVIS_ENV]
     env_variables = env_variables.json()
     found_token = False
     for var in env_variables["env_vars"]:
@@ -287,7 +308,7 @@ def validate_travis(repo):
             password = input("Password for " + github_user["login"] + ": ")
             full_auth = (github_user["login"], password.strip())
         if not full_auth:
-            return ["Unable to find or create (no auth) GITHUB_TOKEN env variable"]
+            return [ERROR_TRAVIS_GITHUB_TOKEN]
 
         new_access_token = {"scopes": ["public_repo"],
                             "note": "TravisCI release token for " + repo["full_name"],
@@ -295,7 +316,7 @@ def validate_travis(repo):
         token = github.post("/authorizations", json=new_access_token, auth=full_auth)
         if not token.ok:
             print(token.text)
-            return ["Token creation failed"]
+            return [ERROR_TRAVIS_TOKEN_CREATE]
 
         token = token.json()["token"]
 
@@ -305,7 +326,7 @@ def validate_travis(repo):
         new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
         if not new_var_result.ok:
             #print(new_var_result.headers, new_var_result.text)
-            return ["Unable to find or create GITHUB_TOKEN env variable"]
+            return [ERROR_TRAVIS_GITHUB_TOKEN]
     return []
 
 def validate_repo(repo):
@@ -477,7 +498,8 @@ if __name__ == "__main__":
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
 
-    list_repos_for_errors = ["Wiki should be disabled", "Likely missing CircuitPythonLibrarians team.", "Unable to enable Travis build", "Not included in bundle."]
+    list_repos_for_errors = [ERROR_WIKI_DISABLED, ERROR_MISSING_LIBRARIANS,
+    ERROR_ENABLE_TRAVIS, ERROR_NOT_IN_BUNDLE]
     for error in repos_by_error:
         if len(repos_by_error[error]) == 0:
             continue
