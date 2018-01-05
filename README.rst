@@ -102,6 +102,16 @@ Once reattached you can stop everything by CTRL-Cing repeatedly or detach again
 with CTRL-A then D. If any errors occur, a sleep command will be run so you can
 view the output before screen shuts down.
 
+To run the library statistics and validation script you must be inside this cloned
+adabot directory and run the following command:
+
+.. code-block:: shell
+
+    python3 -m adabot.circuitpython_libraries
+
+Ensure you have set BOTH the Github access token and Travis token environment
+variables beforehand--see the template-env.sh for the name and where to get tokens.
+
 Contributing
 ============
 
