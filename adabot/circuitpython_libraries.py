@@ -49,6 +49,13 @@ ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
 ERROR_WIKI_DISABLED = "Wiki should be disabled"
 
+# Constant for bundle repo name.
+BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
+
+# Repos to ignore for validation they exist in the bundle.  Add repos by their
+# full name on Github (like Adafruit_CircuitPython_Bundle).
+BUNDLE_IGNORE_LIST = [BUNDLE_REPO_NAME]
+
 
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
@@ -209,8 +216,9 @@ def validate_repo_state(repo):
     if not repo["permissions"]["push"]:
         errors.append(ERROR_MISSING_LIBRARIANS)
     if not is_repo_in_bundle(full_repo["clone_url"], bundle_submodules) and \
-       not repo["name"] == "Adafruit_CircuitPython_Bundle":  # Bundle doesn't
-                                                             # bundle itself.
+       not repo["name"] in BUNDLE_IGNORE_LIST:  # Don't assume the bundle will
+                                                # bundle itself and possibly
+                                                # other repos.
         errors.append(ERROR_NOT_IN_BUNDLE)
     return errors
 
@@ -223,7 +231,7 @@ def validate_contents(repo):
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
-    if repo["name"] == "Adafruit_CircuitPython_Bundle":
+    if repo["name"] == BUNDLE_REPO_NAME:
         return []
 
     content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
