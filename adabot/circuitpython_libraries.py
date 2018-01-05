@@ -88,6 +88,10 @@ def parse_gitmodules(input_text):
     return results
 
 def list_repos():
+    """Return a list of all Adafruit repositories that start with
+    Adafruit_CircuitPython.  Each list item is a dictionary of GitHub API
+    repository state.
+    """
     repos = []
     result = github.get("/search/repositories",
                         params={"q":"Adafruit_CircuitPython in:name fork:true",
@@ -113,6 +117,10 @@ def list_repos():
     return repos
 
 def validate_repo(repo):
+    """Validate a repository meets current CircuitPython criteria.  Expects
+    a dictionary with a GitHub API repository state (like from the list_repos
+    function).  Returns a list of string error messages for the repository.
+    """
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
@@ -129,6 +137,11 @@ def validate_repo(repo):
     return errors
 
 def validate_contents(repo):
+    """Validate the contents of a repository meets current CircuitPython
+    criteria (within reason, functionality checks are not possible).  Expects
+    a dictionary with a GitHub API repository state (like from the list_repos
+    function).  Returns a list of string error messages for the repository.
+    """
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
@@ -179,6 +192,12 @@ def validate_contents(repo):
 full_auth = None
 
 def validate_travis(repo):
+    """Validate and configure a repository has the expected state in Travis
+    CI.  This will both check Travis state and attempt to enable Travis CI
+    and setup the expected state in Travis if not enabled.  Expects a
+    dictionary with a GitHub API repository state (like from the list_repos
+    function).  Returns a list of string error messages for the repository.
+    """
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
@@ -237,12 +256,20 @@ def validate_travis(repo):
 validators = [validate_repo, validate_travis, validate_contents]
 
 def validate_repo(repo):
+    """Run all the current validation functions on the provided repository and
+    return their results as a list of string errors.
+    """
     errors = []
     for validator in validators:
         errors.extend(validator(repo))
     return errors
 
 def gather_insights(repo, insights, since):
+    """Gather analytics about a repository like open and merged pull requests.
+    This expects a dictionary with GitHub API repository state (like from the
+    list_repos function) and will fill in the provided insights dictionary
+    with analytics it computes for the repository.
+    """
     if repo["owner"]["login"] != "adafruit":
         return
     params = {"sort": "updated",
@@ -294,6 +321,7 @@ def gather_insights(repo, insights, since):
             insights["open_issues"].append(issue["html_url"])
 
 def print_circuitpython_download_stats():
+    """Gather and report analytics on the main CircuitPython repository."""
     response = github.get("/repos/adafruit/circuitpython/releases")
     if not response.ok:
         print("request failed")
