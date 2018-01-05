@@ -27,9 +27,10 @@ TODO(description)
 
 * Author(s): Scott Shawcroft
 """
-
 import os
+
 import requests
+
 
 def _fix_url(url):
     if url.startswith("/"):
