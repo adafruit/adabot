@@ -29,6 +29,15 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 
 
+# Define global state shared by the functions below:
+# Github authentication password/token.  Used to generate new tokens.
+full_auth = None
+# Functions to run on repositories to validate their state.  By convention these
+# return a list of string errors for the specified repository (a dictionary
+# of Github API repository object state).
+validators = [validate_repo, validate_travis, validate_contents]
+
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -189,8 +198,6 @@ def validate_contents(repo):
 
     return errors
 
-full_auth = None
-
 def validate_travis(repo):
     """Validate and configure a repository has the expected state in Travis
     CI.  This will both check Travis state and attempt to enable Travis CI
@@ -252,8 +259,6 @@ def validate_travis(repo):
             #print(new_var_result.headers, new_var_result.text)
             return ["Unable to find or create GITHUB_TOKEN env variable"]
     return []
-
-validators = [validate_repo, validate_travis, validate_contents]
 
 def validate_repo(repo):
     """Run all the current validation functions on the provided repository and
