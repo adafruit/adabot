@@ -130,31 +130,45 @@ def get_bundle_submodules():
         raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
     return parse_gitmodules(result.text)
 
+def sanitize_url(url):
+    """Convert a Github repository URL into a format which can be compared for
+    equality with simple string comparison.  Will strip out any leading URL
+    scheme, set consistent casing, and remove any optional .git suffix.  The
+    attempt is to turn a URL from Github (which can be one of many different
+    schemes with and without suffxes) into canonical values for easy comparison.
+    """
+    # Make the url lower case to perform case-insensitive comparisons.
+    # This might not actually be correct if Github cares about case (assumption
+    # is no Github does not, but this is unverified).
+    url = url.lower()
+    # Strip out any preceding http://, https:// or git:// from the URL to
+    # make URL comparisons safe (probably better to explicitly parse using
+    # a URL module in the future).
+    scheme_end = url.find('://')
+    if scheme_end >= 0:
+        url = url[scheme_end:]
+    # Strip out any .git suffix if it exists.
+    if url.endswith('.git'):
+        url = url[:-4]
+    return url
+
 def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     """Return a boolean indicating if the specified repository (the clone URL
     as a string) is in the bundle.  Specify bundle_submodules as a dictionary
     of bundle submodule state returned by get_bundle_submodules.
     """
-    # Strip out any preceding http://, https:// or git:// from the URL to
-    # make URL comparisons safe (probably better to explicitly parse using
-    # a URL module in the future).
-    scheme_end = repo_clone_url.find('://')
-    if scheme_end >= 0:
-        repo_clone_url = repo_clone_url[scheme_end:]
+    # Sanitize url for easy comparison.
+    repo_clone_url = sanitize_url(repo_clone_url)
     # Search all the bundle submodules for any that have a URL which matches
     # this clone URL.  Not the most efficient search but it's a handful of
     # items in the bundle.
     for submodule in bundle_submodules:
         name, variables = submodule
         submodule_url = variables.get('url', '')
-        # Again strip off any preceding URL scheme to compare.
-        scheme_end = submodule_url.find('://')
-        if scheme_end >= 0:
-            submodule_url = submodule_url[scheme_end:]
         # Compare URLs and skip to the next submodule if it's not a match.
         # Right now this is a case sensitive compare, but perhaps it should
         # be insensitive in the future (unsure if Github repos are sensitive).
-        if repo_clone_url != submodule_url:
+        if repo_clone_url != sanitize_url(submodule_url):
             continue
         # URLs matched so now check if the submodule is placed in the libraries
         # subfolder of the bundle.  Just look at the path from the submodule
