@@ -98,9 +98,6 @@ def update_bundle(bundle_path):
     # sh fails to find the subcommand so we use subprocess.
     subprocess.run(shlex.split("git submodule foreach 'git checkout -q `git rev-list --tags --max-count=1`'"), stdout=subprocess.DEVNULL)
 
-    # Don't update circuitpython, its going away soon.
-    git.submodule("update", "circuitpython")
-
     status = StringIO()
     result = git.status("--short", _out=status)
     updates = []
@@ -109,7 +106,7 @@ def update_bundle(bundle_path):
         for status_line in status.split("\n"):
             action, directory = status_line.split()
             if action != "M" or not directory.startswith("libraries"):
-                RuntimeError("Unsupported updates")
+                raise RuntimeError("Unsupported updates")
 
             # Compute the tag difference.
             diff = StringIO()
@@ -209,23 +206,33 @@ def new_release(bundle, bundle_path):
     repo_links = {}
 
     output = StringIO()
-    git.diff("--submodule=log", last_tag + "..", _out=output)
+    git.diff("--submodule=short", last_tag + "..", _out=output)
     output = output.getvalue().strip()
     if not output:
         print("Everything is already released.")
         return
+    current_submodule = None
+    current_index = None
     for line in output.split("\n"):
-        if not line.startswith("Submodule"):
+        if line.startswith("diff"):
+            current_submodule = line.split()[-1][len("b/"):]
             continue
-        line = line.split()
-        directory = line[1]
-        if directory == "circuitpython":
+        elif "index" in line:
+            current_index = line
             continue
-        commit_range = line[2].strip(":")
+        elif not line.startswith("+Subproject"):
+            continue
+
+        # We have a candidate submodule change.
+        directory = current_submodule
+        commit_range = current_index.split()[1]
         library_name = directory.split("/")[-1]
         if commit_range.startswith("0000000"):
             added_submodules.append(library_name)
             commit_range = commit_range.split(".")[-1]
+        elif commit_range.endswith("0000000"):
+            # For now, skip documenting deleted modules.
+            continue
         else:
             updated_submodules.append(library_name)
 
@@ -261,7 +268,7 @@ def new_release(bundle, bundle_path):
 
     release_description.append("\n--------------------------\n")
 
-    release_description.append("The libraries in each release are compiled for all recent major versions of CircuitPython. Please download the one that matches your version of CircuitPython. For example, download the bundle with `2.x` in the filename for CircuitPython versions 2.0.0 and 2.1.0.\n")
+    release_description.append("The libraries in each release are compiled for all recent major versions of CircuitPython. Please download the one that matches your version of CircuitPython. You may need to update your CircuitPython if your version isn't available. For example, if you are running 2.1.0 you should update to 2.2.0 and get a bundle for 2.2.0.\n")
 
     release_description.append("To install, simply download the matching zip file, unzip it, and copy the lib folder onto your CIRCUITPY drive. Non-express boards such as the [Trinket M0](https://www.adafruit.com/product/3500), [Gemma M0](https://www.adafruit.com/product/3501) and [Feather M0 Basic](https://www.adafruit.com/product/2772) will need to selectively copy files over.")
 
@@ -274,8 +281,11 @@ def new_release(bundle, bundle_path):
         "prerelease": False}
 
     print("Releasing {}".format(release["tag_name"]))
+    print(release["body"])
     response = github.post("/repos/adafruit/" + bundle + "/releases", json=release)
     if not response.ok:
+        print("Failed to create release")
+        print(release)
         print(response.request.url)
         print(response.text)
 
@@ -285,9 +295,13 @@ if __name__ == "__main__":
     directory = os.path.abspath(".bundles")
     for bundle in bundles:
         bundle_path = os.path.join(directory, bundle)
-        fetch_bundle(bundle, bundle_path)
-        update_info = update_bundle(bundle_path)
-        if update_info:
-            commit_updates(bundle_path, update_info)
-            push_updates(bundle_path)
-        new_release(bundle, bundle_path)
+        try:
+            fetch_bundle(bundle, bundle_path)
+            update_info = update_bundle(bundle_path)
+            if update_info:
+                commit_updates(bundle_path, update_info)
+                push_updates(bundle_path)
+            new_release(bundle, bundle_path)
+        except RuntimeError as e:
+            print("Failed to update and release:", bundle)
+            print(e)
