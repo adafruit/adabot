@@ -48,6 +48,7 @@ ERROR_UNABLE_PULL_REPO_CONTENTS = "Unable to pull repo contents"
 ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
 ERROR_WIKI_DISABLED = "Wiki should be disabled"
+ERROR_ONLY_ALLOW_MERGES = "Only allow merges, disallow rebase and squash"
 
 # Constant for bundle repo name.
 BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
@@ -234,6 +235,8 @@ def validate_repo_state(repo):
                                                 # bundle itself and possibly
                                                 # other repos.
         errors.append(ERROR_NOT_IN_BUNDLE)
+    if full_repo["allow_squash_merge"] or full_repo["allow_rebase_merge"]:
+        errors.append(ERROR_ONLY_ALLOW_MERGES)
     return errors
 
 def validate_contents(repo):
