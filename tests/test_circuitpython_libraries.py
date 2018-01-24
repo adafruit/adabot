@@ -97,5 +97,28 @@ class TestIsRepoInBundle(unittest.TestCase):
         self.assertFalse(result)
 
 
+class TestSanitizeUrl(unittest.TestCase):
+
+    def test_comparing_different_scheme(self):
+        test_a = circuitpython_libraries.sanitize_url('http://foo.bar/foobar.git')
+        test_b = circuitpython_libraries.sanitize_url('https://foo.bar/foobar.git')
+        self.assertEqual(test_a, test_b)
+
+    def test_comparing_different_case(self):
+        test_a = circuitpython_libraries.sanitize_url('http://FOO.bar/foobar.git')
+        test_b = circuitpython_libraries.sanitize_url('http://foo.bar/foobar.git')
+        self.assertEqual(test_a, test_b)
+
+    def test_comparing_different_git_suffix(self):
+        test_a = circuitpython_libraries.sanitize_url('http://foo.bar/foobar.git')
+        test_b = circuitpython_libraries.sanitize_url('http://foo.bar/foobar')
+        self.assertEqual(test_a, test_b)
+
+    def test_comparing_different_urls(self):
+        test_a = circuitpython_libraries.sanitize_url('http://foo.bar/fooba.git')
+        test_b = circuitpython_libraries.sanitize_url('http://foo.bar/foobar')
+        self.assertNotEqual(test_a, test_b)
+
+
 if __name__=='__main__':
     unittest.main()
