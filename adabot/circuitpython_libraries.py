@@ -497,8 +497,6 @@ if __name__ == "__main__":
                 repos_by_error[error] = []
             repos_by_error[error].append(repo["html_url"])
         gather_insights(repo, insights, since)
-    circuitpython_repo = github.get("/repos/adafruit/circuitpython").json()
-    gather_insights(circuitpython_repo, insights, since)
     print("State of CircuitPython + Libraries")
     print("* {} pull requests merged".format(insights["merged_prs"]))
     authors = insights["pr_merged_authors"]
@@ -520,12 +518,13 @@ if __name__ == "__main__":
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
 
-    list_repos_for_errors = [ERROR_WIKI_DISABLED, ERROR_MISSING_LIBRARIANS,
-    ERROR_ENABLE_TRAVIS, ERROR_NOT_IN_BUNDLE]
+    list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
+
     for error in repos_by_error:
         if len(repos_by_error[error]) == 0:
             continue
         print()
-        print(error, "- {}".format(len(repos_by_error[error])))
-        if error in list_repos_for_errors:
+        error_count = len(repos_by_error[error])
+        print(error, "- {}".format(error_count))
+        if error_count <= 5 or error in list_repos_for_errors:
             print("\n".join(repos_by_error[error]))
