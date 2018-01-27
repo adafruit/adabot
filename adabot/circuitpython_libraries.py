@@ -688,6 +688,6 @@ if __name__ == "__main__":
             continue
         print()
         error_count = len(repos_by_error[error])
-        print(error, "- {}".format(error_count))
+        print("{} - {}".format(error, error_count))
         if error_count <= 5 or error in list_repos_for_errors:
             print("\n".join(repos_by_error[error]))
