@@ -31,16 +31,25 @@ from adabot import travis_requests as travis
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
+ERROR_README_DOWNLOAD_FAILED = "Failed to download README"
+ERROR_README_IMAGE_MISSING_ALT = "README image missing alt text"
+ERROR_README_DUPLICATE_ALT_TEXT = "README has duplicate alt text"
+ERROR_README_MISSING_DISCORD_BADGE = "README missing Discord badge"
+ERROR_README_MISSING_RTD_BADGE = "README missing ReadTheDocs badge"
+ERROR_README_MISSING_TRAVIS_BADGE = "README missing Travis badge"
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yml"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
 ERROR_MISSING_LIBRARIANS = "Likely missing CircuitPythonLibrarians team."
 ERROR_MISSING_LICENSE = "Missing license."
 ERROR_MISSING_LINT = "Missing lint config"
+ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
+ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yml"
 ERROR_MISSING_TRAVIS_CONFIG = "Missing .travis.yml"
 ERROR_NOT_IN_BUNDLE = "Not in bundle."
 ERROR_OLD_TRAVIS_CONFIG = "Old travis config"
+ERROR_TRAVIS_DOESNT_KNOW_REPO = "Travis doesn't know of repo"
 ERROR_TRAVIS_ENV = "Unable to read Travis env variables"
 ERROR_TRAVIS_GITHUB_TOKEN = "Unable to find or create (no auth) GITHUB_TOKEN env variable"
 ERROR_TRAVIS_TOKEN_CREATE = "Token creation failed"
@@ -48,6 +57,21 @@ ERROR_UNABLE_PULL_REPO_CONTENTS = "Unable to pull repo contents"
 ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
 ERROR_WIKI_DISABLED = "Wiki should be disabled"
+ERROR_ONLY_ALLOW_MERGES = "Only allow merges, disallow rebase and squash"
+ERROR_RTD_SUBPROJECT_FAILED = "Failed to list CircuitPython subprojects on ReadTheDocs"
+ERROR_RTD_SUBPROJECT_MISSING = "ReadTheDocs missing as a subproject on CircuitPython"
+ERROR_RTD_ADABOT_MISSING = "ReadTheDocs project missing adabot as owner"
+ERROR_RTD_VALID_VERSIONS_FAILED = "Failed to fetch ReadTheDocs valid versions"
+ERROR_RTD_FAILED_TO_LOAD_BUILDS = "Unable to load builds webpage"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_INFO = "Failed to load build info"
+ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or errors"
+ERROR_RTD_AUTODOC_FAILED = "Autodoc failed on ReadTheDocs. (Likely need to automock an import.)"
+ERROR_RTD_SPHINX_FAILED = "Sphinx missing files"
+ERROR_GITHUB_RELEASE_FAILED = "Failed to fetch latest release from GitHub"
+ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Likely the webhook isn't set up correctly.)"
+
+# These are warnings or errors that sphinx generate that we're ok ignoring.
+RTD_IGNORE_NOTICES = ("WARNING: html_static_path entry", "WARNING: nonlocal image URI found:")
 
 # Constant for bundle repo name.
 BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
@@ -56,6 +80,8 @@ BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
 # full name on Github (like Adafruit_CircuitPython_Bundle).
 BUNDLE_IGNORE_LIST = [BUNDLE_REPO_NAME]
 
+# Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
+rtd_subprojects = None
 
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
@@ -234,6 +260,45 @@ def validate_repo_state(repo):
                                                 # bundle itself and possibly
                                                 # other repos.
         errors.append(ERROR_NOT_IN_BUNDLE)
+    if "allow_squash_merge" not in full_repo or full_repo["allow_squash_merge"] or full_repo["allow_rebase_merge"]:
+        errors.append(ERROR_ONLY_ALLOW_MERGES)
+    return errors
+
+def validate_readme(repo, download_url):
+    # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
+    contents = requests.get(download_url)
+    if not contents.ok:
+        return [ERROR_README_DOWNLOAD_FAILED]
+
+    errors = []
+    badges = {}
+    current_image = None
+    for line in contents.text.split("\n"):
+        if line.startswith(".. image"):
+            current_image = {}
+
+        if line.strip() == "" and current_image is not None:
+            if "alt" not in current_image:
+                errors.append(ERROR_README_IMAGE_MISSING_ALT)
+            elif current_image["alt"] in badges:
+                errors.append(ERROR_README_DUPLICATE_ALT_TEXT)
+            else:
+                badges[current_image["alt"]] = current_image
+            current_image = None
+        elif current_image is not None:
+            first, second, value = line.split(":", 2)
+            key = first.strip(" .") + second.strip()
+            current_image[key] = value.strip()
+
+    if "Discord" not in badges:
+        errors.append(ERROR_README_MISSING_DISCORD_BADGE)
+
+    if "Documentation Status" not in badges:
+        errors.append(ERROR_README_MISSING_RTD_BADGE)
+
+    if "Build Status" not in badges:
+        errors.append(ERROR_README_MISSING_TRAVIS_BADGE)
+
     return errors
 
 def validate_contents(repo):
@@ -258,6 +323,19 @@ def validate_contents(repo):
     errors = []
     if ".pylintrc" not in files:
         errors.append(ERROR_MISSING_LINT)
+
+    if "CODE_OF_CONDUCT.md" not in files:
+        errors.append(ERROR_MISSING_CODE_OF_CONDUCT)
+
+    if "README.rst" not in files:
+        errors.append(ERROR_MISSING_README_RST)
+    else:
+        readme_info = None
+        for f in content_list:
+            if f["name"] == "README.rst":
+                readme_info = f
+                break
+        errors.extend(validate_readme(repo, readme_info["download_url"]))
 
     if ".travis.yml" in files:
         file_info = content_list[files.index(".travis.yml")]
@@ -304,7 +382,7 @@ def validate_travis(repo):
     if not result.ok:
         #print(result, result.request.url, result.request.headers)
         #print(result.text)
-        return ["Travis error with repo:", repo["full_name"]]
+        return [ERROR_TRAVIS_DOESNT_KNOW_REPO]
     result = result.json()
     if not result["active"]:
         activate = travis.post(repo_url + "/activate")
@@ -350,6 +428,91 @@ def validate_travis(repo):
             #print(new_var_result.headers, new_var_result.text)
             return [ERROR_TRAVIS_GITHUB_TOKEN]
     return []
+
+def validate_readthedocs(repo):
+    if not (repo["owner"]["login"] == "adafruit" and
+            repo["name"].startswith("Adafruit_CircuitPython")):
+        return []
+    if repo["name"] in BUNDLE_IGNORE_LIST:
+        return []
+    global rtd_subprojects
+    if not rtd_subprojects:
+        rtd_response = requests.get("https://readthedocs.org/api/v2/project/74557/subprojects/")
+        if not rtd_response.ok:
+            return [ERROR_RTD_SUBPROJECT_FAILED]
+        rtd_subprojects = {}
+        for subproject in rtd_response.json()["subprojects"]:
+            rtd_subprojects[sanitize_url(subproject["repo"])] = subproject
+
+    repo_url = sanitize_url(repo["clone_url"])
+    if repo_url not in rtd_subprojects:
+        return [ERROR_RTD_SUBPROJECT_MISSING]
+
+    errors = []
+    subproject = rtd_subprojects[repo_url]
+
+    if 105398 not in subproject["users"]:
+        errors.append(ERROR_RTD_ADABOT_MISSING)
+
+    valid_versions = requests.get(
+        "https://readthedocs.org/api/v2/project/{}/valid_versions/".format(subproject["id"]))
+    if not valid_versions.ok:
+        errors.append(ERROR_RTD_VALID_VERSIONS_FAILED)
+    else:
+        valid_versions = valid_versions.json()
+        latest_release = github.get("/repos/{}/releases/latest".format(repo["full_name"]))
+        if not latest_release.ok:
+            errors.append(ERROR_GITHUB_RELEASE_FAILED)
+        else:
+            if latest_release.json()["tag_name"] not in valid_versions["flat"]:
+                errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
+
+    # There is no API which gives access to a list of builds for a project so we parse the html
+    # webpage.
+    builds_webpage = requests.get(
+        "https://readthedocs.org/projects/{}/builds/".format(subproject["slug"]))
+    if not builds_webpage.ok:
+        errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILDS)
+    else:
+        for line in builds_webpage.text.split("\n"):
+            if "<div id=\"build-" in line:
+                build_id = line.split("\"")[1][len("build-"):]
+                # We only validate the most recent build. So, break when the first is found.
+                break
+        build_info = requests.get("https://readthedocs.org/api/v2/build/{}/".format(build_id))
+        if not build_info.ok:
+            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_INFO)
+        else:
+            build_info = build_info.json()
+            output_ok = True
+            autodoc_ok = True
+            sphinx_ok = True
+            for command in build_info["commands"]:
+                if command["command"].endswith("_build/html"):
+                    for line in command["output"].split("\n"):
+                        if "... " in line:
+                            _, line = line.split("... ")
+                        if "WARNING" in line or "ERROR" in line:
+                            if not line.startswith(("WARNING", "ERROR")):
+                                line = line.split(" ", 1)[1]
+                            if not line.startswith(RTD_IGNORE_NOTICES):
+                                output_ok = False
+                                print("error:", line)
+                        elif line.startswith("ImportError"):
+                            print(line)
+                            autodoc_ok = False
+                        elif line.startswith("sphinx.errors") or line.startswith("SphinxError"):
+                            print(line)
+                            sphinx_ok = False
+                    break
+            if not output_ok:
+                errors.append(ERROR_RTD_OUTPUT_HAS_WARNINGS)
+            if not autodoc_ok:
+                errors.append(ERROR_RTD_AUTODOC_FAILED)
+            if not sphinx_ok:
+                errors.append(ERROR_RTD_SPHINX_FAILED)
+
+    return errors
 
 def validate_repo(repo):
     """Run all the current validation functions on the provided repository and
@@ -450,7 +613,7 @@ full_auth = None
 # Functions to run on repositories to validate their state.  By convention these
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
-validators = [validate_repo_state, validate_travis, validate_contents]
+validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs]
 # Submodules inside the bundle (result of get_bundle_submodules)
 bundle_submodules = []
 
@@ -497,8 +660,6 @@ if __name__ == "__main__":
                 repos_by_error[error] = []
             repos_by_error[error].append(repo["html_url"])
         gather_insights(repo, insights, since)
-    circuitpython_repo = github.get("/repos/adafruit/circuitpython").json()
-    gather_insights(circuitpython_repo, insights, since)
     print("State of CircuitPython + Libraries")
     print("* {} pull requests merged".format(insights["merged_prs"]))
     authors = insights["pr_merged_authors"]
@@ -520,12 +681,13 @@ if __name__ == "__main__":
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
 
-    list_repos_for_errors = [ERROR_WIKI_DISABLED, ERROR_MISSING_LIBRARIANS,
-    ERROR_ENABLE_TRAVIS, ERROR_NOT_IN_BUNDLE]
+    list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
+
     for error in repos_by_error:
         if len(repos_by_error[error]) == 0:
             continue
         print()
-        print(error, "- {}".format(len(repos_by_error[error])))
-        if error in list_repos_for_errors:
+        error_count = len(repos_by_error[error])
+        print("{} - {}".format(error, error_count))
+        if error_count <= 5 or error in list_repos_for_errors:
             print("\n".join(repos_by_error[error]))
