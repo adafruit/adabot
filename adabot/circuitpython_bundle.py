@@ -184,7 +184,9 @@ def get_contributors(repo, commit_range):
 
 def repo_name(url):
     # Strips off .git and splits on /
-    url = url[:-4].split("/")
+    if url.endswith(".git"):
+        url = url[:-4]
+    url = url.split("/")
     return url[-2] + "/" + url[-1]
 
 def add_contributors(master_list, additions):
