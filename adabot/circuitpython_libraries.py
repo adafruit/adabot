@@ -68,7 +68,9 @@ ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or er
 ERROR_RTD_AUTODOC_FAILED = "Autodoc failed on ReadTheDocs. (Likely need to automock an import.)"
 ERROR_RTD_SPHINX_FAILED = "Sphinx missing files"
 ERROR_GITHUB_RELEASE_FAILED = "Failed to fetch latest release from GitHub"
-ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Likely the webhook isn't set up correctly.)"
+ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is released. Only on pushes.)"
+ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = "Failed to download drivers page from CircuitPython docs"
+ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing driver"
 
 # These are warnings or errors that sphinx generate that we're ok ignoring.
 RTD_IGNORE_NOTICES = ("WARNING: html_static_path entry", "WARNING: nonlocal image URI found:")
@@ -82,6 +84,9 @@ BUNDLE_IGNORE_LIST = [BUNDLE_REPO_NAME]
 
 # Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
 rtd_subprojects = None
+
+# Cache the CircuitPython driver page so we can make sure every driver is linked to.
+core_driver_page = None
 
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
@@ -480,7 +485,9 @@ def validate_readthedocs(repo):
         for line in builds_webpage.text.split("\n"):
             if "<div id=\"build-" in line:
                 build_id = line.split("\"")[1][len("build-"):]
-                # We only validate the most recent build. So, break when the first is found.
+            # We only validate the most recent, latest build. So, break when the first "version
+            # latest" found. Its in the page after the build id.
+            if "version latest" in line:
                 break
         build_info = requests.get("https://readthedocs.org/api/v2/build/{}/".format(build_id))
         if not build_info.ok:
@@ -500,12 +507,9 @@ def validate_readthedocs(repo):
                                 line = line.split(" ", 1)[1]
                             if not line.startswith(RTD_IGNORE_NOTICES):
                                 output_ok = False
-                                print("error:", line)
                         elif line.startswith("ImportError"):
-                            print(line)
                             autodoc_ok = False
                         elif line.startswith("sphinx.errors") or line.startswith("SphinxError"):
-                            print(line)
                             sphinx_ok = False
                     break
             if not output_ok:
@@ -516,6 +520,24 @@ def validate_readthedocs(repo):
                 errors.append(ERROR_RTD_SPHINX_FAILED)
 
     return errors
+
+def validate_core_driver_page(repo):
+    if not (repo["owner"]["login"] == "adafruit" and
+            repo["name"].startswith("Adafruit_CircuitPython")):
+        return []
+    if repo["name"] in BUNDLE_IGNORE_LIST:
+        return []
+    global core_driver_page
+    if not core_driver_page:
+        driver_page = requests.get("https://raw.githubusercontent.com/adafruit/circuitpython/master/docs/drivers.rst")
+        if not driver_page.ok:
+            return [ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED]
+        core_driver_page = driver_page.text
+
+    repo_short_name = repo["name"][len("Adafruit_CircuitPython_"):].lower()
+    if "https://circuitpython.readthedocs.io/projects/" + repo_short_name + "/en/latest/" not in core_driver_page:
+        return [ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER]
+    return []
 
 def validate_repo(repo):
     """Run all the current validation functions on the provided repository and
@@ -616,7 +638,8 @@ full_auth = None
 # Functions to run on repositories to validate their state.  By convention these
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
-validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs]
+validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs,
+              validate_core_driver_page]
 # Submodules inside the bundle (result of get_bundle_submodules)
 bundle_submodules = []
 
