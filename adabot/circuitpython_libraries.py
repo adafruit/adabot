@@ -37,6 +37,10 @@ ERROR_README_DUPLICATE_ALT_TEXT = "README has duplicate alt text"
 ERROR_README_MISSING_DISCORD_BADGE = "README missing Discord badge"
 ERROR_README_MISSING_RTD_BADGE = "README missing ReadTheDocs badge"
 ERROR_README_MISSING_TRAVIS_BADGE = "README missing Travis badge"
+ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
+ERROR_PYFILE_MISSING_STRUCT = ".py file contains reference to import ustruct" \
+" without reference to import struct.  See issue " \
+"https://github.com/adafruit/circuitpython/issues/782"
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yml"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
@@ -71,6 +75,8 @@ ERROR_GITHUB_RELEASE_FAILED = "Failed to fetch latest release from GitHub"
 ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is released. Only on pushes.)"
 ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = "Failed to download drivers page from CircuitPython docs"
 ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing driver"
+ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
+ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 
 # These are warnings or errors that sphinx generate that we're ok ignoring.
 RTD_IGNORE_NOTICES = ("WARNING: html_static_path entry", "WARNING: nonlocal image URI found:")
@@ -306,6 +312,27 @@ def validate_readme(repo, download_url):
 
     return errors
 
+def validate_py_for_ustruct(repo, download_url):
+    """ For a .py file, look for usage of "import ustruct" and
+        look for "import struct".  If the "import ustruct" is
+        used with NO "import struct" generate an error.
+    """
+    # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
+    contents = requests.get(download_url)
+    if not contents.ok:
+        return [ERROR_PYFILE_DOWNLOAD_FAILED]
+
+    errors = []
+
+    lines = contents.text.split("\n")
+    ustruct_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*ustruct", l)]
+    struct_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*struct", l)]
+    if ustruct_lines and not struct_lines:
+        errors.append(ERROR_PYFILE_MISSING_STRUCT)
+
+    return errors
+
+
 def validate_contents(repo):
     """Validate the contents of a repository meets current CircuitPython
     criteria (within reason, functionality checks are not possible).  Expects
@@ -372,6 +399,28 @@ def validate_contents(repo):
             errors.append(ERROR_MISSING_EXAMPLE_FILES)
     else:
         errors.append(ERROR_MISSING_EXAMPLE_FOLDER)
+
+    # first location .py files whose names begin with "adafruit_"
+    re_str = re.compile('adafruit\_[\w]*\.py')
+    pyfiles = [x["download_url"] for x in content_list if re_str.fullmatch(x["name"])]
+    for pyfile in pyfiles:
+        # adafruit_xxx.py file; check if for proper usage of ustruct
+        errors.extend(validate_py_for_ustruct(repo, pyfile))
+
+    # now location any directories whose names begin with "adafruit_"
+    re_str = re.compile('adafruit\_[\w]*')
+    for adir in dirs:
+        if re_str.fullmatch(adir):
+            # retrieve the files in that directory
+            dir_file_list = github.get("/repos/" + repo["full_name"] + "/contents/" + adir)
+            if not dir_file_list.ok:
+                errors.append(ERROR_UNABLE_PULL_REPO_DIR)
+            dir_file_list = dir_file_list.json()
+            # search for .py files in that directory
+            dir_files = [x["download_url"] for x in dir_file_list if x["type"] == "file" and x["name"].endswith(".py")]
+            for dir_file in dir_files:
+                # .py files in subdirectory adafruit_xxx; check if for proper usage of ustruct
+                errors.extend(validate_py_for_ustruct(repo, dir_file))
 
     return errors
 
@@ -710,7 +759,7 @@ if __name__ == "__main__":
     list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
 
     for error in repos_by_error:
-        if len(repos_by_error[error]) == 0:
+        if not repos_by_error[error]:
             continue
         print()
         error_count = len(repos_by_error[error])
