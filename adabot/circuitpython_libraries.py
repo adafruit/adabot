@@ -394,8 +394,7 @@ def validate_contents(repo):
         if not examples_list.ok:
             errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
         examples_list = examples_list.json()
-        examples_files = [x["name"] for x in examples_list if x["type"] == "file" and x["name"].endswith(".py")]
-        if not examples_files:
+        if len(examples_list) < 1:
             errors.append(ERROR_MISSING_EXAMPLE_FILES)
     else:
         errors.append(ERROR_MISSING_EXAMPLE_FOLDER)
