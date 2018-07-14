@@ -148,7 +148,11 @@ def push_updates(bundle_path):
 
 def get_contributors(repo, commit_range):
     output = StringIO()
-    git.log("--pretty=tformat:%H,%ae,%ce", commit_range, _out=output)
+    try:
+        git.log("--pretty=tformat:%H,%ae,%ce", commit_range, _out=output)
+    except sh.ErrorReturnCode_128:
+        print("Skipping contributors for:", repo)
+        pass
     output = output.getvalue().strip()
     contributors = {}
     if not output:
@@ -270,7 +274,7 @@ def new_release(bundle, bundle_path):
 
     release_description.append("\n--------------------------\n")
 
-    release_description.append("The libraries in each release are compiled for all recent major versions of CircuitPython. Please download the one that matches your version of CircuitPython. You may need to update your CircuitPython if your version isn't available. For example, if you are running 2.1.0 you should update to 2.2.0 and get a bundle for 2.2.0.\n")
+    release_description.append("The libraries in each release are compiled for all recent major versions of CircuitPython. Please download the one that matches the major version of your CircuitPython. For example, if you are running 3.0.0 you should download the `3.x` bundle.\n")
 
     release_description.append("To install, simply download the matching zip file, unzip it, and copy the lib folder onto your CIRCUITPY drive. Non-express boards such as the [Trinket M0](https://www.adafruit.com/product/3500), [Gemma M0](https://www.adafruit.com/product/3501) and [Feather M0 Basic](https://www.adafruit.com/product/2772) will need to selectively copy files over.")
 
