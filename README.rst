@@ -122,8 +122,10 @@ among all libraries, such as those included in the cookiecutter (e.g. README.rst
 There are many techniques to using `git format-patch`; choose the one that makes
 sense for your updates. ``--signoff`` is not necessary; adabot will force a
 ``--signoff`` when she uses ``git am``.
-3. Place the patch file into the ``adabot/patches`` directory.
-4. Run the patch update script.
+3. Place the patch file into the ``adabot/patches`` directory, and ``git commit`` with a
+description of the patch(es).
+4. Push the update to the adabot repository.
+5. Run the patch update script.
 
 
 To run the patch update script you must be inside this cloned adabot directory and
@@ -131,6 +133,9 @@ run the following command:
 
 .. code-block:: shell
 
+    # note: ensure the local clone is current with the github repo that contains the patch(es)
+    # by using git pull before running the script.
+    
     python3 -m adabot.circuitpython_library_patches
 
 Contributing
