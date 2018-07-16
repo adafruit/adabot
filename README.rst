@@ -117,12 +117,12 @@ To apply a patch to all CircuitPython libraries (only guaranteed for files share
 among all libraries, such as those included in the cookiecutter (e.g. README.rst,
 .travis.yml, etc), do the following:
 
-1. Apply your update(s) to any library as normal, using `git.commit`.
-2. Create a patch file using [`git format-patch`](https://git-scm.com/docs/git-format-patch).
+1. Apply your update(s) to any library as normal, using ``git.commit``.
+2. Create a patch file using `git format-patch <https://git-scm.com/docs/git-format-patch>`_.
 There are many techniques to using `git format-patch`; choose the one that makes
-sense for your updates. `--sign-off` is not necessary; adabot will force a
-`--sign-off` when she uses `git am`.
-3. Place the patch file into the `adabot/patches` directory.
+sense for your updates. ``--signoff`` is not necessary; adabot will force a
+``--signoff`` when she uses ``git am``.
+3. Place the patch file into the ``adabot/patches`` directory.
 4. Run the patch update script.
 
 
