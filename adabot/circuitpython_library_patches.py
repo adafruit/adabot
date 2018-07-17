@@ -16,11 +16,14 @@ apply_errors = []
 stats = []
 
 def get_repo_list():
+    """ Uses adabot.circuitpython_libraries module to get a list of
+        CircuitPython repositories. Filters the list down to adafruit
+        owned/sponsored CircuitPython libraries.
+    """
     repo_list = []
     get_repos = adabot_libraries.list_repos()
     for repo in get_repos:
-        if not (repo["owner"]["login"] == "sommersoft" and  # test repos
-        #if not (repo["owner"]["login"] == "adafruit" and
+        if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             continue
         repo_list.append(dict(name=repo["name"], url=repo["clone_url"]))
@@ -28,11 +31,12 @@ def get_repo_list():
     return repo_list
 
 def get_patches():
+    """ Returns the list of patch files located in the adabot/patches
+        directory.
+    """
     return_list = []
-    #contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
+    contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
 
-    # test contents:
-    contents = requests.get("https://api.github.com/repos/sommersoft/adabot/contents/patches?ref=patches")
     if contents.ok:
         for patch in contents.json():
             patch_name = patch["name"]
@@ -41,29 +45,35 @@ def get_patches():
     return return_list
 
 def apply_patch(repo_directory, patch_filepath, repo, patch):
+    """ Apply the `patch` in `patch_filepath` to the `repo` in
+        `repo_directory` using git am. --signoff will sign the commit
+        with the user running the script (adabot if credentials are set
+        for that).
+    """
     if not os.getcwd() == repo_directory:
         os.chdir(repo_directory)
 
     try:
         git.am("--signoff", patch_filepath)
     except sh.ErrorReturnCode as Err:
-        #print(".. git.am (patch apply) failed")
         apply_errors.append(dict(repo_name=repo,
-                               patch_name=patch, error=Err.stderr))
+                                 patch_name=patch, error=Err.stderr))
         return False
 
     try:
-        git.push("origin", "adabot_patches") # push to branch during testing
-        #git.push()
+        git.push()
     except sh.ErrorReturnCode as Err:
-        #print(".. Push failed:", Err.stderr)
         apply_errors.append(dict(repo_name=repo,
-                               patch_name=patch, error=Err.stderr))
+                                 patch_name=patch, error=Err.stderr))
         return False
 
     return True
 
 def check_patches(repo):
+    """ Gather a list of patches from the `adabot/patches` directory
+        on the adabot repo. Clone the `repo` and run git apply --check
+        to test wether it requires any of the gathered patches.
+    """
     applied = 0
     skipped = 0
     failed = 0
@@ -72,7 +82,6 @@ def check_patches(repo):
     repo_directory = lib_directory + repo["name"]
 
     for patch in patches:
-        #print(". Checking", repo["name"], "for patch:", patch)
         try:
             os.chdir(lib_directory)
         except FileNotFoundError:
@@ -84,43 +93,29 @@ def check_patches(repo):
         except sh.ErrorReturnCode_128 as Err:
             if b"already exists" in Err.stderr:
                 pass
-            else: # erring on the side of caution here
+            else:
                 raise RuntimeError(Err.stderr)
         os.chdir(repo_directory)
 
-        # delete this try block after testing
-        try:
-            git.checkout("-b", "adabot_patches")
-        except sh.ErrorReturnCode as Err:
-            if not b'already exists' in Err.stderr:
-                raise RuntimeError(Err.stderr)
-        # ^^ delete this try block after testing ^^
-
         patch_filepath = patch_directory + patch
-        #print("patch dir:", patch_filepath)
+
         try:
             git.apply("--check", patch_filepath)
             run_apply = True
         except sh.ErrorReturnCode_1:
             run_apply = False
-            #print("..", patch, "Already Applied")
             skipped += 1
         except sh.ErrorReturnCode_128 as Err:
             run_apply = False
-            #print(".. Patch check failed")
             failed += 1
             check_errors.append(dict(repo_name=repo["name"],
-                               patch_name=patch, error=Err.stderr))
+                                     patch_name=patch, error=Err.stderr))
 
         if run_apply:
-            #print(".. Applying Patch To:", repo)
-            # this is failing
             result = apply_patch(repo_directory, patch_filepath, repo["name"], patch)
             if result:
-                #print("..", patch, "Applied!")
                 applied += 1
             else:
-                #print("..", patch, "Failed!")
                 failed += 1
 
     return [applied, skipped, failed]
@@ -138,22 +133,15 @@ if __name__ == "__main__":
     print(".... Deleting any previously cloned libraries")
     libs = os.listdir(path=lib_directory)
     for lib in libs:
-        #print("..... Deleting:", lib_directory + lib)
         shutil.rmtree(lib_directory + lib)
         
 
     repos = get_repo_list()
-    run_limit = 5 # delete run_limit after testing
-    i = 0 # delete run_limit after testing
+    print(".... Running Patch Checks On", len(repos), "Repos ....")
     for repo in repos:
         results = check_patches(repo)
         for k in range(len(stats)):
             stats[k] += results[k]
-        # delete run_limit after testing
-        i += 1
-        if i >= run_limit:
-            break
-        # ^^ delete run_limit after testing ^^
 
     print(".... Patch Updates Completed ....")
     print(".... Patches Applied:", stats[0])
