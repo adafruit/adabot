@@ -70,8 +70,7 @@ for the author.
 
     git config --global user.email "<adabot's email>"
     git config --global user.name "Adafruit Adabot"
-    git config --global credential.helper 'store --file ~/.adabot-git-
-credentials'
+    git config --global credential.helper 'store --file ~/.adabot-git-credentials'
     git push
 
 The git push won't actually push anything but it prompt for the bot's username
@@ -111,6 +110,33 @@ adabot directory and run the following command:
 
 Ensure you have set BOTH the Github access token and Travis token environment
 variables beforehand--see the template-env.sh for the name and where to get tokens.
+
+Applying Patches To All CircuitPython Libraries
+================================================
+To apply a patch to all CircuitPython libraries (only guaranteed for files shared
+among all libraries, such as those included in the cookiecutter (e.g. README.rst,
+.travis.yml, etc), do the following:
+
+1. Apply your update(s) to any library as normal, using ``git.commit``.
+2. Create a patch file using `git format-patch <https://git-scm.com/docs/git-format-patch>`_.
+There are many techniques to using `git format-patch`; choose the one that makes
+sense for your updates. ``--signoff`` is not necessary; adabot will force a
+``--signoff`` when she uses ``git am``.
+3. Place the patch file into the ``adabot/patches`` directory, and ``git commit`` with a
+description of the patch(es).
+4. Push the update to the adabot repository.
+5. Run the patch update script.
+
+
+To run the patch update script you must be inside this cloned adabot directory and
+run the following command:
+
+.. code-block:: shell
+
+    # note: ensure the local clone is current with the github repo that contains the patch(es)
+    # by using git pull before running the script.
+    
+    python3 -m adabot.circuitpython_library_patches
 
 Contributing
 ============
