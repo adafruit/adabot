@@ -1,0 +1,27 @@
+From fda6742201bd78097639fc59dff79ccf9204d973 Mon Sep 17 00:00:00 2001
+From: sommersoft <sommersoft@gmail.com>
+Date: Fri, 27 Jul 2018 17:08:57 -0500
+Subject: [PATCH] force Travis to use pylint version 1.9.2 to avoid new version
+ 2.0 rules.
+
+---
+ .travis.yml | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.travis.yml b/.travis.yml
+index b49e1f0..98b1f8b 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -23,7 +23,8 @@ deploy:
+     tags: true
+ 
+ install:
+-  - pip install pylint circuitpython-build-tools Sphinx sphinx-rtd-theme
++  - pip install circuitpython-build-tools Sphinx sphinx-rtd-theme
++  - pip install --force-reinstall pylint==1.9.2
+ 
+ script:
+   - pylint adafruit_thermistor.py
+-- 
+2.15.1.windows.2
+
