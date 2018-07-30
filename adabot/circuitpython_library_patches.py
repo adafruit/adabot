@@ -131,13 +131,16 @@ if __name__ == "__main__":
     stats = [0, 0, 0]
 
     print(".... Deleting any previously cloned libraries")
-    libs = os.listdir(path=lib_directory)
-    for lib in libs:
-        shutil.rmtree(lib_directory + lib)
-        
+    try:
+        libs = os.listdir(path=lib_directory)
+        for lib in libs:
+            shutil.rmtree(lib_directory + lib)
+    except FileNotFoundError:
+        pass    
 
     repos = get_repo_list()
     print(".... Running Patch Checks On", len(repos), "Repos ....")
+
     for repo in repos:
         results = check_patches(repo)
         for k in range(len(stats)):
