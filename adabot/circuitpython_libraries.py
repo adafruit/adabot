@@ -719,6 +719,7 @@ def gather_insights(repo, insights, since):
             insights["open_issues"].append(issue["html_url"])
 
 def repo_is_in_pypi(repo):
+    """returns True when the provided repository is in pypi"""
     is_in = False
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
@@ -732,6 +733,7 @@ def repo_is_in_pypi(repo):
     return is_in
 
 def print_in_pypi(repos):
+    """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
     print("")
     print("Repositories in PyPi:")
     repos_in_pypi_count = 0
