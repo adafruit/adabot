@@ -27,6 +27,7 @@ import requests
 
 from adabot import github_requests as github
 from adabot import travis_requests as travis
+from adabot import pypi_requests as pypi
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -51,6 +52,10 @@ ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yml"
 ERROR_MISSING_TRAVIS_CONFIG = "Missing .travis.yml"
+ERROR_MISSING_PYPIPROVIDER = "For pypi compatibility, missing pypi provider in .travis.yml"
+ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
+ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
+ERROR_MISSING_BLINKA = "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 ERROR_NOT_IN_BUNDLE = "Not in bundle."
 ERROR_OLD_TRAVIS_CONFIG = "Old travis config"
 ERROR_TRAVIS_DOESNT_KNOW_REPO = "Travis doesn't know of repo"
@@ -332,6 +337,55 @@ def validate_py_for_ustruct(repo, download_url):
 
     return errors
 
+def validate_travis_yml(repo, travis_yml_file_info):
+    """Check size and then check pypi compatibility.
+    """
+    download_url = travis_yml_file_info["download_url"]
+    contents = requests.get(download_url)
+    if not contents.ok:
+        return [ERROR_PYFILE_DOWNLOAD_FAILED]
+
+    errors = []
+
+    if travis_yml_file_info["size"] > 1000:
+        errors.append(ERROR_OLD_TRAVIS_CONFIG)
+
+    lines = contents.text.split("\n")
+    pypi_providers_lines = [l for l in lines if re.match(r"[\s]*-[\s]*provider:[\s]*pypi[\s]*", l)]
+
+    if(not pypi_providers_lines):
+        errors.append(ERROR_MISSING_PYPIPROVIDER)
+
+    return errors
+
+def validate_setup_py(repo, file_info):
+    """Check setup.py for pypi compatibility
+    """
+    download_url = file_info["download_url"]
+    contents = requests.get(download_url)
+    if not contents.ok:
+        return [ERROR_PYFILE_DOWNLOAD_FAILED]
+
+    errors = []
+
+
+    return errors
+
+def validate_requirements_txt(repo, file_info):
+    """Check requirements.txt for pypi compatibility
+    """
+    download_url = file_info["download_url"]
+    contents = requests.get(download_url)
+    if not contents.ok:
+        return [ERROR_PYFILE_DOWNLOAD_FAILED]
+
+    errors = []
+    lines = contents.text.split("\n")
+    blinka_lines = [l for l in lines if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)]
+
+    if(not blinka_lines):
+        errors.append(ERROR_MISSING_BLINKA)
+    return errors
 
 def validate_contents(repo):
     """Validate the contents of a repository meets current CircuitPython
@@ -371,8 +425,7 @@ def validate_contents(repo):
 
     if ".travis.yml" in files:
         file_info = content_list[files.index(".travis.yml")]
-        if file_info["size"] > 1000:
-            errors.append(ERROR_OLD_TRAVIS_CONFIG)
+        errors.extend(validate_travis_yml(repo, file_info))
     else:
         errors.append(ERROR_MISSING_TRAVIS_CONFIG)
 
@@ -385,6 +438,19 @@ def validate_contents(repo):
             errors.append(ERROR_MISMATCHED_READTHEDOCS)
     else:
         errors.append(ERROR_MISSING_READTHEDOCS)
+
+    if "setup.py" in files:
+        file_info = content_list[files.index("setup.py")]
+        errors.extend(validate_setup_py(repo, file_info))
+    else:
+        errors.append(ERROR_MISSING_SETUP_PY)
+
+    if "requirements.txt" in files:
+        file_info = content_list[files.index("requirements.txt")]
+        errors.extend(validate_requirements_txt(repo, file_info))
+    else:
+        errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
+
 
     #Check for an examples folder.
     dirs = [x["name"] for x in content_list if x["type"] == "dir"]
@@ -652,6 +718,32 @@ def gather_insights(repo, insights, since):
         else:
             insights["open_issues"].append(issue["html_url"])
 
+def repo_is_in_pypi(repo):
+    """returns True when the provided repository is in pypi"""
+    is_in = False
+    if not (repo["owner"]["login"] == "adafruit" and
+            repo["name"].startswith("Adafruit_CircuitPython")):
+        return False
+    if repo["name"] in BUNDLE_IGNORE_LIST:
+        return False
+    the_page = pypi.get("/pypi/"+repo["name"]+"/json")
+    if the_page and the_page.status_code == 200:
+        is_in = True
+
+    return is_in
+
+def print_in_pypi(repos):
+    """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
+    print("")
+    print("Repositories in PyPi:")
+    repos_in_pypi_count = 0
+    for repo in repos:
+        if repo_is_in_pypi(repo):
+            print("{}".format(repo["name"]))
+            repos_in_pypi_count += 1
+    print("{} repos in pypi".format(repos_in_pypi_count))
+    print("")
+
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
     response = github.get("/repos/adafruit/circuitpython/releases")
@@ -752,6 +844,7 @@ if __name__ == "__main__":
     for issue in insights["open_issues"]:
         print("  * {}".format(issue))
     print_circuitpython_download_stats()
+    print_in_pypi(repos)
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
 
