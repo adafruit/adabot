@@ -1,0 +1,24 @@
+From fd3f88651026dfdd07f5ada38de13e6187f3f17b Mon Sep 17 00:00:00 2001
+From: sommersoft <sommersoft@gmail.com>
+Date: Tue, 7 Aug 2018 01:15:15 +0000
+Subject: [PATCH] update pylint version for .travis.yml
+
+---
+ .travis.yml | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/.travis.yml b/.travis.yml
+index 4e400dc..8c6d81a 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -26 +26,2 @@ install:
+-  - pip install pylint circuitpython-build-tools Sphinx sphinx-rtd-theme
++  - pip install circuitpython-build-tools Sphinx sphinx-rtd-theme
++  - pip install --force-install pylint==1.9.2
+@@ -32 +33 @@ script:
+-  - cd docs && sphinx-build -E -W -b html . _build/html
+\ No newline at end of file
++  - cd docs && sphinx-build -E -W -b html . _build/html
+-- 
+2.7.4
+
