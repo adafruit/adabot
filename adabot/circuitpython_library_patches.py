@@ -17,6 +17,9 @@ check_errors = []
 apply_errors = []
 stats = []
 
+"""
+Setup the command line argument parsing object.
+"""
 cli_parser = argparse.ArgumentParser(description="Apply patches to any common file(s) in"
                                      " all Adafruit CircuitPython Libraries.")
 cli_parser.add_argument("-l", "--list", help="Lists the available patches to run.",
@@ -28,6 +31,10 @@ cli_parser.add_argument("-f", help="Adds the referenced FLAGS to the git.am call
                         " Multiple flags can be passed. NOTE: '--signoff' is already used "
                         " used by default, and will be ignored. EXAMPLE: -f [-C0] -f [-s]",
                         metavar="FLAGS", action="append", dest="flags", type=str)
+cli_parser.add_argument("--use-apply", help="Forces use of 'git apply' instead of 'git am'."
+                        " This is necessary when needing to use 'apply' flags not available"
+                        " to 'am' (e.g. '--unidiff-zero'). Only available when using '-p'.",
+                        action='store_false')
 
 def get_repo_list():
     """ Uses adabot.circuitpython_libraries module to get a list of
@@ -49,8 +56,8 @@ def get_patches():
         directory.
     """
     return_list = []
-    contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
-
+    #contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
+    contents = requests.get("https://api.github.com/repos/sommersoft/adabot/contents/patches?ref=cli_args")
     if contents.ok:
         for patch in contents.json():
             patch_name = patch["name"]
@@ -58,7 +65,7 @@ def get_patches():
 
     return return_list
 
-def apply_patch(repo_directory, patch_filepath, repo, patch, flags):
+def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
     """ Apply the `patch` in `patch_filepath` to the `repo` in
         `repo_directory` using git am. --signoff will sign the commit
         with the user running the script (adabot if credentials are set
@@ -67,22 +74,42 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags):
     if not os.getcwd() == repo_directory:
         os.chdir(repo_directory)
 
-    try:
-        git.am(flags, patch_filepath)
-    except sh.ErrorReturnCode as Err:
-        apply_errors.append(dict(repo_name=repo,
-                                 patch_name=patch, error=Err.stderr))
-        return False
+    if not use_apply:
+        try:
+            git.am(flags, patch_filepath)
+        except sh.ErrorReturnCode as Err:
+            apply_errors.append(dict(repo_name=repo,
+                                     patch_name=patch, error=Err.stderr))
+            return False
+    else:
+        try:
+            git.apply(flags, patch_filepath)
+        except sh.ErrorReturnCode as Err:
+            apply_errors.append(dict(repo_name=repo,
+                                     patch_name=patch, error=Err.stderr))
+            return False
+
+        try:
+            with f = os.open(patch_filepath):
+                for line in f:
+                    if "[PATCH]" in line:
+                        message = '"' +  line[line.find("]"):] + '"'
+            print("apply commit msg:", message)
+            git.commit("-a", "-m", message)
+        except sh.ErrorReturnCode as Err:
+            apply_errors.append(dict(repo_name=repo,
+                                     patch_name=patch, error=Err.stderr))
+            return False
 
     try:
-        git.push()
+        #git.push()
     except sh.ErrorReturnCode as Err:
         apply_errors.append(dict(repo_name=repo,
                                  patch_name=patch, error=Err.stderr))
         return False
     return True
 
-def check_patches(repo, patches, flags):
+def check_patches(repo, patches, flags, use_apply):
     """ Gather a list of patches from the `adabot/patches` directory
         on the adabot repo. Clone the `repo` and run git apply --check
         to test wether it requires any of the gathered patches.
@@ -130,7 +157,8 @@ def check_patches(repo, patches, flags):
                                      patch_name=patch, error=Err.stderr))
 
         if run_apply:
-            result = apply_patch(repo_directory, patch_filepath, repo["name"], patch, flags)
+            result = apply_patch(repo_directory, patch_filepath, repo["name"],
+                                 patch, flags, use_apply)
             if result:
                 applied += 1
             else:
@@ -140,17 +168,17 @@ def check_patches(repo, patches, flags):
 
 if __name__ == "__main__":
 
-    all_patches = get_patches()
+    run_patches = get_patches()
     flags = ["--signoff"]
 
     cli_args = cli_parser.parse_args()
     if cli_args.list:
-        print("Available Patches:", all_patches)
+        print("Available Patches:", run_patches)
         sys.exit()
     if cli_args.patch:
-        if not cli_args.patch in all_patches:
-            raise ValueError("'" + cli_args.patch + "not an available patchfile.")
-        all_patches = [cli_args.patch]
+        if not cli_args.patch in run_patches:
+            raise ValueError("'" + cli_args.patch + " is not an available patchfile.")
+        run_patches = [cli_args.patch]
     if not cli_args.flags == None:
         if not cli_args.patch:
             raise RuntimeError("Must be used with a single patch. See help (-h) for usage.")
@@ -159,6 +187,11 @@ if __name__ == "__main__":
         for flag in cli_args.flags:
             if not flag == "[--signoff]":
                 flags.append(flag.strip("[]"))
+    if cli_args.use-apply:
+        if not cli_args.patch:
+            raise RuntimeError("Must be used with a single patch. See help (-h) for usage.")
+    use_apply = cli_args.use-apply
+    print(use_apply)
 
     print(".... Beginning Patch Updates ....")
     print(".... Working directory:", working_directory)
@@ -180,10 +213,14 @@ if __name__ == "__main__":
     repos = get_repo_list()
     print(".... Running Patch Checks On", len(repos), "Repos ....")
 
+    i = 0
     for repo in repos:
-        results = check_patches(repo, all_patches, flags)
+        results = check_patches(repo, run_patches, flags, use_apply)
         for k in range(3):
            stats[k] += results[k]
+        i += 1
+        if (i > 5):
+            break
 
     print(".... Patch Updates Completed ....")
     print(".... Patches Applied:", stats[0])
