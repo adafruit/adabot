@@ -92,12 +92,12 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
                                      patch_name=patch, error=Err.stderr))
             return False
 
+        with open(patch_filepath) as f:
+            for line in f:
+                if "[PATCH]" in line:
+                    message = '"' +  line[(line.find("]") + 2):] + '"'
+                    break
         try:
-            with open(patch_filepath) as f:
-                for line in f:
-                    if "[PATCH]" in line:
-                        message = '"' +  line[(line.find("]") + 2):] + '"'
-                        break
             git.commit("-a", "-m", message)
         except sh.ErrorReturnCode as Err:
             apply_errors.append(dict(repo_name=repo,
