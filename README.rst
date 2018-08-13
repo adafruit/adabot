@@ -117,12 +117,12 @@ To apply a patch to all CircuitPython libraries (only guaranteed for files share
 among all libraries, such as those included in the cookiecutter (e.g. README.rst,
 .travis.yml, etc), do the following:
 
-1. Apply your update(s) to any library as normal, using ``git.commit``.
+1. Apply your update(s) to any library as normal, using ``git commit``.
 
 2. Create a patch file using `git format-patch <https://git-scm.com/docs/git-format-patch>`_.
 There are many techniques to using `git format-patch`; choose the one that makes
 sense for your updates. As a general usage example, ``format-patch -n`` will create patches
-for ``n`` number of commits starting with the latest:
+for ``n`` number of commits starting with the most recent:
 
 .. code-block:: shell
 
@@ -137,14 +137,12 @@ for ``n`` number of commits starting with the latest:
     # ``git apply --unidiff-zero`` flag to apply the patch.
     git format-patch -1 -U0
 
-``format-patch --signoff`` is not necessary; adabot will force a ``--signoff`` when she uses ``git am``.
+3. Place the new patch file into the ``adabot/patches`` directory on a fork of the
+adafruit/adabot repository, and ``git commit`` with a description of the patch(es).
 
-3. Place the patch file into the ``adabot/patches`` directory, and ``git commit`` with a
-description of the patch(es).
+4. Submit a Pull Request (PR) to the adafruit/adabot repository from the updated fork.
 
-4. Push the update to the adabot repository.
-
-5. Run the patch update script.
+5. Run the patch update script after the PR has been merged.
 
 
 To run the patch update script you must be inside this cloned adabot directory and
