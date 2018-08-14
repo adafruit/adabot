@@ -34,7 +34,7 @@ cli_parser.add_argument("-f", help="Adds the referenced FLAGS to the git.am call
 cli_parser.add_argument("--use-apply", help="Forces use of 'git apply' instead of 'git am'."
                         " This is necessary when needing to use 'apply' flags not available"
                         " to 'am' (e.g. '--unidiff-zero'). Only available when using '-p'.",
-                        action='store_false')
+                        action="store_true", dest="use_apply")
 
 def get_repo_list():
     """ Uses adabot.circuitpython_libraries module to get a list of
@@ -56,8 +56,7 @@ def get_patches():
         directory.
     """
     return_list = []
-    #contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
-    contents = requests.get("https://api.github.com/repos/sommersoft/adabot/contents/patches?ref=cli_args")
+    contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
     if contents.ok:
         for patch in contents.json():
             patch_name = patch["name"]
@@ -82,19 +81,23 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
                                      patch_name=patch, error=Err.stderr))
             return False
     else:
+        apply_flags = ["--apply"] # ensure that any passed flags that turn off apply are negated
+        for flag in flags:
+            if not flag == "--signoff":
+                apply_flags.append(flag)
         try:
-            git.apply(flags, patch_filepath)
+            git.apply(apply_flags, patch_filepath)
         except sh.ErrorReturnCode as Err:
             apply_errors.append(dict(repo_name=repo,
                                      patch_name=patch, error=Err.stderr))
             return False
 
+        with open(patch_filepath) as f:
+            for line in f:
+                if "[PATCH]" in line:
+                    message = '"' +  line[(line.find("]") + 2):] + '"'
+                    break
         try:
-            with f = os.open(patch_filepath):
-                for line in f:
-                    if "[PATCH]" in line:
-                        message = '"' +  line[line.find("]"):] + '"'
-            print("apply commit msg:", message)
             git.commit("-a", "-m", message)
         except sh.ErrorReturnCode as Err:
             apply_errors.append(dict(repo_name=repo,
@@ -102,7 +105,7 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
             return False
 
     try:
-        #git.push()
+        git.push()
     except sh.ErrorReturnCode as Err:
         apply_errors.append(dict(repo_name=repo,
                                  patch_name=patch, error=Err.stderr))
@@ -139,7 +142,11 @@ def check_patches(repo, patches, flags, use_apply):
         patch_filepath = patch_directory + patch
 
         try:
-            git.apply("--check", patch_filepath)
+            check_flags = ["--check"]
+            if use_apply: # some flags must accompany the --check flag to avoid failures; will add more as needed
+                if "--unidiff-zero" in flags:
+                    check_flags.append("--unidiff-zero")
+            git.apply(check_flags, patch_filepath)
             run_apply = True
         except sh.ErrorReturnCode_1 as Err:
             run_apply = False
@@ -187,11 +194,10 @@ if __name__ == "__main__":
         for flag in cli_args.flags:
             if not flag == "[--signoff]":
                 flags.append(flag.strip("[]"))
-    if cli_args.use-apply:
+    if cli_args.use_apply:
         if not cli_args.patch:
             raise RuntimeError("Must be used with a single patch. See help (-h) for usage.")
-    use_apply = cli_args.use-apply
-    print(use_apply)
+    use_apply = cli_args.use_apply
 
     print(".... Beginning Patch Updates ....")
     print(".... Working directory:", working_directory)
@@ -213,14 +219,10 @@ if __name__ == "__main__":
     repos = get_repo_list()
     print(".... Running Patch Checks On", len(repos), "Repos ....")
 
-    i = 0
     for repo in repos:
         results = check_patches(repo, run_patches, flags, use_apply)
         for k in range(3):
            stats[k] += results[k]
-        i += 1
-        if (i > 5):
-            break
 
     print(".... Patch Updates Completed ....")
     print(".... Patches Applied:", stats[0])
