@@ -66,9 +66,13 @@ def get_patches():
 
 def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
     """ Apply the `patch` in `patch_filepath` to the `repo` in
-        `repo_directory` using git am. --signoff will sign the commit
+        `repo_directory` using git am or git apply. The commit
         with the user running the script (adabot if credentials are set
         for that).
+
+        When `use_apply` is true, the `--apply` flag is automatically added
+        to ensure that any passed flags that turn off apply (e.g. `--check`)
+        are overridden.
     """
     if not os.getcwd() == repo_directory:
         os.chdir(repo_directory)
@@ -81,7 +85,7 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
                                      patch_name=patch, error=Err.stderr))
             return False
     else:
-        apply_flags = ["--apply"] # ensure that any passed flags that turn off apply are negated
+        apply_flags = ["--apply"]
         for flag in flags:
             if not flag == "--signoff":
                 apply_flags.append(flag)
@@ -116,6 +120,10 @@ def check_patches(repo, patches, flags, use_apply):
     """ Gather a list of patches from the `adabot/patches` directory
         on the adabot repo. Clone the `repo` and run git apply --check
         to test wether it requires any of the gathered patches.
+
+        When `use_apply` is true, any flags except `--apply` are passed
+        through to the check call. This ensures that the check call is
+        representative of the actual apply call.
     """
     applied = 0
     skipped = 0
@@ -143,9 +151,10 @@ def check_patches(repo, patches, flags, use_apply):
 
         try:
             check_flags = ["--check"]
-            if use_apply: # some flags must accompany the --check flag to avoid failures; will add more as needed
-                if "--unidiff-zero" in flags:
-                    check_flags.append("--unidiff-zero")
+            if use_apply:
+                for flag in flags:
+                    if not flag in ("--apply", "--signoff"):
+                        check_flags.append(flag)
             git.apply(check_flags, patch_filepath)
             run_apply = True
         except sh.ErrorReturnCode_1 as Err:
@@ -184,7 +193,7 @@ if __name__ == "__main__":
         sys.exit()
     if cli_args.patch:
         if not cli_args.patch in run_patches:
-            raise ValueError("'" + cli_args.patch + " is not an available patchfile.")
+            raise ValueError("'{}' is not an available patchfile.".format(cli_args.patch))
         run_patches = [cli_args.patch]
     if not cli_args.flags == None:
         if not cli_args.patch:
