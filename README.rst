@@ -117,15 +117,34 @@ To apply a patch to all CircuitPython libraries (only guaranteed for files share
 among all libraries, such as those included in the cookiecutter (e.g. README.rst,
 .travis.yml, etc), do the following:
 
-1. Apply your update(s) to any library as normal, using ``git.commit``.
+1. Apply your update(s) to any library as normal, using ``git commit``. It is recommended to
+give a short, detailed description of the patch. This description will be used by the next
+step for both the name of the patchfile and the subsequent patch messages.
+
 2. Create a patch file using `git format-patch <https://git-scm.com/docs/git-format-patch>`_.
 There are many techniques to using `git format-patch`; choose the one that makes
-sense for your updates. ``--signoff`` is not necessary; adabot will force a
-``--signoff`` when she uses ``git am``.
-3. Place the patch file into the ``adabot/patches`` directory, and ``git commit`` with a
-description of the patch(es).
-4. Push the update to the adabot repository.
-5. Run the patch update script.
+sense for your updates. As a general usage example, ``format-patch -n`` will create patches
+for ``n`` number of commits starting with the most recent:
+
+.. code-block:: shell
+
+    # creates a patch file based on the last commit
+    git format-patch -1
+
+    # creates patch files based on the last 5 commits
+    git format-patch -5
+
+    # creates a patch file with zero lines of context (to eliminate any unique
+    # text that will cause the patch to not be applicable). must use
+    # 'git apply --unidiff-zero' flag to apply the patch.
+    git format-patch -1 -U0
+
+3. Place the new patch file into the ``adabot/patches`` directory on a fork of the
+adafruit/adabot repository, and ``git commit`` with a description of the patch(es).
+
+4. Submit a Pull Request (PR) to the adafruit/adabot repository from the updated fork.
+
+5. Run the patch update script after the PR has been merged.
 
 
 To run the patch update script you must be inside this cloned adabot directory and
@@ -135,8 +154,11 @@ run the following command:
 
     # note: ensure the local clone is current with the github repo that contains the patch(es)
     # by using git pull before running the script.
-    
     python3 -m adabot.circuitpython_library_patches
+
+    # The 'circuitpython_library_patches' script accepts command line arguments. Use
+    # the help argument to display usage.
+    python3 -m adabot.circuitpython_library_patches -h
 
 Contributing
 ============

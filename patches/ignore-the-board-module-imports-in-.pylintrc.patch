@@ -1,0 +1,25 @@
+From b5290f3869789fbf8a57004003c94131cdad82c5 Mon Sep 17 00:00:00 2001
+From: sommersoft <sommersoft@gmail.com>
+Date: Tue, 14 Aug 2018 20:01:03 -0500
+Subject: [PATCH] ignore the board module imports in .pylintrc
+
+---
+ .pylintrc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.pylintrc b/.pylintrc
+index 946d694..cb8d23d 100644
+--- a/.pylintrc
++++ b/.pylintrc
+@@ -155,7 +155,7 @@ ignored-classes=optparse.Values,thread._local,_thread._local
+ # (useful for modules/projects where namespaces are manipulated during runtime
+ # and thus existing member attributes cannot be deduced by static analysis. It
+ # supports qualified module names, as well as Unix pattern matching.
+-ignored-modules=
++ignored-modules=board
+ 
+ # Show a hint with possible names when a member name was not found. The aspect
+ # of finding the hint is based on edit distance.
+-- 
+2.15.1.windows.2
+
