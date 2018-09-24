@@ -63,3 +63,7 @@ def get(url, **kwargs):
 
 def post(url, **kwargs):
     return requests.post(_fix_url(url), **_fix_kwargs(kwargs))
+
+
+def delete(url, **kwargs):
+    return requests.delete(_fix_url(url), **_fix_kwargs(kwargs))

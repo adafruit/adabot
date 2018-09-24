@@ -57,7 +57,6 @@ ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 ERROR_NOT_IN_BUNDLE = "Not in bundle."
-ERROR_OLD_TRAVIS_CONFIG = "Old travis config"
 ERROR_TRAVIS_DOESNT_KNOW_REPO = "Travis doesn't know of repo"
 ERROR_TRAVIS_ENV = "Unable to read Travis env variables"
 ERROR_TRAVIS_GITHUB_TOKEN = "Unable to find or create (no auth) GITHUB_TOKEN env variable"
@@ -82,6 +81,10 @@ ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = "Failed to download drivers page from Circu
 ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing driver"
 ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
+ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
+ERROR_PYLINT_VERSION_NOT_FIXED = "PyLint version not fixed"
+ERROR_PYLINT_VERSION_VERY_OUTDATED = "PyLint version very out of date"
+ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
 
 # These are warnings or errors that sphinx generate that we're ok ignoring.
 RTD_IGNORE_NOTICES = ("WARNING: html_static_path entry", "WARNING: nonlocal image URI found:")
@@ -92,6 +95,8 @@ BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
 # Repos to ignore for validation they exist in the bundle.  Add repos by their
 # full name on Github (like Adafruit_CircuitPython_Bundle).
 BUNDLE_IGNORE_LIST = [BUNDLE_REPO_NAME]
+
+LIBRARY_DOESNT_NEED_BLINKA = "Adafruit_CircuitPython_ImageLoad"
 
 # Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
 rtd_subprojects = None
@@ -347,14 +352,24 @@ def validate_travis_yml(repo, travis_yml_file_info):
 
     errors = []
 
-    if travis_yml_file_info["size"] > 1000:
-        errors.append(ERROR_OLD_TRAVIS_CONFIG)
-
     lines = contents.text.split("\n")
     pypi_providers_lines = [l for l in lines if re.match(r"[\s]*-[\s]*provider:[\s]*pypi[\s]*", l)]
 
-    if(not pypi_providers_lines):
+    if not pypi_providers_lines:
         errors.append(ERROR_MISSING_PYPIPROVIDER)
+
+    pylint_version = None
+    for line in lines:
+        if not line.strip().startswith("- pip install --force-reinstall pylint=="):
+            continue
+        pylint_version = line.split("=")[-1]
+
+    if not pylint_version:
+        errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
+    elif pylint_version.startswith("1."):
+        errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
+    elif pylint_version != latest_pylint:
+        errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
 
     return errors
 
@@ -383,7 +398,7 @@ def validate_requirements_txt(repo, file_info):
     lines = contents.text.split("\n")
     blinka_lines = [l for l in lines if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)]
 
-    if(not blinka_lines):
+    if not blinka_lines and repo["name"] not in LIBRARY_DOESNT_NEED_BLINKA:
         errors.append(ERROR_MISSING_BLINKA)
     return errors
 
@@ -540,7 +555,9 @@ def validate_travis(repo):
             print(token.text)
             return [ERROR_TRAVIS_TOKEN_CREATE]
 
-        token = token.json()["token"]
+        token = token.json()
+        grant_id = token["id"]
+        token = token["token"]
 
         new_var = {"env_var.name": "GITHUB_TOKEN",
                    "env_var.value": token,
@@ -548,6 +565,7 @@ def validate_travis(repo):
         new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
         if not new_var_result.ok:
             #print(new_var_result.headers, new_var_result.text)
+            github.delete("/authorizations/{}".format(grant_id), auth=full_auth)
             return [ERROR_TRAVIS_GITHUB_TOKEN]
     return []
 
@@ -718,31 +736,25 @@ def gather_insights(repo, insights, since):
         else:
             insights["open_issues"].append(issue["html_url"])
 
-def repo_is_in_pypi(repo):
+def repo_is_on_pypi(repo):
     """returns True when the provided repository is in pypi"""
-    is_in = False
-    if not (repo["owner"]["login"] == "adafruit" and
-            repo["name"].startswith("Adafruit_CircuitPython")):
-        return False
-    if repo["name"] in BUNDLE_IGNORE_LIST:
-        return False
+    is_on = False
     the_page = pypi.get("/pypi/"+repo["name"]+"/json")
     if the_page and the_page.status_code == 200:
-        is_in = True
+        is_on = True
 
-    return is_in
+    return is_on
 
-def print_in_pypi(repos):
+def validate_in_pypi(repos):
     """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
-    print("")
-    print("Repositories in PyPi:")
-    repos_in_pypi_count = 0
-    for repo in repos:
-        if repo_is_in_pypi(repo):
-            print("{}".format(repo["name"]))
-            repos_in_pypi_count += 1
-    print("{} repos in pypi".format(repos_in_pypi_count))
-    print("")
+    if repo["name"] in BUNDLE_IGNORE_LIST:
+        return []
+    if not (repo["owner"]["login"] == "adafruit" and
+            repo["name"].startswith("Adafruit_CircuitPython")):
+        return []
+    if not repo_is_on_pypi(repo):
+        return [ERROR_NOT_ON_PYPI]
+    return []
 
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
@@ -779,12 +791,21 @@ full_auth = None
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
 validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs,
-              validate_core_driver_page]
+              validate_core_driver_page, validate_in_pypi]
 # Submodules inside the bundle (result of get_bundle_submodules)
 bundle_submodules = []
 
+# Load the latest pylint version
+latest_pylint = "2.0.1"
+
 
 if __name__ == "__main__":
+    pylint_info = pypi.get("/pypi/pylint/json")
+    if pylint_info and pylint_info.ok:
+        latest_pylint = pylint_info.json()["info"]["version"]
+
+    print("Latest pylint is:", latest_pylint)
+
     repos = list_repos()
     print("Found {} repos to check.".format(len(repos)))
     bundle_submodules = get_bundle_submodules()
@@ -844,7 +865,6 @@ if __name__ == "__main__":
     for issue in insights["open_issues"]:
         print("  * {}".format(issue))
     print_circuitpython_download_stats()
-    print_in_pypi(repos)
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
     print("{} out of {} repos need work.".format(need_work, len(repos)))
 
