@@ -809,6 +809,24 @@ def print_circuitpython_download_stats():
             print("* {} - {}".format(language, by_language[language]))
         print()
 
+def print_pr_overview(*insights):
+    merged_prs = sum([x["merged_prs"] for x in insights])
+    authors = set().union(*[x["pr_merged_authors"] for x in insights])
+    reviewers = set().union(*[x["pr_reviewers"] for x in insights])
+
+    print("* {} pull requests merged".format(merged_prs))
+    print("  * {} authors - {}".format(len(authors), ", ".join(authors)))
+    print("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
+
+def print_issue_overview(*insights):
+    closed_issues = sum([x["closed_issues"] for x in insights])
+    issue_closers = set().union(*[x["issue_closers"] for x in insights])
+    new_issues = sum([x["new_issues"] for x in insights])
+    issue_authors = set().union(*[x["issue_authors"] for x in insights])
+    print("* {} closed issues by {} people, {} opened by {} people"
+          .format(closed_issues, len(issue_closers),
+                  new_issues, len(issue_authors)))
+
 
 # Define global state shared by the functions above:
 # Github authentication password/token.  Used to generate new tokens.
@@ -887,25 +905,16 @@ if __name__ == "__main__":
     print("State of CircuitPython + Libraries")
 
     print("Overall")
-    authors = lib_insights["pr_merged_authors"] | core_insights["pr_merged_authors"]
-    reviewers = lib_insights["pr_reviewers"] | core_insights["pr_reviewers"]
-    closed_issues = lib_insights["closed_issues"] + core_insights["closed_issues"]
-    issue_closers = lib_insights["issue_closers"] | core_insights["issue_closers"]
-    new_issues = lib_insights["new_issues"] + core_insights["new_issues"]
-    issue_authors = lib_insights["issue_authors"] | core_insights["issue_authors"]
-
-    print("* {} pull requests merged".format(insights["merged_prs"]))
-    print("  * {} authors - {}".format(len(authors), ", ".join(authors)))
-    print("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
-    print("* {} closed issues by {} people, {} opened by {} people"
-          .format(closed_issues, len(issue_closers),
-                  new_issues, len(issue_authors)))
+    print_pr_overview(lib_insights, core_insights)
+    print_issue_overview(lib_insights, core_insights)
 
     print()
     print("Core")
+    print_pr_overview(core_insights)
     print("* {} open pull requests".format(len(core_insights["open_prs"])))
     for pr in core_insights["open_prs"]:
         print("  * {}".format(pr))
+    print_issue_overview(core_insights)
     print("* {} open issues".format(len(insights["open_issues"])))
     print("  * https://github.com/adafruit/circuitpython/issues")
     print()
@@ -913,9 +922,11 @@ if __name__ == "__main__":
 
     print()
     print("Libraries")
+    print_pr_overview(lib_insights)
     print("* {} open pull requests".format(len(lib_insights["open_prs"])))
     for pr in lib_insights["open_prs"]:
         print("  * {}".format(pr))
+    print_issue_overview(lib_insights)
     print("* {} open issues".format(len(lib_insights["open_issues"])))
     for issue in lib_insights["open_issues"]:
         print("  * {}".format(issue))
