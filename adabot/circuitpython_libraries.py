@@ -23,6 +23,8 @@ import copy
 import datetime
 import re
 import sys
+import argparse
+import traceback
 
 import requests
 
@@ -30,6 +32,15 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 
+# Setup ArgumentParser
+cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Libraries.",
+                                          prog="Adabot CircuitPython Libraries Utility")
+cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
+                             metavar="<OUTPUT FILENAME>", dest="output_file")
+cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
+                             " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
+cmd_line_parser.add_argument("--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
+                             dest="error_depth", type=int, default=5, metavar="n")
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
@@ -525,8 +536,8 @@ def validate_travis(repo):
     if not result["active"]:
         activate = travis.post(repo_url + "/activate")
         if not activate.ok:
-            print(activate.request.url)
-            print(activate, activate.text)
+            output_handler(activate.request.url)
+            output_handler("{} {}".format(activate, activate.text))
             return [ERROR_ENABLE_TRAVIS]
 
     env_variables = travis.get(repo_url + "/env_vars")
@@ -694,7 +705,7 @@ def gather_insights(repo, insights, since):
               "since": str(since)}
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
-        print("request failed")
+        output_handler("Insights request failed: {}".format(repo["full_name"]))
     issues = response.json()
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -728,7 +739,7 @@ def gather_insights(repo, insights, since):
     params = {"state": "open", "per_page": 100}
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
-        print("request failed")
+        output_handler("Issues request failed: {}".format(repo["full_name"]))
     issues = response.json()
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -757,11 +768,18 @@ def validate_in_pypi(repos):
         return [ERROR_NOT_ON_PYPI]
     return []
 
+def output_handler(message="", quiet=False):
+    """Handles message output to prompt/file for print_*() functions."""
+    if output_filename is not None:
+        file_data.append(message)
+    if verbosity and not quiet:
+        print(message)
+
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
     response = github.get("/repos/adafruit/circuitpython/releases")
     if not response.ok:
-        print("request failed")
+        output_handler("request failed")
     releases = response.json()
     found_unstable = False
     found_stable = False
@@ -797,35 +815,35 @@ def print_circuitpython_download_stats():
             by_both[board][language] = count
 
             total += count
-        print("Download stats for {}".format(release["tag_name"]))
-        print("{} total".format(total))
-        print()
-        print("By board:")
+        output_handler("Download stats for {}".format(release["tag_name"]))
+        output_handler("{} total".format(total))
+        output_handler()
+        output_handler("By board:")
         for board in by_board:
-            print("* {} - {}".format(board, by_board[board]))
-        print()
-        print("By language:")
+            output_handler("* {} - {}".format(board, by_board[board]))
+        output_handler()
+        output_handler("By language:")
         for language in by_language:
-            print("* {} - {}".format(language, by_language[language]))
-        print()
+            output_handler("* {} - {}".format(language, by_language[language]))
+        output_handler()
 
 def print_pr_overview(*insights):
     merged_prs = sum([x["merged_prs"] for x in insights])
     authors = set().union(*[x["pr_merged_authors"] for x in insights])
     reviewers = set().union(*[x["pr_reviewers"] for x in insights])
 
-    print("* {} pull requests merged".format(merged_prs))
-    print("  * {} authors - {}".format(len(authors), ", ".join(authors)))
-    print("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
+    output_handler("* {} pull requests merged".format(merged_prs))
+    output_handler("  * {} authors - {}".format(len(authors), ", ".join(authors)))
+    output_handler("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
 
 def print_issue_overview(*insights):
     closed_issues = sum([x["closed_issues"] for x in insights])
     issue_closers = set().union(*[x["issue_closers"] for x in insights])
     new_issues = sum([x["new_issues"] for x in insights])
     issue_authors = set().union(*[x["issue_authors"] for x in insights])
-    print("* {} closed issues by {} people, {} opened by {} people"
-          .format(closed_issues, len(issue_closers),
-                  new_issues, len(issue_authors)))
+    output_handler("* {} closed issues by {} people, {} opened by {} people"
+                   .format(closed_issues, len(issue_closers),
+                   new_issues, len(issue_authors)))
 
 
 # Define global state shared by the functions above:
@@ -842,110 +860,140 @@ bundle_submodules = []
 # Load the latest pylint version
 latest_pylint = "2.0.1"
 
+# Logging output filename and data
+output_filename = None
+file_data = []
+# Verbosity level
+verbosity = 1
 
 if __name__ == "__main__":
+    cmd_line_args = cmd_line_parser.parse_args()
+    error_depth = cmd_line_args.error_depth
+    verbosity = cmd_line_args.verbose
+    if cmd_line_args.output_file:
+        output_filename = cmd_line_args.output_file
+
     pylint_info = pypi.get("/pypi/pylint/json")
     if pylint_info and pylint_info.ok:
         latest_pylint = pylint_info.json()["info"]["version"]
 
-    print("Latest pylint is:", latest_pylint)
+    output_handler("Latest pylint is: {0}".format(latest_pylint))
 
-    repos = list_repos()
-    print("Found {} repos to check.".format(len(repos)))
-    bundle_submodules = get_bundle_submodules()
-    print("Found {} submodules in the bundle.".format(len(bundle_submodules)))
-    github_user = github.get("/user").json()
-    print("Running GitHub checks as " + github_user["login"])
-    travis_user = travis.get("/user").json()
-    print("Running Travis checks as " + travis_user["login"])
-    need_work = 0
-    lib_insights = {
-        "merged_prs": 0,
-        "closed_prs": 0,
-        "new_prs": 0,
-        "active_prs": 0,
-        "open_prs": [],
-        "pr_authors": set(),
-        "pr_merged_authors": set(),
-        "pr_reviewers": set(),
-        "closed_issues": 0,
-        "new_issues": 0,
-        "active_issues": 0,
-        "open_issues": [],
-        "issue_authors": set(),
-        "issue_closers": set(),
-    }
-    core_insights = copy.deepcopy(lib_insights)
-    for k in core_insights:
-        if isinstance(core_insights[k], set):
-            core_insights[k] = set()
-        if isinstance(core_insights[k], list):
-            core_insights[k] = []
-    repo_needs_work = []
-    since = datetime.datetime.now() - datetime.timedelta(days=7)
-    repos_by_error = {}
+    try:
+        repos = list_repos()
+        output_handler("Found {} repos to check.".format(len(repos)))
+        bundle_submodules = get_bundle_submodules()
+        output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
+        github_user = github.get("/user").json()
+        output_handler("Running GitHub checks as " + github_user["login"])
+        travis_user = travis.get("/user").json()
+        output_handler("Running Travis checks as " + travis_user["login"])
+        need_work = 0
+        lib_insights = {
+            "merged_prs": 0,
+            "closed_prs": 0,
+            "new_prs": 0,
+            "active_prs": 0,
+            "open_prs": [],
+            "pr_authors": set(),
+            "pr_merged_authors": set(),
+            "pr_reviewers": set(),
+            "closed_issues": 0,
+            "new_issues": 0,
+            "active_issues": 0,
+            "open_issues": [],
+            "issue_authors": set(),
+            "issue_closers": set(),
+        }
+        core_insights = copy.deepcopy(lib_insights)
+        for k in core_insights:
+            if isinstance(core_insights[k], set):
+                core_insights[k] = set()
+            if isinstance(core_insights[k], list):
+                core_insights[k] = []
+        repo_needs_work = []
+        since = datetime.datetime.now() - datetime.timedelta(days=7)
+        repos_by_error = {}
 
-    for repo in repos:
-        errors = validate_repo(repo)
-        if errors:
-            need_work += 1
-            repo_needs_work.append(repo)
-            # print(repo["full_name"])
-            # print("\n".join(errors))
-            # print()
-        for error in errors:
-            if error not in repos_by_error:
-                repos_by_error[error] = []
-            repos_by_error[error].append(repo["html_url"])
-        insights = lib_insights
-        if repo["name"] == "circuitpython" and repo["owner"]["login"] == "adafruit":
-            insights = core_insights
-        gather_insights(repo, insights, since)
-    print()
-    print("State of CircuitPython + Libraries")
+        for repo in repos:
+            errors = validate_repo(repo)
+            if errors:
+                need_work += 1
+                repo_needs_work.append(repo)
+                # print(repo["full_name"])
+                # print("\n".join(errors))
+                # print()
+            for error in errors:
+                if error not in repos_by_error:
+                    repos_by_error[error] = []
+                repos_by_error[error].append(repo["html_url"])
+            insights = lib_insights
+            if repo["name"] == "circuitpython" and repo["owner"]["login"] == "adafruit":
+                insights = core_insights
+            gather_insights(repo, insights, since)
+        output_handler()
+        output_handler("State of CircuitPython + Libraries")
 
-    print("Overall")
-    print_pr_overview(lib_insights, core_insights)
-    print_issue_overview(lib_insights, core_insights)
+        output_handler("Overall")
+        print_pr_overview(lib_insights, core_insights)
+        print_issue_overview(lib_insights, core_insights)
 
-    print()
-    print("Core")
-    print_pr_overview(core_insights)
-    print("* {} open pull requests".format(len(core_insights["open_prs"])))
-    for pr in core_insights["open_prs"]:
-        print("  * {}".format(pr))
-    print_issue_overview(core_insights)
-    print("* {} open issues".format(len(insights["open_issues"])))
-    print("  * https://github.com/adafruit/circuitpython/issues")
-    print()
-    print_circuitpython_download_stats()
+        output_handler()
+        output_handler("Core")
+        print_pr_overview(core_insights)
+        output_handler("* {} open pull requests".format(len(core_insights["open_prs"])))
+        for pr in core_insights["open_prs"]:
+            output_handler("  * {}".format(pr))
+        print_issue_overview(core_insights)
+        output_handler("* {} open issues".format(len(insights["open_issues"])))
+        output_handler("  * https://github.com/adafruit/circuitpython/issues")
+        output_handler()
+        print_circuitpython_download_stats()
 
-    print()
-    print("Libraries")
-    print_pr_overview(lib_insights)
-    print("* {} open pull requests".format(len(lib_insights["open_prs"])))
-    for pr in lib_insights["open_prs"]:
-        print("  * {}".format(pr))
-    print_issue_overview(lib_insights)
-    print("* {} open issues".format(len(lib_insights["open_issues"])))
-    for issue in lib_insights["open_issues"]:
-        print("  * {}".format(issue))
+        output_handler()
+        output_handler("Libraries")
+        print_pr_overview(lib_insights)
+        output_handler("* {} open pull requests".format(len(lib_insights["open_prs"])))
+        for pr in lib_insights["open_prs"]:
+            output_handler("  * {}".format(pr))
+        print_issue_overview(lib_insights)
+        output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
+        for issue in lib_insights["open_issues"]:
+            output_handler("  * {}".format(issue))
 
-    lib_repos = []
-    for repo in repos:
-        if repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython"):
-            lib_repos.append(repo)
+        lib_repos = []
+        for repo in repos:
+            if repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython"):
+                lib_repos.append(repo)
 
-    # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
-    print("{} out of {} repos need work.".format(need_work, len(lib_repos)))
+        # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
+        output_handler("{} out of {} repos need work.".format(need_work, len(lib_repos)))
 
-    list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
+        list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
 
-    for error in repos_by_error:
-        if not repos_by_error[error]:
-            continue
-        print()
-        error_count = len(repos_by_error[error])
-        print("{} - {}".format(error, error_count))
-        if error_count <= 5 or error in list_repos_for_errors:
-            print("\n".join(["* " + x for x in repos_by_error[error]]))
+        for error in repos_by_error:
+            if not repos_by_error[error]:
+                continue
+            output_handler()
+            error_count = len(repos_by_error[error])
+            output_handler("{} - {}".format(error, error_count))
+            if error_count <= error_depth or error in list_repos_for_errors:
+                output_handler("\n".join(["* " + x for x in repos_by_error[error]]))
+    except:
+        if output_filename is not None:
+            exc_type, exc_val, exc_tb = sys.exc_info()
+            output_handler("Exception Occurred!", quiet=True)
+            output_handler(("-"*60), quiet=True)
+            output_handler("Traceback (most recent call last):", quiet=True)
+            tb = traceback.format_tb(exc_tb)
+            for line in tb:
+                output_handler(line, quiet=True)
+            output_handler(exc_val, quiet=True)
+
+        raise #Exception(exc_type).with_traceback(exc_tb)
+
+    finally:
+        if output_filename is not None:
+            with open(output_filename, 'w') as f:
+                for line in file_data:
+                    f.write(str(line) + "\n")
