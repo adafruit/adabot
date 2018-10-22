@@ -39,7 +39,7 @@ cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the file
                              metavar="<OUTPUT FILENAME>", dest="output_file")
 cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
-cmd_line_parser.add_argument("--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
+cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
                              dest="error_depth", type=int, default=5, metavar="n")
 
 # Define constants for error strings to make checking against them more robust:
@@ -186,6 +186,7 @@ def get_bundle_submodules():
     # master branch of the bundle is the canonical source of the bundle release.
     result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules')
     if result.status_code != 200:
+        output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
         raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
     return parse_gitmodules(result.text)
 
@@ -779,7 +780,7 @@ def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
     response = github.get("/repos/adafruit/circuitpython/releases")
     if not response.ok:
-        output_handler("request failed")
+        output_handler("Core CircuitPython GitHub analytics request failed.")
     releases = response.json()
     found_unstable = False
     found_stable = False
@@ -877,7 +878,7 @@ if __name__ == "__main__":
     if pylint_info and pylint_info.ok:
         latest_pylint = pylint_info.json()["info"]["version"]
 
-    output_handler("Latest pylint is: {0}".format(latest_pylint))
+    output_handler("Latest pylint is: {}".format(latest_pylint))
 
     try:
         repos = list_repos()
@@ -990,7 +991,7 @@ if __name__ == "__main__":
                 output_handler(line, quiet=True)
             output_handler(exc_val, quiet=True)
 
-        raise #Exception(exc_type).with_traceback(exc_tb)
+        raise
 
     finally:
         if output_filename is not None:
