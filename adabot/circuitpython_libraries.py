@@ -253,7 +253,10 @@ def list_repos():
                                 "order": "asc"})
     while result.ok:
         links = result.headers["Link"]
-        repos.extend(result.json()["items"])
+        #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
+        repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
+                     repo["name"].startswith("Adafruit_CircuitPython")))
+
         next_url = None
         for link in links.split(","):
             link, rel = link.split(";")
@@ -781,6 +784,7 @@ def run_library_checks():
 
     repos = list_repos()
     output_handler("Found {} repos to check.".format(len(repos)))
+    global bundle_submodules
     bundle_submodules = get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
     github_user = github.get("/user").json()
