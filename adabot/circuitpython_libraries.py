@@ -537,8 +537,8 @@ def validate_travis(repo):
     if not result["active"]:
         activate = travis.post(repo_url + "/activate")
         if not activate.ok:
-            output_handler(activate.request.url)
-            output_handler("{} {}".format(activate, activate.text))
+            #output_handler(activate.request.url)
+            #output_handler("{} {}".format(activate, activate.text))
             return [ERROR_ENABLE_TRAVIS]
 
     env_variables = travis.get(repo_url + "/env_vars")
@@ -552,6 +552,8 @@ def validate_travis(repo):
         found_token = found_token or var["name"] == "GITHUB_TOKEN"
     ok = True
     if not found_token:
+        return [ERROR_TRAVIS_GITHUB_TOKEN]
+        """
         global full_auth
         if not full_auth:
             github_user = github.get("/user").json()
@@ -580,6 +582,7 @@ def validate_travis(repo):
             #print(new_var_result.headers, new_var_result.text)
             github.delete("/authorizations/{}".format(grant_id), auth=full_auth)
             return [ERROR_TRAVIS_GITHUB_TOKEN]
+        """
     return []
 
 def validate_readthedocs(repo):
