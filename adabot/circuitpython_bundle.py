@@ -153,7 +153,6 @@ def update_bundle(bundle_path):
             if directory.endswith("library_list.md"):
                 continue
             if action != "M" or not directory.startswith("libraries"):
-                print(status_line)
                 raise RuntimeError("Unsupported updates")
 
             # Compute the tag difference.
