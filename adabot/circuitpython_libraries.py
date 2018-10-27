@@ -41,6 +41,10 @@ cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
 cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
                              dest="error_depth", type=int, default=5, metavar="n")
+#cmd_line_parser.add_argument("-t", "--token", help="Supply a GitHub token to use for activating Travis.",
+#                             dest=gh_token, metavar="<GITHUB_TOKEN>")
+cmd_line_parser.add_argument("-t", "--token", help="Prompt for a GitHub token to use for activating Travis.",
+                             dest="gh_token", action="store_true")
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
@@ -555,37 +559,40 @@ def validate_travis(repo):
         found_token = found_token or var["name"] == "GITHUB_TOKEN"
     ok = True
     if not found_token:
-        return [ERROR_TRAVIS_GITHUB_TOKEN]
-        """
-        global full_auth
-        if not full_auth:
-            github_user = github.get("/user").json()
-            password = input("Password for " + github_user["login"] + ": ")
-            full_auth = (github_user["login"], password.strip())
-        if not full_auth:
+        #if github_token is None:
+        if not github_token:
             return [ERROR_TRAVIS_GITHUB_TOKEN]
+        else:
+            global full_auth
+            if not full_auth:
+                #github_user = github_token
+                github_user = github.get("/user").json()
+                password = input("Password for " + github_user["login"] + ": ")
+                full_auth = (github_user["login"], password.strip())
+            if not full_auth:
+                return [ERROR_TRAVIS_GITHUB_TOKEN]
 
-        new_access_token = {"scopes": ["public_repo"],
-                            "note": "TravisCI release token for " + repo["full_name"],
-                            "note_url": "https://travis-ci.org/" + repo["full_name"]}
-        token = github.post("/authorizations", json=new_access_token, auth=full_auth)
-        if not token.ok:
-            print(token.text)
-            return [ERROR_TRAVIS_TOKEN_CREATE]
+            new_access_token = {"scopes": ["public_repo"],
+                                "note": "TravisCI release token for " + repo["full_name"],
+                                "note_url": "https://travis-ci.org/" + repo["full_name"]}
+            token = github.post("/authorizations", json=new_access_token, auth=full_auth)
+            if not token.ok:
+                print(token.text)
+                return [ERROR_TRAVIS_TOKEN_CREATE]
 
-        token = token.json()
-        grant_id = token["id"]
-        token = token["token"]
+            token = token.json()
+            grant_id = token["id"]
+            token = token["token"]
 
-        new_var = {"env_var.name": "GITHUB_TOKEN",
-                   "env_var.value": token,
-                   "env_var.public": False}
-        new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
-        if not new_var_result.ok:
-            #print(new_var_result.headers, new_var_result.text)
-            github.delete("/authorizations/{}".format(grant_id), auth=full_auth)
-            return [ERROR_TRAVIS_GITHUB_TOKEN]
-        """
+            new_var = {"env_var.name": "GITHUB_TOKEN",
+                       "env_var.value": token,
+                       "env_var.public": False}
+            new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
+            if not new_var_result.ok:
+                #print(new_var_result.headers, new_var_result.text)
+                github.delete("/authorizations/{}".format(grant_id), auth=full_auth)
+                return [ERROR_TRAVIS_GITHUB_TOKEN]
+
     return []
 
 def validate_readthedocs(repo):
@@ -981,11 +988,14 @@ output_filename = None
 file_data = []
 # Verbosity level
 verbosity = 1
+#github_token = None
+github_token = False
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
     error_depth = cmd_line_args.error_depth
     verbosity = cmd_line_args.verbose
+    github_token = cmd_line_args.gh_token
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
 
