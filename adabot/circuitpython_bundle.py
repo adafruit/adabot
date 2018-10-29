@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 
 from adabot import github_requests as github
+from adabot import circuitpython_libraries
 import os
 import subprocess
 import shlex
@@ -46,6 +47,51 @@ def fetch_bundle(bundle, bundle_path):
     git.submodule("update")
     os.chdir(working_directory)
 
+def check_lib_links_md(bundle_path):
+    if not "Adafruit_CircuitPython_Bundle" in bundle_path:
+        return []
+    submodules_list = sorted(circuitpython_libraries.get_bundle_submodules(),
+                             key=lambda module: module[1]["path"])
+
+    lib_count = len(submodules_list)
+    # used to generate commit message by comparing new libs to current list
+    try:
+        with open(os.path.join(bundle_path, "circuitpython_library_list.md"), 'r') as f:
+            read_lines = f.read().splitlines()
+    except:
+        read_lines = []
+        pass
+
+    write_drivers = []
+    write_helpers = []
+    updates_made = []
+    for submodule in submodules_list:
+        url = submodule[1]["url"]
+        url_name = url[url.rfind("/") + 1:(url.rfind(".") if url.rfind(".") > url.rfind("/") else len(url))]
+        pypi_name = ""
+        if circuitpython_libraries.repo_is_on_pypi({"name" : url_name}):
+            pypi_name = " ([PyPi](https://pypi.org/project/{}))".format(url_name.replace("_", "-").lower())
+        title = url_name.replace("_", " ")
+        list_line = "* [{0}]({1}){2}".format(title, url, pypi_name)
+        if list_line not in read_lines:
+            updates_made.append(url_name)
+        if "drivers" in submodule[1]["path"]:
+            write_drivers.append(list_line)
+        elif "helpers" in submodule[1]["path"]:
+            write_helpers.append(list_line)
+
+    with open(os.path.join(bundle_path, "circuitpython_library_list.md"), 'w') as f:
+        f.write("# Adafruit CircuitPython Libraries\n")
+        f.write("![Blinka Reading](https://raw.githubusercontent.com/adafruit/circuitpython-weekly-newsletter/gh-pages/assets/22_1023blinka.png)\n\n")
+        f.write("Here is a listing of current Adafruit CircuitPython Libraries. There are {} libraries available.\n\n".format(lib_count))
+        f.write("## Drivers:\n")
+        for line in sorted(write_drivers):
+            f.write(line + "\n")
+        f.write("\n## Helpers:\n")
+        for line in sorted(write_helpers):
+            f.write(line + "\n")
+
+    return updates_made
 
 class Submodule:
     def __init__(self, directory):
@@ -97,7 +143,6 @@ def update_bundle(bundle_path):
     git.submodule("foreach", "git", "fetch")
     # sh fails to find the subcommand so we use subprocess.
     subprocess.run(shlex.split("git submodule foreach 'git checkout -q `git rev-list --tags --max-count=1`'"), stdout=subprocess.DEVNULL)
-
     status = StringIO()
     result = git.status("--short", _out=status)
     updates = []
@@ -105,6 +150,8 @@ def update_bundle(bundle_path):
     if status:
         for status_line in status.split("\n"):
             action, directory = status_line.split()
+            if directory.endswith("library_list.md"):
+                continue
             if action != "M" or not directory.startswith("libraries"):
                 raise RuntimeError("Unsupported updates")
 
@@ -120,6 +167,13 @@ def update_bundle(bundle_path):
             summary = "\n".join(diff_lines[1:-1])
             updates.append((url[:-4], old_commit, new_commit, summary))
     os.chdir(working_directory)
+    lib_list_updates = check_lib_links_md(bundle_path)
+    if lib_list_updates:
+        updates.append(("https://github.com/adafruit/Adafruit_CircuitPython_Bundle/circuitpython_library_list.md",
+                        "NA",
+                        "NA",
+                        "  > Added the following libraries: {}".format(", ".join(lib_list_updates))))
+
     return updates
 
 def commit_updates(bundle_path, update_info):
