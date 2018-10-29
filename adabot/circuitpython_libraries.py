@@ -92,6 +92,8 @@ ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or er
 ERROR_RTD_AUTODOC_FAILED = "Autodoc failed on ReadTheDocs. (Likely need to automock an import.)"
 ERROR_RTD_SPHINX_FAILED = "Sphinx missing files"
 ERROR_GITHUB_RELEASE_FAILED = "Failed to fetch latest release from GitHub"
+ERROR_GITHUB_NO_RELEASE = "Library repository has no releases."
+ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE = "Library has new commits since last release."
 ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is released. Only on pushes.)"
 ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = "Failed to download drivers page from CircuitPython docs"
 ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing driver"
@@ -304,6 +306,34 @@ def validate_repo_state(repo):
     if "allow_squash_merge" not in full_repo or full_repo["allow_squash_merge"] or full_repo["allow_rebase_merge"]:
         errors.append(ERROR_ONLY_ALLOW_MERGES)
     return errors
+
+def validate_release_state(repo):
+    """Validate if a repo 1) has a release, and 2) if there have been commits
+    since the last release. Returns a list of string error messages for the
+    repository.
+    """
+    if not (repo["owner"]["login"] == "adafruit" and
+            repo["name"].startswith("Adafruit_CircuitPython")):
+        return []
+    repo_last_release = github.get("/repos/" + repo["full_name"] + "/releases/latest")
+    if not repo_last_release.ok:
+        return [ERROR_GITHUB_NO_RELEASE]
+    params = {"since": str(repo_last_release.json()["published_at"])}
+    commits_since_last_release = github.get("/repos/" + repo["full_name"] + "/commits",
+                                            params=params)
+    if not commits_since_last_release.ok:
+        return []
+    if not commits_since_last_release.json():
+        return []
+    for commit in commits_since_last_release.json():
+        print("Getting info for commit:", commit["sha"])
+        commit_info = github.get("/repos/" + repo["full_name"] + "/commits/" + commit["sha"])
+        if not commit_info.ok:
+            print("Couldn't retrieve commit:", commit["sha"])
+            continue
+        file_list = ", ".join(file["filename"] for file in commit_info.json()["files"])
+        print(" > Commit files:", file_list)
+    return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE]
 
 def validate_readme(repo, download_url):
     # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
@@ -976,7 +1006,7 @@ full_auth = None
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
 validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs,
-              validate_core_driver_page, validate_in_pypi]
+              validate_core_driver_page, validate_in_pypi, validate_release_state]
 # Submodules inside the bundle (result of get_bundle_submodules)
 bundle_submodules = []
 
