@@ -23,6 +23,8 @@ import copy
 import datetime
 import re
 import sys
+import argparse
+import traceback
 
 import requests
 
@@ -30,6 +32,17 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 
+# Setup ArgumentParser
+cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Libraries.",
+                                          prog="Adabot CircuitPython Libraries Utility")
+cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
+                             metavar="<OUTPUT FILENAME>", dest="output_file")
+cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
+                             " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
+cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
+                             dest="error_depth", type=int, default=5, metavar="n")
+cmd_line_parser.add_argument("-t", "--token", help="Prompt for a GitHub token to use for activating Travis.",
+                             dest="gh_token", action="store_true")
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
@@ -175,6 +188,7 @@ def get_bundle_submodules():
     # master branch of the bundle is the canonical source of the bundle release.
     result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules')
     if result.status_code != 200:
+        output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
         raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
     return parse_gitmodules(result.text)
 
@@ -241,7 +255,10 @@ def list_repos():
                                 "order": "asc"})
     while result.ok:
         links = result.headers["Link"]
-        repos.extend(result.json()["items"])
+        #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
+        repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
+                     repo["name"].startswith("Adafruit_CircuitPython")))
+
         next_url = None
         for link in links.split(","):
             link, rel = link.split(";")
@@ -525,8 +542,8 @@ def validate_travis(repo):
     if not result["active"]:
         activate = travis.post(repo_url + "/activate")
         if not activate.ok:
-            print(activate.request.url)
-            print(activate, activate.text)
+            #output_handler(activate.request.url)
+            #output_handler("{} {}".format(activate, activate.text))
             return [ERROR_ENABLE_TRAVIS]
 
     env_variables = travis.get(repo_url + "/env_vars")
@@ -540,34 +557,38 @@ def validate_travis(repo):
         found_token = found_token or var["name"] == "GITHUB_TOKEN"
     ok = True
     if not found_token:
-        global full_auth
-        if not full_auth:
-            github_user = github.get("/user").json()
-            password = input("Password for " + github_user["login"] + ": ")
-            full_auth = (github_user["login"], password.strip())
-        if not full_auth:
+        if not github_token:
             return [ERROR_TRAVIS_GITHUB_TOKEN]
+        else:
+            global full_auth
+            if not full_auth:
+                github_user = github.get("/user").json()
+                password = input("Password for " + github_user["login"] + ": ")
+                full_auth = (github_user["login"], password.strip())
+            if not full_auth:
+                return [ERROR_TRAVIS_GITHUB_TOKEN]
 
-        new_access_token = {"scopes": ["public_repo"],
-                            "note": "TravisCI release token for " + repo["full_name"],
-                            "note_url": "https://travis-ci.org/" + repo["full_name"]}
-        token = github.post("/authorizations", json=new_access_token, auth=full_auth)
-        if not token.ok:
-            print(token.text)
-            return [ERROR_TRAVIS_TOKEN_CREATE]
+            new_access_token = {"scopes": ["public_repo"],
+                                "note": "TravisCI release token for " + repo["full_name"],
+                                "note_url": "https://travis-ci.org/" + repo["full_name"]}
+            token = github.post("/authorizations", json=new_access_token, auth=full_auth)
+            if not token.ok:
+                print(token.text)
+                return [ERROR_TRAVIS_TOKEN_CREATE]
 
-        token = token.json()
-        grant_id = token["id"]
-        token = token["token"]
+            token = token.json()
+            grant_id = token["id"]
+            token = token["token"]
 
-        new_var = {"env_var.name": "GITHUB_TOKEN",
-                   "env_var.value": token,
-                   "env_var.public": False}
-        new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
-        if not new_var_result.ok:
-            #print(new_var_result.headers, new_var_result.text)
-            github.delete("/authorizations/{}".format(grant_id), auth=full_auth)
-            return [ERROR_TRAVIS_GITHUB_TOKEN]
+            new_var = {"env_var.name": "GITHUB_TOKEN",
+                       "env_var.value": token,
+                       "env_var.public": False}
+            new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
+            if not new_var_result.ok:
+                #print(new_var_result.headers, new_var_result.text)
+                github.delete("/authorizations/{}".format(grant_id), auth=full_auth)
+                return [ERROR_TRAVIS_GITHUB_TOKEN]
+
     return []
 
 def validate_readthedocs(repo):
@@ -694,7 +715,7 @@ def gather_insights(repo, insights, since):
               "since": str(since)}
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
-        print("request failed")
+        output_handler("Insights request failed: {}".format(repo["full_name"]))
     issues = response.json()
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -728,7 +749,7 @@ def gather_insights(repo, insights, since):
     params = {"state": "open", "per_page": 100}
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
-        print("request failed")
+        output_handler("Issues request failed: {}".format(repo["full_name"]))
     issues = response.json()
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -746,7 +767,7 @@ def repo_is_on_pypi(repo):
 
     return is_on
 
-def validate_in_pypi(repos):
+def validate_in_pypi(repo):
     """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
     if repo["name"] in BUNDLE_IGNORE_LIST:
         return []
@@ -757,107 +778,22 @@ def validate_in_pypi(repos):
         return [ERROR_NOT_ON_PYPI]
     return []
 
-def print_circuitpython_download_stats():
-    """Gather and report analytics on the main CircuitPython repository."""
-    response = github.get("/repos/adafruit/circuitpython/releases")
-    if not response.ok:
-        print("request failed")
-    releases = response.json()
-    found_unstable = False
-    found_stable = False
-    for release in releases:
-        published = datetime.datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ")
-        if not found_unstable and not release["draft"] and release["prerelease"]:
-            found_unstable = True
-        elif not found_stable and not release["draft"] and not release["prerelease"]:
-            found_stable = True
-        else:
-            continue
-
-        by_board = {}
-        by_language = {}
-        by_both = {}
-        total = 0
-        for asset in release["assets"]:
-            if not asset["name"].startswith("adafruit-circuitpython"):
-                continue
-            count = asset["download_count"]
-            parts = asset["name"].split("-")
-            board = parts[2]
-            language = "en_US"
-            if len(parts) == 6:
-                language = parts[3]
-            if language not in by_language:
-                by_language[language] = 0
-            by_language[language] += count
-            if board not in by_board:
-                by_board[board] = 0
-                by_both[board] = {}
-            by_board[board] += count
-            by_both[board][language] = count
-
-            total += count
-        print("Download stats for {}".format(release["tag_name"]))
-        print("{} total".format(total))
-        print()
-        print("By board:")
-        for board in by_board:
-            print("* {} - {}".format(board, by_board[board]))
-        print()
-        print("By language:")
-        for language in by_language:
-            print("* {} - {}".format(language, by_language[language]))
-        print()
-
-def print_pr_overview(*insights):
-    merged_prs = sum([x["merged_prs"] for x in insights])
-    authors = set().union(*[x["pr_merged_authors"] for x in insights])
-    reviewers = set().union(*[x["pr_reviewers"] for x in insights])
-
-    print("* {} pull requests merged".format(merged_prs))
-    print("  * {} authors - {}".format(len(authors), ", ".join(authors)))
-    print("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
-
-def print_issue_overview(*insights):
-    closed_issues = sum([x["closed_issues"] for x in insights])
-    issue_closers = set().union(*[x["issue_closers"] for x in insights])
-    new_issues = sum([x["new_issues"] for x in insights])
-    issue_authors = set().union(*[x["issue_authors"] for x in insights])
-    print("* {} closed issues by {} people, {} opened by {} people"
-          .format(closed_issues, len(issue_closers),
-                  new_issues, len(issue_authors)))
-
-
-# Define global state shared by the functions above:
-# Github authentication password/token.  Used to generate new tokens.
-full_auth = None
-# Functions to run on repositories to validate their state.  By convention these
-# return a list of string errors for the specified repository (a dictionary
-# of Github API repository object state).
-validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs,
-              validate_core_driver_page, validate_in_pypi]
-# Submodules inside the bundle (result of get_bundle_submodules)
-bundle_submodules = []
-
-# Load the latest pylint version
-latest_pylint = "2.0.1"
-
-
-if __name__ == "__main__":
+def run_library_checks():
+    """runs the various library checking functions"""
     pylint_info = pypi.get("/pypi/pylint/json")
     if pylint_info and pylint_info.ok:
         latest_pylint = pylint_info.json()["info"]["version"]
-
-    print("Latest pylint is:", latest_pylint)
+    output_handler("Latest pylint is: {}".format(latest_pylint))
 
     repos = list_repos()
-    print("Found {} repos to check.".format(len(repos)))
+    output_handler("Found {} repos to check.".format(len(repos)))
+    global bundle_submodules
     bundle_submodules = get_bundle_submodules()
-    print("Found {} submodules in the bundle.".format(len(bundle_submodules)))
+    output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
     github_user = github.get("/user").json()
-    print("Running GitHub checks as " + github_user["login"])
+    output_handler("Running GitHub checks as " + github_user["login"])
     travis_user = travis.get("/user").json()
-    print("Running Travis checks as " + travis_user["login"])
+    output_handler("Running Travis checks as " + travis_user["login"])
     need_work = 0
     lib_insights = {
         "merged_prs": 0,
@@ -901,35 +837,36 @@ if __name__ == "__main__":
         if repo["name"] == "circuitpython" and repo["owner"]["login"] == "adafruit":
             insights = core_insights
         gather_insights(repo, insights, since)
-    print()
-    print("State of CircuitPython + Libraries")
 
-    print("Overall")
+    output_handler()
+    output_handler("State of CircuitPython + Libraries")
+
+    output_handler("Overall")
     print_pr_overview(lib_insights, core_insights)
     print_issue_overview(lib_insights, core_insights)
 
-    print()
-    print("Core")
+    output_handler()
+    output_handler("Core")
     print_pr_overview(core_insights)
-    print("* {} open pull requests".format(len(core_insights["open_prs"])))
+    output_handler("* {} open pull requests".format(len(core_insights["open_prs"])))
     for pr in core_insights["open_prs"]:
-        print("  * {}".format(pr))
+        output_handler("  * {}".format(pr))
     print_issue_overview(core_insights)
-    print("* {} open issues".format(len(insights["open_issues"])))
-    print("  * https://github.com/adafruit/circuitpython/issues")
-    print()
+    output_handler("* {} open issues".format(len(insights["open_issues"])))
+    output_handler("  * https://github.com/adafruit/circuitpython/issues")
+    output_handler()
     print_circuitpython_download_stats()
 
-    print()
-    print("Libraries")
+    output_handler()
+    output_handler("Libraries")
     print_pr_overview(lib_insights)
-    print("* {} open pull requests".format(len(lib_insights["open_prs"])))
+    output_handler("* {} open pull requests".format(len(lib_insights["open_prs"])))
     for pr in lib_insights["open_prs"]:
-        print("  * {}".format(pr))
+        output_handler("  * {}".format(pr))
     print_issue_overview(lib_insights)
-    print("* {} open issues".format(len(lib_insights["open_issues"])))
+    output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
     for issue in lib_insights["open_issues"]:
-        print("  * {}".format(issue))
+        output_handler("  * {}".format(issue))
 
     lib_repos = []
     for repo in repos:
@@ -937,15 +874,143 @@ if __name__ == "__main__":
             lib_repos.append(repo)
 
     # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
-    print("{} out of {} repos need work.".format(need_work, len(lib_repos)))
+    output_handler("{} out of {} repos need work.".format(need_work, len(lib_repos)))
 
     list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
 
     for error in repos_by_error:
         if not repos_by_error[error]:
             continue
-        print()
+        output_handler()
         error_count = len(repos_by_error[error])
-        print("{} - {}".format(error, error_count))
-        if error_count <= 5 or error in list_repos_for_errors:
-            print("\n".join(["* " + x for x in repos_by_error[error]]))
+        output_handler("{} - {}".format(error, error_count))
+        if error_count <= error_depth or error in list_repos_for_errors:
+            output_handler("\n".join(["* " + x for x in repos_by_error[error]]))
+
+def output_handler(message="", quiet=False):
+    """Handles message output to prompt/file for print_*() functions."""
+    if output_filename is not None:
+        file_data.append(message)
+    if verbosity and not quiet:
+        print(message)
+
+def print_circuitpython_download_stats():
+    """Gather and report analytics on the main CircuitPython repository."""
+    response = github.get("/repos/adafruit/circuitpython/releases")
+    if not response.ok:
+        output_handler("Core CircuitPython GitHub analytics request failed.")
+    releases = response.json()
+    found_unstable = False
+    found_stable = False
+    for release in releases:
+        published = datetime.datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ")
+        if not found_unstable and not release["draft"] and release["prerelease"]:
+            found_unstable = True
+        elif not found_stable and not release["draft"] and not release["prerelease"]:
+            found_stable = True
+        else:
+            continue
+
+        by_board = {}
+        by_language = {}
+        by_both = {}
+        total = 0
+        for asset in release["assets"]:
+            if not asset["name"].startswith("adafruit-circuitpython"):
+                continue
+            count = asset["download_count"]
+            parts = asset["name"].split("-")
+            board = parts[2]
+            language = "en_US"
+            if len(parts) == 6:
+                language = parts[3]
+            if language not in by_language:
+                by_language[language] = 0
+            by_language[language] += count
+            if board not in by_board:
+                by_board[board] = 0
+                by_both[board] = {}
+            by_board[board] += count
+            by_both[board][language] = count
+
+            total += count
+        output_handler("Download stats for {}".format(release["tag_name"]))
+        output_handler("{} total".format(total))
+        output_handler()
+        output_handler("By board:")
+        for board in by_board:
+            output_handler("* {} - {}".format(board, by_board[board]))
+        output_handler()
+        output_handler("By language:")
+        for language in by_language:
+            output_handler("* {} - {}".format(language, by_language[language]))
+        output_handler()
+
+def print_pr_overview(*insights):
+    merged_prs = sum([x["merged_prs"] for x in insights])
+    authors = set().union(*[x["pr_merged_authors"] for x in insights])
+    reviewers = set().union(*[x["pr_reviewers"] for x in insights])
+
+    output_handler("* {} pull requests merged".format(merged_prs))
+    output_handler("  * {} authors - {}".format(len(authors), ", ".join(authors)))
+    output_handler("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
+
+def print_issue_overview(*insights):
+    closed_issues = sum([x["closed_issues"] for x in insights])
+    issue_closers = set().union(*[x["issue_closers"] for x in insights])
+    new_issues = sum([x["new_issues"] for x in insights])
+    issue_authors = set().union(*[x["issue_authors"] for x in insights])
+    output_handler("* {} closed issues by {} people, {} opened by {} people"
+                   .format(closed_issues, len(issue_closers),
+                   new_issues, len(issue_authors)))
+
+
+# Define global state shared by the functions above:
+# Github authentication password/token.  Used to generate new tokens.
+full_auth = None
+# Functions to run on repositories to validate their state.  By convention these
+# return a list of string errors for the specified repository (a dictionary
+# of Github API repository object state).
+validators = [validate_repo_state, validate_travis, validate_contents, validate_readthedocs,
+              validate_core_driver_page, validate_in_pypi]
+# Submodules inside the bundle (result of get_bundle_submodules)
+bundle_submodules = []
+
+# Load the latest pylint version
+latest_pylint = "2.0.1"
+
+# Logging output filename and data
+output_filename = None
+file_data = []
+# Verbosity level
+verbosity = 1
+github_token = False
+
+if __name__ == "__main__":
+    cmd_line_args = cmd_line_parser.parse_args()
+    error_depth = cmd_line_args.error_depth
+    verbosity = cmd_line_args.verbose
+    github_token = cmd_line_args.gh_token
+    if cmd_line_args.output_file:
+        output_filename = cmd_line_args.output_file
+
+    try:
+        run_library_checks()
+    except:
+        if output_filename is not None:
+            exc_type, exc_val, exc_tb = sys.exc_info()
+            output_handler("Exception Occurred!", quiet=True)
+            output_handler(("-"*60), quiet=True)
+            output_handler("Traceback (most recent call last):", quiet=True)
+            tb = traceback.format_tb(exc_tb)
+            for line in tb:
+                output_handler(line, quiet=True)
+            output_handler(exc_val, quiet=True)
+
+        raise
+
+    finally:
+        if output_filename is not None:
+            with open(output_filename, 'w') as f:
+                for line in file_data:
+                    f.write(str(line) + "\n")
