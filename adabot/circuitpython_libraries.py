@@ -41,8 +41,6 @@ cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
 cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
                              dest="error_depth", type=int, default=5, metavar="n")
-#cmd_line_parser.add_argument("-t", "--token", help="Supply a GitHub token to use for activating Travis.",
-#                             dest=gh_token, metavar="<GITHUB_TOKEN>")
 cmd_line_parser.add_argument("-t", "--token", help="Prompt for a GitHub token to use for activating Travis.",
                              dest="gh_token", action="store_true")
 
@@ -559,13 +557,11 @@ def validate_travis(repo):
         found_token = found_token or var["name"] == "GITHUB_TOKEN"
     ok = True
     if not found_token:
-        #if github_token is None:
         if not github_token:
             return [ERROR_TRAVIS_GITHUB_TOKEN]
         else:
             global full_auth
             if not full_auth:
-                #github_user = github_token
                 github_user = github.get("/user").json()
                 password = input("Password for " + github_user["login"] + ": ")
                 full_auth = (github_user["login"], password.strip())
@@ -988,7 +984,6 @@ output_filename = None
 file_data = []
 # Verbosity level
 verbosity = 1
-#github_token = None
 github_token = False
 
 if __name__ == "__main__":
