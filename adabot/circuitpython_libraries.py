@@ -319,21 +319,33 @@ def validate_release_state(repo):
     if not repo_last_release.ok:
         return [ERROR_GITHUB_NO_RELEASE]
     params = {"since": str(repo_last_release.json()["published_at"])}
-    commits_since_last_release = github.get("/repos/" + repo["full_name"] + "/commits",
-                                            params=params)
-    if not commits_since_last_release.ok:
+    repo_release_json = repo_last_release.json()
+    if "tag_name" in repo_release_json:
+        tag_name = repo_release_json["tag_name"]
+    elif "message" in repo_release_json:
+        if repo_release_json["message"] == "Not Found":
+            return [ERROR_GITHUB_NO_RELEASE]
+        else:
+            output_handler("Error: retrieving latest release information failed on '{0}'. Information Received: {1}".format(
+                           repo["name"], repo_release_json["message"]))
+            return []
+
+    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + tag_name, timeout=5)
+    if not compare_tags.ok:
+        output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], tag_name))
         return []
-    if not commits_since_last_release.json():
-        return []
-    for commit in commits_since_last_release.json():
-        print("Getting info for commit:", commit["sha"])
-        commit_info = github.get("/repos/" + repo["full_name"] + "/commits/" + commit["sha"])
-        if not commit_info.ok:
-            print("Couldn't retrieve commit:", commit["sha"])
-            continue
-        file_list = ", ".join(file["filename"] for file in commit_info.json()["files"])
-        print(" > Commit files:", file_list)
-    return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE]
+    compare_tags_json = compare_tags.json()
+    if "status" in compare_tags_json:
+        if compare_tags.json()["status"] != "identical":
+            #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
+            #      compare_tags_json["status"], compare_tags_json["ahead_by"],
+            #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
+            return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE]
+    elif "errors" in compare_tags_json:
+        output_handler("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
+                       repo["name"], compare_tags_json["message"]))
+
+    return []
 
 def validate_readme(repo, download_url):
     # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
