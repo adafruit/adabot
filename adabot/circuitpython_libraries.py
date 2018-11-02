@@ -238,7 +238,7 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
         # URLs matched so now check if the submodule is placed in the libraries
         # subfolder of the bundle.  Just look at the path from the submodule
         # state.
-        if variables.get('path', '',).startswith('libraries/'):
+        if variables.get('path', '').startswith('libraries/'):
             # Success! Found the repo as a submodule of the libraries folder
             # in the bundle.
             return True
