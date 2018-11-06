@@ -1,0 +1,39 @@
+# TravisCI config for running Adabot on autopilot.
+dist: trusty
+sudo: false
+language: python
+python:
+  - "3.6"
+cache:
+  pip: true
+
+env:
+    # LIB_CHECK_FILE is for circuitpython_libraries.py output
+    # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
+  - LIB_CHECK_FILE='bin/adabot/library_report_'`date +%Y%m%d`'.txt' LIB_DL_STATS_FILE='bin/adabot/library_stats_'`date +%Y%m%d`'.txt'
+
+# Will need AWS S3 credentials added to the Travis settings
+#addons:
+#  artifacts:
+#    paths:
+#      - $(ls bin/adabot/* | tr "\n" ":")
+#    target_paths: /adabot
+
+script:
+  # A folder for Adabot files
+  - mkdir -p bin/adabot
+
+  # Run the Bundle update script
+  - echo "(Placeholder) Updating Bundle..." && echo -en 'travis_fold:start:update\\r'
+  - echo "Running Bundle Update..."
+  #- python -m adabot.circuitpython_bundle
+  - echo -en 'travis_fold:end:update\\r'
+
+  # Run the circuitpython_libraries.py report; output a file with results for AWS
+  - echo "Running library checks..." && echo -en 'travis_fold:start:lib_check\\r'
+  - python -m adabot.circuitpython_libraries -o $LIB_CHECK_FILE
+  - echo -en 'travis_fold:end:lib_check\\r'
+
+  # (Future) Run the circuitpython_library_[download_stats].py; output a file with results for AWS
+  - echo -e "Getting Library Download Stats..." && echo -en 'travis_fold:start:stats\\r'
+  - echo -en 'travis_fold:start:stats\\r'
