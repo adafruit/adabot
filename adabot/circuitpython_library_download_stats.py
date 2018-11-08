@@ -24,7 +24,6 @@ import datetime
 import sys
 import argparse
 import traceback
-import os
 
 import requests
 
@@ -35,7 +34,7 @@ from adabot import circuitpython_libraries as cpy_libs
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Library download stats." \
                                           " Provides stats for the Adafruit CircuitPython Bundle, and PyPi if available.",
-                                          prog="Adabot CircuitPython Libraries Utility")
+                                          prog="Adabot CircuitPython Libraries Download Stats")
 cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
                              metavar="<OUTPUT FILENAME>", dest="output_file")
 cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
@@ -57,13 +56,12 @@ def get_pypi_stats(repo):
 def get_bundle_stats(bundle):
     """ Returns the download stats for 'bundle'. Uses release tag names to compile download
         stats for the last 7 days. This assumes an Adabot release within that time frame, and
-        that tag name(s) will be the date.
+        that tag name(s) will be the date (YYYYMMDD).
     """
     stats_dict = {}
     bundle_stats = github.get("/repos/adafruit/" + bundle + "/releases")
     if not bundle_stats.ok:
-        print(bundle_stats.text)
-        return "failure"
+        return {"Failed to retrieve bundle stats": bundle_stats.text}
     start_date = datetime.date.today()
 
     for release in bundle_stats.json():
@@ -117,7 +115,6 @@ if __name__ == "__main__":
     verbosity = cmd_line_args.verbose
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
-    i = 0
     try:
         run_stat_check()
     except:
@@ -136,10 +133,5 @@ if __name__ == "__main__":
     finally:
         if output_filename is not None:
             with open(output_filename, 'w') as f:
-                f.write("\n".join(file_data))
-                #for line in file_data:
-                    #f.write(str(line) + "\n")
-                f.flush()
-                os.fsync(f)
-    #print()
-    #print(file_data)
+                for line in file_data:
+                    f.write(str(line) + "\n")
