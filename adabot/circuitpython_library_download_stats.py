@@ -70,7 +70,7 @@ def get_bundle_stats(bundle):
                                          int(release["tag_name"][4:6]),
                                          int(release["tag_name"][6:]))
         except:
-            output_handler("Skipping release. Tag name invalid:", release["tag_name"])
+            output_handler("Skipping release. Tag name invalid: {}".format(release["tag_name"]))
             continue
         if (start_date - release_date).days > 7:
             break
