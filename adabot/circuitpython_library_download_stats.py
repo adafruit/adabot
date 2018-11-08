@@ -93,7 +93,7 @@ def output_handler(message="", quiet=False):
         print(message)
 
 def run_stat_check():
-    output_handler("Adafruit Library Download Stats")
+    output_handler("Adafruit CircuitPython Library Download Stats")
     output_handler("Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p")))
     output_handler()
     output_handler("Adafruit_CircuitPython_Bundle downloads for the past week:")
