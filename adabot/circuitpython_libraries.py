@@ -937,7 +937,7 @@ def run_library_checks():
     output_handler("{} out of {} repos need work.".format(need_work, len(lib_repos)))
 
     list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
-
+    output_handler()
     for error in repos_by_error:
         if not repos_by_error[error]:
             continue
@@ -945,7 +945,7 @@ def run_library_checks():
         error_count = len(repos_by_error[error])
         output_handler("{} - {}".format(error, error_count))
         if error_count <= error_depth or error in list_repos_for_errors:
-            output_handler("\n".join(["* " + x for x in repos_by_error[error]]))
+            output_handler("\n".join(["  * " + x for x in repos_by_error[error]]))
 
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
