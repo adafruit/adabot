@@ -262,7 +262,7 @@ def list_repos():
         links = result.headers["Link"]
         #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
         repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
-                     repo["name"].startswith("Adafruit_CircuitPython")))
+                     (repo["name"].startswith("Adafruit_CircuitPython") or repo["name"] == "circuitpython")))
 
         next_url = None
         for link in links.split(","):
