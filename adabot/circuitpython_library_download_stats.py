@@ -105,7 +105,7 @@ def run_stat_check():
     output_handler("Adafruit CircuitPython Library PyPi downloads for the past week: ")
     repos = cpy_libs.list_repos()
     for repo in repos:
-        if repo["owner"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython"):
+        if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
             if cpy_libs.repo_is_on_pypi(repo):
                 pypi_downloads[repo["name"]] = get_pypi_stats(repo["name"])
     for stat in sorted(pypi_downloads.items()):
