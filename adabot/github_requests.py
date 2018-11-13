@@ -52,6 +52,8 @@ def _fix_kwargs(kwargs):
             kwargs["params"]["access_token"] = access_token
         else:
             kwargs["params"] = {"access_token": access_token}
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 30
     return kwargs
 
 def get(url, **kwargs):

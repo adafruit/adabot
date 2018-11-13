@@ -38,6 +38,8 @@ def _fix_url(url):
     return url
 
 def _fix_kwargs(kwargs):
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = 30
     return kwargs
 
 def get(url, **kwargs):

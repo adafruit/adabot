@@ -275,7 +275,7 @@ def list_repos():
         if not next_url:
             break
         # Subsequent links have our access token already so we use requests directly.
-        result = requests.get(link, timeout=15)
+        result = requests.get(link, timeout=30)
 
     return repos
 
@@ -288,7 +288,7 @@ def validate_repo_state(repo):
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
-    full_repo = github.get("/repos/" + repo["full_name"], timeout=15)
+    full_repo = github.get("/repos/" + repo["full_name"])
     if not full_repo.ok:
         return [ERROR_UNABLE_PULL_REPO_DETAILS]
     full_repo = full_repo.json()
@@ -320,7 +320,7 @@ def validate_release_state(repo):
     if repo["name"] in BUNDLE_IGNORE_LIST:
         return []
 
-    repo_last_release = github.get("/repos/" + repo["full_name"] + "/releases/latest", timeout=15)
+    repo_last_release = github.get("/repos/" + repo["full_name"] + "/releases/latest")
     if not repo_last_release.ok:
         return [ERROR_GITHUB_NO_RELEASE]
     repo_release_json = repo_last_release.json()
@@ -334,7 +334,7 @@ def validate_release_state(repo):
                            repo["name"], repo_release_json["message"]))
             return []
 
-    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + tag_name, timeout=15)
+    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + tag_name)
     if not compare_tags.ok:
         output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], tag_name))
         return []
@@ -353,7 +353,7 @@ def validate_release_state(repo):
 
 def validate_readme(repo, download_url):
     # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
-    contents = requests.get(download_url, timeout=15)
+    contents = requests.get(download_url, timeout=30)
     if not contents.ok:
         return [ERROR_README_DOWNLOAD_FAILED]
 
@@ -394,7 +394,7 @@ def validate_py_for_ustruct(repo, download_url):
         used with NO "import struct" generate an error.
     """
     # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
-    contents = requests.get(download_url, timeout=15)
+    contents = requests.get(download_url, timeout=30)
     if not contents.ok:
         return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -412,7 +412,7 @@ def validate_travis_yml(repo, travis_yml_file_info):
     """Check size and then check pypi compatibility.
     """
     download_url = travis_yml_file_info["download_url"]
-    contents = requests.get(download_url, timeout=15)
+    contents = requests.get(download_url, timeout=30)
     if not contents.ok:
         return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -443,7 +443,7 @@ def validate_setup_py(repo, file_info):
     """Check setup.py for pypi compatibility
     """
     download_url = file_info["download_url"]
-    contents = requests.get(download_url, timeout=15)
+    contents = requests.get(download_url, timeout=30)
     if not contents.ok:
         return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -456,7 +456,7 @@ def validate_requirements_txt(repo, file_info):
     """Check requirements.txt for pypi compatibility
     """
     download_url = file_info["download_url"]
-    contents = requests.get(download_url, timeout=15)
+    contents = requests.get(download_url, timeout=30)
     if not contents.ok:
         return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -480,7 +480,7 @@ def validate_contents(repo):
     if repo["name"] == BUNDLE_REPO_NAME:
         return []
 
-    content_list = github.get("/repos/" + repo["full_name"] + "/contents/", timeout=15)
+    content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
     if not content_list.ok:
         return [ERROR_UNABLE_PULL_REPO_CONTENTS]
 
@@ -543,7 +543,7 @@ def validate_contents(repo):
     dirs = [x["name"] for x in content_list if x["type"] == "dir"]
     if "examples" in dirs:
         # check for at least on .py file
-        examples_list = github.get("/repos/" + repo["full_name"] + "/contents/examples", timeout=15)
+        examples_list = github.get("/repos/" + repo["full_name"] + "/contents/examples")
         if not examples_list.ok:
             errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
         examples_list = examples_list.json()
@@ -564,7 +564,7 @@ def validate_contents(repo):
     for adir in dirs:
         if re_str.fullmatch(adir):
             # retrieve the files in that directory
-            dir_file_list = github.get("/repos/" + repo["full_name"] + "/contents/" + adir, timeout=15)
+            dir_file_list = github.get("/repos/" + repo["full_name"] + "/contents/" + adir)
             if not dir_file_list.ok:
                 errors.append(ERROR_UNABLE_PULL_REPO_DIR)
             dir_file_list = dir_file_list.json()
@@ -587,7 +587,7 @@ def validate_travis(repo):
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
     repo_url = "/repo/" + repo["owner"]["login"] + "%2F" + repo["name"]
-    result = travis.get(repo_url, timeout=15)
+    result = travis.get(repo_url)
     if not result.ok:
         #print(result, result.request.url, result.request.headers)
         #print(result.text)
@@ -600,7 +600,7 @@ def validate_travis(repo):
             #output_handler("{} {}".format(activate, activate.text))
             return [ERROR_ENABLE_TRAVIS]
 
-    env_variables = travis.get(repo_url + "/env_vars", timeout=15)
+    env_variables = travis.get(repo_url + "/env_vars")
     if not env_variables.ok:
         #print(env_variables, env_variables.text)
         #print(env_variables.request.headers)
@@ -617,7 +617,7 @@ def validate_travis(repo):
             global full_auth
             if not full_auth:
                 #github_user = github_token
-                github_user = github.get("/user", timeout=15).json()
+                github_user = github.get("/user").json()
                 password = input("Password for " + github_user["login"] + ": ")
                 full_auth = (github_user["login"], password.strip())
             if not full_auth:
@@ -679,7 +679,7 @@ def validate_readthedocs(repo):
         errors.append(ERROR_RTD_VALID_VERSIONS_FAILED)
     else:
         valid_versions = valid_versions.json()
-        latest_release = github.get("/repos/{}/releases/latest".format(repo["full_name"]), timeout=15)
+        latest_release = github.get("/repos/{}/releases/latest".format(repo["full_name"]))
         if not latest_release.ok:
             errors.append(ERROR_GITHUB_RELEASE_FAILED)
         else:
@@ -773,14 +773,14 @@ def gather_insights(repo, insights, since):
     params = {"sort": "updated",
               "state": "all",
               "since": str(since)}
-    response = github.get("/repos/" + repo["full_name"] + "/issues", params=params, timeout=15)
+    response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
         output_handler("Insights request failed: {}".format(repo["full_name"]))
     issues = response.json()
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
         if "pull_request" in issue:
-            pr_info = github.get(issue["pull_request"]["url"], timeout=15)
+            pr_info = github.get(issue["pull_request"]["url"])
             pr_info = pr_info.json()
             if issue["state"] == "open":
                 if created > since:
@@ -795,7 +795,7 @@ def gather_insights(repo, insights, since):
                 else:
                     insights["closed_prs"] += 1
         else:
-            issue_info = github.get(issue["url"], timeout=15)
+            issue_info = github.get(issue["url"])
             issue_info = issue_info.json()
             if issue["state"] == "open":
                 if created > since:
@@ -807,7 +807,7 @@ def gather_insights(repo, insights, since):
                 insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
     params = {"state": "open", "per_page": 100}
-    response = github.get("/repos/" + repo["full_name"] + "/issues", params=params, timeout=15)
+    response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
         output_handler("Issues request failed: {}".format(repo["full_name"]))
     issues = response.json()
@@ -821,7 +821,7 @@ def gather_insights(repo, insights, since):
 def repo_is_on_pypi(repo):
     """returns True when the provided repository is in pypi"""
     is_on = False
-    the_page = pypi.get("/pypi/"+repo["name"]+"/json", timeout=15)
+    the_page = pypi.get("/pypi/"+repo["name"]+"/json")
     if the_page and the_page.status_code == 200:
         is_on = True
 
@@ -840,7 +840,7 @@ def validate_in_pypi(repo):
 
 def run_library_checks():
     """runs the various library checking functions"""
-    pylint_info = pypi.get("/pypi/pylint/json", timeout=15)
+    pylint_info = pypi.get("/pypi/pylint/json")
     if pylint_info and pylint_info.ok:
         latest_pylint = pylint_info.json()["info"]["version"]
     output_handler("Latest pylint is: {}".format(latest_pylint))
@@ -850,9 +850,9 @@ def run_library_checks():
     global bundle_submodules
     bundle_submodules = get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
-    github_user = github.get("/user", timeout=15).json()
+    github_user = github.get("/user").json()
     output_handler("Running GitHub checks as " + github_user["login"])
-    travis_user = travis.get("/user", timeout=15).json()
+    travis_user = travis.get("/user").json()
     output_handler("Running Travis checks as " + travis_user["login"])
     need_work = 0
     lib_insights = {
@@ -956,7 +956,7 @@ def output_handler(message="", quiet=False):
 
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
-    response = github.get("/repos/adafruit/circuitpython/releases", timeout=15)
+    response = github.get("/repos/adafruit/circuitpython/releases")
     if not response.ok:
         output_handler("Core CircuitPython GitHub analytics request failed.")
     releases = response.json()
