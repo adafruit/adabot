@@ -47,7 +47,7 @@ file_data = []
 
 def get_pypi_stats(repo):
     api_url = "https://pypistats.org/api/packages/" + repo.replace("_", "-").lower() + "/recent"
-    pypi_stats = requests.get(api_url, timeout=10)
+    pypi_stats = requests.get(api_url, timeout=30)
     if not pypi_stats.ok:
         return "Failed to retrieve data ({})".format(pypi_stats.text)
 
