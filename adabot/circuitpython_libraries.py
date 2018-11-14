@@ -556,7 +556,7 @@ def validate_contents(repo):
             all_have_name = True
             simpletest_exists = False
             for example in examples_list:
-                if lib_name not in example["name"].lower():
+                if not example["name"].lower().startswith(lib_name):
                     all_have_name = False
                 if "simpletest" in example["name"].lower():
                     simpletest_exists = True
