@@ -59,6 +59,8 @@ ERROR_PYFILE_MISSING_STRUCT = ".py file contains reference to import ustruct" \
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yml"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
+ERROR_EXAMPLE_MISSING_SENSORNAME = "Example file(s) missing sensor/library name."
+ERROR_MISSING_EXAMPLE_SIMPLETEST = "Missing simpletest example."
 ERROR_MISSING_LIBRARIANS = "CircuitPythonLibrarians team missing or does not have write access."
 ERROR_MISSING_LICENSE = "Missing license."
 ERROR_MISSING_LINT = "Missing lint config"
@@ -549,6 +551,19 @@ def validate_contents(repo):
         examples_list = examples_list.json()
         if len(examples_list) < 1:
             errors.append(ERROR_MISSING_EXAMPLE_FILES)
+        else:
+            lib_name = repo["name"][repo["name"].rfind("_") + 1:].lower()
+            all_have_name = True
+            simpletest_exists = False
+            for example in examples_list:
+                if not example["name"].lower().startswith(lib_name):
+                    all_have_name = False
+                if "simpletest" in example["name"].lower():
+                    simpletest_exists = True
+            if not all_have_name:
+                errors.append(ERROR_EXAMPLE_MISSING_SENSORNAME)
+            if not simpletest_exists:
+                errors.append(ERROR_MISSING_EXAMPLE_SIMPLETEST)
     else:
         errors.append(ERROR_MISSING_EXAMPLE_FOLDER)
 
