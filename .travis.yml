@@ -12,13 +12,12 @@ env:
     # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
   - LIB_CHECK_FILE='bin/adabot/library_report_'`date +%Y%m%d`'.txt' LIB_DL_STATS_FILE='bin/adabot/library_download_stats_'`date +%Y%m%d`'.txt'
 
-# Will need AWS S3 credentials added to the Travis settings
 addons:
   artifacts:
-  paths:
+    paths:
     - $(ls bin/adabot/* | tr "\n" ":")
-  target_paths: /adabot
-  debug: true
+    target_paths: /adabot
+    debug: true
 
 script:
   # A folder for Adabot files
@@ -36,5 +35,5 @@ script:
 
   # Run the circuitpython_library_download_stats.py; output a file with results for AWS
   - echo "Getting Library Download Stats..." && echo -en 'travis_fold:start:stats\\r'
-  - python -m adabot.circuitpython_download_stats -o $LIB_DL_STAT_FILE
+  - python -m adabot.circuitpython_library_download_stats -o $LIB_DL_STAT_FILE
   - echo -en 'travis_fold:end:stats\\r'
