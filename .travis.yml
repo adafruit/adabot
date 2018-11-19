@@ -35,5 +35,5 @@ script:
 
   # Run the circuitpython_library_download_stats.py; output a file with results for AWS
   - echo "Getting Library Download Stats..." && echo -en 'travis_fold:start:stats\\r'
-  - python -m adabot.circuitpython_library_download_stats -o $LIB_DL_STAT_FILE
+  - python -m adabot.circuitpython_library_download_stats -o $LIB_DL_STATS_FILE
   - echo -en 'travis_fold:end:stats\\r'
