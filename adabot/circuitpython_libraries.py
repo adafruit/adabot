@@ -37,12 +37,14 @@ cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for Circui
                                           prog="Adabot CircuitPython Libraries Utility")
 cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
                              metavar="<OUTPUT FILENAME>", dest="output_file")
-cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
+cmd_line_parser.add_argument("-p", "--print", help="Set the level of verbosity printed to the command prompt."
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
 cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
                              dest="error_depth", type=int, default=5, metavar="n")
 cmd_line_parser.add_argument("-t", "--token", help="Prompt for a GitHub token to use for activating Travis.",
                              dest="gh_token", action="store_true")
+cmd_line_parser.add_argument("-v", "--validator", help="Run only the validator(s) supplied in a string.", dest="validator",
+                             metavar='"validator1, validator2, ..."')
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
@@ -1068,6 +1070,18 @@ if __name__ == "__main__":
     github_token = cmd_line_args.gh_token
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
+    if cmd_line_args.validator:
+        validators = []
+        for func in cmd_line_args.validator.split(","):
+            try:
+                validators.append(eval(func))
+            except NameError:
+                print("Error: '{}' is not an available validator.\n" \
+                      "Available validators are: {}".format(func.strip(),
+                      "validate_contents, validate_repo_state, validate_travis, validate_readthedocs, validate_core_driver_page, validate_in_pypi, validate_release_state"))
+                sys.exit()
+
+    print(validators)
 
     try:
         run_library_checks()
