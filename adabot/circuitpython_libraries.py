@@ -1076,12 +1076,10 @@ if __name__ == "__main__":
             try:
                 validators.append(eval(func))
             except NameError:
-                print("Error: '{}' is not an available validator.\n" \
-                      "Available validators are: {}".format(func.strip(),
-                      "validate_contents, validate_repo_state, validate_travis, validate_readthedocs, validate_core_driver_page, validate_in_pypi, validate_release_state"))
+                output_handler("Error: '{}' is not an available validator.\n" \
+                               "Available validators are: {}".format(func.strip(),
+                               "validate_contents, validate_repo_state, validate_travis, validate_readthedocs, validate_core_driver_page, validate_in_pypi, validate_release_state"))
                 sys.exit()
-
-    print(validators)
 
     try:
         run_library_checks()
