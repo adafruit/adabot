@@ -1074,13 +1074,14 @@ if __name__ == "__main__":
         validators = []
         for func in cmd_line_args.validator.split(","):
             try:
-                validators.append(eval(func))
-            except NameError:
-                output_handler("Error: '{}' is not an available validator.\n" \
-                               "Available validators are: {}".format(func.strip(),
+                if not func.startswith("validate"):
+                    raise KeyError
+                validators.append(sys.modules[__name__].__dict__[func.strip()])
+            except KeyError:
+                output_handler("Error: '{0}' is not an available validator.\n" \
+                               "Available validators are: {1}".format(func.strip(),
                                "validate_contents, validate_repo_state, validate_travis, validate_readthedocs, validate_core_driver_page, validate_in_pypi, validate_release_state"))
                 sys.exit()
-
     try:
         run_library_checks()
     except:
