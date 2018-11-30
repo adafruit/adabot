@@ -1080,7 +1080,7 @@ if __name__ == "__main__":
             except KeyError:
                 output_handler("Error: '{0}' is not an available validator.\n" \
                                "Available validators are: {1}".format(func.strip(),
-                               "validate_contents, validate_repo_state, validate_travis, validate_readthedocs, validate_core_driver_page, validate_in_pypi, validate_release_state"))
+                               ", ".join([vals for vals in sys.modules[__name__].__dict__ if vals.startswith("validate")])))
                 sys.exit()
     try:
         run_library_checks()
