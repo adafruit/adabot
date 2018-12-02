@@ -1,0 +1,155 @@
+# The MIT License (MIT)
+#
+# Copyright (c) 2018 Michael Schroeder
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+import datetime
+import sys
+import argparse
+import traceback
+
+import requests
+
+from adabot import github_requests as github
+
+# Setup ArgumentParser
+cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for Arduino Libraries.",
+                                          prog="Adabot Arduino Libraries Utility")
+cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
+                             metavar="<OUTPUT FILENAME>", dest="output_file")
+cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
+                             " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
+output_filename = None
+verbosity = 1
+
+def list_repos():
+    """ Return a list of all Adafruit repositories with 'Arduino' in either the
+        name, description, or readme. Each list item is a dictionary of GitHub API
+        repository state.
+    """
+    repos = []
+    result = github.get("/search/repositories",
+                        params={"q":"Arduino in:name in:description in:readme fork:true user:adafruit archived:false",
+                                "per_page": 100,
+                                "sort": "updated",
+                                "order": "asc"})
+    while result.ok:
+        links = result.headers["Link"]
+        repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
+
+        if links:
+            next_url = None
+            for link in links.split(","):
+                link, rel = link.split(";")
+                link = link.strip(" <>")
+                rel = rel.strip()
+                if rel == "rel=\"next\"":
+                    next_url = link
+                    break
+            if not next_url:
+                break
+            # Subsequent links have our access token already so we use requests directly.
+            result = requests.get(link, timeout=30)
+
+    return repos
+
+def output_handler(message="", quiet=False):
+    """Handles message output to prompt/file for print_*() functions."""
+    if output_filename is not None:
+        file_data.append(message)
+    if verbosity and not quiet:
+        print(message)
+
+def validate_library_properties(repo):
+    """ Checks if the latest GitHub Release Tag and version in the library_properties
+        file match. Will also check if the library_properties is there, but no release
+        has been made.
+    """
+    lib_prop_file = None
+    lib_version = None
+    release_tag = None
+    has_lib_prop = github.get("/repos/adafruit/" + repo["name"] + "/contents")
+    if has_lib_prop.ok:
+        if "library.properties" not in has_lib_prop.text:
+            return
+        for file in has_lib_prop.json():
+            if file["name"] == "library.properties":
+                lib_prop_file = requests.get(file["download_url"], timeout=30)
+                if lib_prop_file.ok:
+                    lines = lib_prop_file.text.split("\n")
+                    for line in lines:
+                        if "version" in line:
+                            lib_version = line[len("version="):]
+                            break
+
+        get_latest_release = github.get("/repos/adafruit/" + repo["name"] + "/releases/latest")
+        if get_latest_release.ok:
+            response = get_latest_release.json()
+            if "tag_name" in response:
+                release_tag = response["tag_name"]
+            if "message" in response:
+                if response["message"] == "Not Found":
+                    release_tag = "None"
+                else:
+                    release_tag = "Unknown"
+
+        if lib_version and release_tag:
+            return [release_tag, lib_version]
+
+    #print("{} skipped".format(repo["name"]))
+    return
+
+def run_arduino_lib_checks():
+    output_handler("Running Arduino Library Checks")
+
+    repo_list = list_repos()
+    failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
+    for repo in repo_list:
+        lib_check = validate_library_properties(repo)
+        if lib_check:
+            if lib_check[0] != lib_check[1]:
+                failed_lib_prop.append(["  " + str(repo["name"]), lib_check[0], lib_check[1]])
+
+    output_handler("Libraries Have Mismatched Release Tag and library.properties Version: ({})".format(len(failed_lib_prop)))
+    long_col = [(max([len(str(row[i])) for row in failed_lib_prop]) + 3)
+                for i in range(len(failed_lib_prop[0]))]
+    row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+    for lib in failed_lib_prop:
+        print(row_format.format(*lib))
+
+if __name__ == "__main__":
+    cmd_line_args = cmd_line_parser.parse_args()
+    verbosity = cmd_line_args.verbose
+    if cmd_line_args.output_file:
+        output_filename = cmd_line_args.output_file
+
+    try:
+        run_arduino_lib_checks()
+    except:
+        if output_filename is not None:
+            exc_type, exc_val, exc_tb = sys.exc_info()
+            output_handler("Exception Occurred!", quiet=True)
+            output_handler(("-"*60), quiet=True)
+            output_handler("Traceback (most recent call last):", quiet=True)
+            tb = traceback.format_tb(exc_tb)
+            for line in tb:
+                output_handler(line, quiet=True)
+            output_handler(exc_val, quiet=True)
+
+        raise
