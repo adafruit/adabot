@@ -39,7 +39,11 @@ bundles = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
 def fetch_bundle(bundle, bundle_path):
     if not os.path.isdir(bundle_path):
         os.makedirs(bundle_path, exist_ok=True)
-        git.clone("-o", "adafruit", "https://github.com/adafruit/" + bundle + ".git", bundle_path)
+        if "TRAVIS" in os.environ:
+            git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit/"
+            git.clone("-o", "adafruit", git_url + bundle + ".git", bundle_path)
+        else:
+            git.clone("-o", "adafruit", "https://github.com/adafruit/" + bundle + ".git", bundle_path)
     working_directory = os.getcwd()
     os.chdir(bundle_path)
     git.pull()
@@ -353,6 +357,9 @@ def new_release(bundle, bundle_path):
 
 if __name__ == "__main__":
     directory = os.path.abspath(".bundles")
+    if "TRAVIS" in os.environ:
+        git.config("--global", "user.name", "adabot")
+        git.config("--global", "user.email", os.environ["ADABOT_EMAIL"])
     for bundle in bundles:
         bundle_path = os.path.join(directory, bundle)
         try:
