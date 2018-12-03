@@ -37,12 +37,14 @@ cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for Circui
                                           prog="Adabot CircuitPython Libraries Utility")
 cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
                              metavar="<OUTPUT FILENAME>", dest="output_file")
-cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
+cmd_line_parser.add_argument("-p", "--print", help="Set the level of verbosity printed to the command prompt."
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
 cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
                              dest="error_depth", type=int, default=5, metavar="n")
 cmd_line_parser.add_argument("-t", "--token", help="Prompt for a GitHub token to use for activating Travis.",
                              dest="gh_token", action="store_true")
+cmd_line_parser.add_argument("-v", "--validator", help="Run only the validator(s) supplied in a string.", dest="validator",
+                             metavar='"validator1, validator2, ..."')
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
@@ -1068,7 +1070,18 @@ if __name__ == "__main__":
     github_token = cmd_line_args.gh_token
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
-
+    if cmd_line_args.validator:
+        validators = []
+        for func in cmd_line_args.validator.split(","):
+            try:
+                if not func.startswith("validate"):
+                    raise KeyError
+                validators.append(sys.modules[__name__].__dict__[func.strip()])
+            except KeyError:
+                output_handler("Error: '{0}' is not an available validator.\n" \
+                               "Available validators are: {1}".format(func.strip(),
+                               ", ".join([vals for vals in sys.modules[__name__].__dict__ if vals.startswith("validate")])))
+                sys.exit()
     try:
         run_library_checks()
     except:
