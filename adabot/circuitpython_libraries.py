@@ -525,7 +525,8 @@ def validate_contents(repo):
         if ".readthedocs.yml" in files:
             fn = ".readthedocs.yml"
         file_info = content_list[files.index(fn)]
-        if file_info["sha"] != "f4243ad548bc5e4431f2d3c5d486f6c9c863888b":
+        if file_info["sha"] != "f4243ad548bc5e4431f2d3c5d486f6c9c863888b" and
+           file_info["sha"] != "78a4671650248f4382e6eb72dab71c2d86824ca2":
             errors.append(ERROR_MISMATCHED_READTHEDOCS)
     else:
         errors.append(ERROR_MISSING_READTHEDOCS)
