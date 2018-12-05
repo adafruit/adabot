@@ -69,6 +69,16 @@ def list_repos():
 
     return repos
 
+def is_arduino_library(repo):
+    """ Returns if the repo is an Arduino library, as determined by the existence of
+        the 'library.properties' file.
+    """
+    has_lib_prop = github.get("/repos/adafruit/" + repo["name"] + "/contents")
+    if has_lib_prop.ok:
+        return ("library.properties" in has_lib_prop.text)
+    else:
+        return False
+
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
     if output_filename is not None:
@@ -115,23 +125,76 @@ def validate_library_properties(repo):
     #print("{} skipped".format(repo["name"]))
     return
 
+def validate_release_state(repo):
+    """Validate if a repo 1) has a release, and 2) if there have been commits
+    since the last release. Returns a list of string error messages for the
+    repository.
+    """
+
+    if not is_arduino_library(repo):
+        return
+    repo_last_release = github.get("/repos/" + repo["full_name"] + "/releases/latest")
+    if not repo_last_release.ok:
+        return
+    repo_release_json = repo_last_release.json()
+    if "tag_name" in repo_release_json:
+        tag_name = repo_release_json["tag_name"]
+    elif "message" in repo_release_json:
+        output_handler("Error: retrieving latest release information failed on '{0}'. Information Received: {1}".format(
+                           repo["name"], repo_release_json["message"]))
+        return
+
+    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + tag_name)
+    if not compare_tags.ok:
+        output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], tag_name))
+        return
+    compare_tags_json = compare_tags.json()
+    if "status" in compare_tags_json:
+        if compare_tags.json()["status"] != "identical":
+            #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
+            #      compare_tags_json["status"], compare_tags_json["ahead_by"],
+            #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
+            return [tag_name, compare_tags_json["behind_by"]]
+    elif "errors" in compare_tags_json:
+        output_handler("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
+                       repo["name"], compare_tags_json["message"]))
+
+    return
+
 def run_arduino_lib_checks():
     output_handler("Running Arduino Library Checks")
+    output_handler("Getting list of libraries to check...")
 
     repo_list = list_repos()
+    output_handler("Found {} Arduino libraries to check\n".format(len(repo_list)))
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
+    needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
     for repo in repo_list:
         lib_check = validate_library_properties(repo)
         if lib_check:
             if lib_check[0] != lib_check[1]:
                 failed_lib_prop.append(["  " + str(repo["name"]), lib_check[0], lib_check[1]])
 
-    output_handler("Libraries Have Mismatched Release Tag and library.properties Version: ({})".format(len(failed_lib_prop)))
-    long_col = [(max([len(str(row[i])) for row in failed_lib_prop]) + 3)
-                for i in range(len(failed_lib_prop[0]))]
-    row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
-    for lib in failed_lib_prop:
-        print(row_format.format(*lib))
+        needs_release = validate_release_state(repo)
+        if needs_release:
+            needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
+
+    if len(failed_lib_prop) > 2:
+        output_handler("Libraries Have Mismatched Release Tag and library.properties Version: ({})".format(len(failed_lib_prop)))
+        long_col = [(max([len(str(row[i])) for row in failed_lib_prop]) + 3)
+                    for i in range(len(failed_lib_prop[0]))]
+        row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+        for lib in failed_lib_prop:
+            output_handler(row_format.format(*lib))
+
+    if len(needs_release_list) > 2:
+        output_handler()
+        output_handler("Libraries have commits since last release: ({})".format(len(needs_release_list)))
+        long_col = [(max([len(str(row[i])) for row in needs_release_list]) + 3)
+                    for i in range(len(needs_release_list[0]))]
+        row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+        for lib in needs_release_list:
+            output_handler(row_format.format(*lib))
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
