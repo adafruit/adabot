@@ -1,6 +1,5 @@
 # TravisCI config for running Adabot on autopilot.
 dist: trusty
-sudo: false
 language: python
 python:
   - "3.6"
