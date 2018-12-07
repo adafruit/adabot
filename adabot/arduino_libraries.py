@@ -37,6 +37,7 @@ cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
 output_filename = None
 verbosity = 1
+file_data = []
 
 def list_repos():
     """ Return a list of all Adafruit repositories with 'Arduino' in either the
@@ -216,3 +217,8 @@ if __name__ == "__main__":
             output_handler(exc_val, quiet=True)
 
         raise
+    finally:
+        if output_filename is not None:
+            with open(output_filename, 'w') as f:
+                for line in file_data:
+                    f.write(str(line) + "\n")
