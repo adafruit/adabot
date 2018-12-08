@@ -6,6 +6,9 @@ python:
 cache:
   pip: true
 
+services:
+  - redis-server
+
 env:
     # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
     # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
