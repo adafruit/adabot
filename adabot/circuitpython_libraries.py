@@ -981,7 +981,6 @@ def print_circuitpython_download_stats():
     found_unstable = False
     found_stable = False
     for release in releases:
-        published = datetime.datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ")
         if not found_unstable and not release["draft"] and release["prerelease"]:
             found_unstable = True
         elif not found_stable and not release["draft"] and not release["prerelease"]:
