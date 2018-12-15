@@ -794,6 +794,7 @@ def gather_insights(repo, insights, since):
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
         output_handler("Insights request failed: {}".format(repo["full_name"]))
+
     issues = response.json()
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
@@ -824,11 +825,32 @@ def gather_insights(repo, insights, since):
                 insights["closed_issues"] += 1
                 insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
+    issues = []
     params = {"state": "open", "per_page": 100}
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
         output_handler("Issues request failed: {}".format(repo["full_name"]))
-    issues = response.json()
+
+    while response.ok:
+        issues.extend(response.json())
+        try:
+            links = response.headers["Link"]
+        except KeyError:
+            break
+
+        if links:
+            next_url = None
+            for link in links.split(","):
+                link, rel = link.split(";")
+                link = link.strip(" <>")
+                rel = rel.strip()
+                if rel == "rel=\"next\"":
+                    next_url = link
+                    break
+            if not next_url:
+                break
+            response = requests.get(link, timeout=30)
+
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
         if "pull_request" in issue:
@@ -930,7 +952,7 @@ def run_library_checks():
     for pr in core_insights["open_prs"]:
         output_handler("  * {}".format(pr))
     print_issue_overview(core_insights)
-    output_handler("* {} open issues".format(len(insights["open_issues"])))
+    output_handler("* {} open issues".format(len(core_insights["open_issues"])))
     output_handler("  * https://github.com/adafruit/circuitpython/issues")
     output_handler()
     print_circuitpython_download_stats()
