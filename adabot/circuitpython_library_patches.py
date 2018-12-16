@@ -36,7 +36,11 @@ cli_parser.add_argument("--use-apply", help="Forces use of 'git apply' instead o
                         " to 'am' (e.g. '--unidiff-zero'). Only available when using '-p'.",
                         action="store_true", dest="use_apply")
 cli_parser.add_argument("--dry-run", help="Accomplishes a dry run of patches, without applying"
-                        " them. Overrides '--use-apply'.", action="store_true", dest="dry_run")
+                        " them.", action="store_true", dest="dry_run")
+cli_parser.add_argument("--local", help="Force use of local patches. This skips verification"
+                        " of patch files in the adabot GitHub repository. MUST use '--dry-run'"
+                        " with this argument; this guards against applying unapproved patches.",
+                        action="store_true", dest="run_local")
 
 def get_repo_list():
     """ Uses adabot.circuitpython_libraries module to get a list of
@@ -53,16 +57,22 @@ def get_repo_list():
 
     return repo_list
 
-def get_patches():
+def get_patches(run_local):
     """ Returns the list of patch files located in the adabot/patches
         directory.
     """
     return_list = []
-    contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
-    if contents.ok:
-        for patch in contents.json():
-            patch_name = patch["name"]
-            return_list.append(patch_name)
+    if not run_local:
+        contents = requests.get("https://api.github.com/repos/adafruit/adabot/contents/patches")
+        if contents.ok:
+            for patch in contents.json():
+                patch_name = patch["name"]
+                return_list.append(patch_name)
+    else:
+        contents = os.listdir(patch_directory)
+        for file in contents:
+            if file.endswith(".patch"):
+                return_list.append(file)
 
     return return_list
 
@@ -189,11 +199,20 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
     return [applied, skipped, failed]
 
 if __name__ == "__main__":
+    cli_args = cli_parser.parse_args()
+    use_apply = cli_args.use_apply
+    dry_run = cli_args.dry_run
+    run_local = cli_args.run_local
+    if run_local:
+        if dry_run or cli_args.list:
+            pass
+        else:
+            raise RuntimeError("'--local' can only be used in conjunction with"
+                               " '--dry-run' or '--list'.")
 
-    run_patches = get_patches()
+    run_patches = get_patches(run_local)
     flags = ["--signoff"]
 
-    cli_args = cli_parser.parse_args()
     if cli_args.list:
         print("Available Patches:", run_patches)
         sys.exit()
@@ -212,8 +231,6 @@ if __name__ == "__main__":
     if cli_args.use_apply:
         if not cli_args.patch:
             raise RuntimeError("Must be used with a single patch. See help (-h) for usage.")
-    use_apply = cli_args.use_apply
-    dry_run = cli_args.dry_run
 
     print(".... Beginning Patch Updates ....")
     print(".... Working directory:", working_directory)
