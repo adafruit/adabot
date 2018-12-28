@@ -7,4 +7,6 @@ export ADABOT_GITHUB_ACCESS_TOKEN=<your personal access token>
 # Note you want the 'Travis Token' (third option) and NOT the 'Access Token'.  Use the ruby gem mentioned to generate.
 # KEEP THIS TOKEN SECRET AND SAFE! Although it is unclear what access the token grants (Travis seems to imply it's less
 # risk to share), always assume secrets like these are dangerous to expose to others.
+# Note 2: since all CircuitPython repositories have been migragted to travis-ci.com, be sure to use an access token
+# from '.com', not '.org'. These tokens are not interchangeable.
 export ADABOT_TRAVIS_ACCESS_TOKEN=<your Travis token>
