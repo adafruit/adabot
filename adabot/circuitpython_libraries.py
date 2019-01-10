@@ -316,8 +316,10 @@ def validate_repo_state(repo):
 
 def validate_release_state(repo):
     """Validate if a repo 1) has a release, and 2) if there have been commits
-    since the last release. Returns a list of string error messages for the
-    repository.
+    since the last release.
+
+    If 2), categorize by length of time passed since oldest commit after the release,
+    and return the number of days that have passed since the oldest commit.
     """
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
@@ -332,7 +334,6 @@ def validate_release_state(repo):
     repo_release_json = repo_last_release.json()
     if "tag_name" in repo_release_json:
         tag_name = repo_release_json["tag_name"]
-        pub_date = datetime.datetime.strptime(repo_release_json["published_at"], "%Y-%m-%dT%H:%M:%SZ")
     elif "message" in repo_release_json:
         if repo_release_json["message"] == "Not Found":
             return [ERROR_GITHUB_NO_RELEASE]
@@ -341,25 +342,31 @@ def validate_release_state(repo):
                            repo["name"], repo_release_json["message"]))
             return []
 
-    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + tag_name)
+    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/" + tag_name + "...master")
     if not compare_tags.ok:
         output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], tag_name))
         return []
     compare_tags_json = compare_tags.json()
     if "status" in compare_tags_json:
         if compare_tags.json()["status"] != "identical":
-            date_diff = datetime.datetime.today() - pub_date
-            #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, pub_date, datetime.datetime.today(), date_diff.days))
+            oldest_commit_date = datetime.datetime.today()
+            for commit in compare_tags_json["commits"]:
+                commit_date = datetime.datetime.strptime(commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
+                if commit_date < oldest_commit_date:
+                    oldest_commit_date = commit_date
+
+            date_diff = datetime.datetime.today() - oldest_commit_date
+            #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, oldest_commit_date, datetime.datetime.today(), date_diff.days))
             #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
             #      compare_tags_json["status"], compare_tags_json["ahead_by"],
             #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
             if date_diff.days > datetime.date.today().max.day:
-                return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM]
+                return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM, date_diff.days)]
             elif date_diff.days <= datetime.date.today().max.day:
                 if date_diff.days > 7:
-                    return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M]
+                    return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M, date_diff.days)]
                 else:
-                    return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W]
+                    return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W, date_diff.days)]
     elif "errors" in compare_tags_json:
         output_handler("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
                        repo["name"], compare_tags_json["message"]))
@@ -941,9 +948,14 @@ def run_library_checks():
             # print("\n".join(errors))
             # print()
         for error in errors:
-            if error not in repos_by_error:
-                repos_by_error[error] = []
-            repos_by_error[error].append(repo["html_url"])
+            if not isinstance(error, tuple):
+                if error not in repos_by_error:
+                    repos_by_error[error] = []
+                repos_by_error[error].append(repo["html_url"])
+            else:
+                if error[0] not in repos_by_error:
+                    repos_by_error[error[0]] = []
+                repos_by_error[error[0]].append("{0} ({1} days)".format(repo["html_url"], error[1]))
         insights = lib_insights
         if repo["name"] == "circuitpython" and repo["owner"]["login"] == "adafruit":
             insights = core_insights
