@@ -1001,7 +1001,7 @@ def run_library_checks():
 
     list_repos_for_errors = [ERROR_NOT_IN_BUNDLE]
     output_handler()
-    for error in repos_by_error:
+    for error in sorted(repos_by_error):
         if not repos_by_error[error]:
             continue
         output_handler()
