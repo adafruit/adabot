@@ -35,7 +35,7 @@ import requests
 
 def _fix_url(url):
     if url.startswith("/"):
-        url = "https://api.travis-ci.org" + url
+        url = "https://api.travis-ci.com" + url
     return url
 
 def _auth_token():

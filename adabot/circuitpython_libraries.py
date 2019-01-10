@@ -643,7 +643,7 @@ def validate_travis(repo):
 
             new_access_token = {"scopes": ["public_repo"],
                                 "note": "TravisCI release token for " + repo["full_name"],
-                                "note_url": "https://travis-ci.org/" + repo["full_name"]}
+                                "note_url": "https://travis-ci.com/" + repo["full_name"]}
             token = github.post("/authorizations", json=new_access_token, auth=full_auth)
             if not token.ok:
                 print(token.text)
