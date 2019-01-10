@@ -95,7 +95,9 @@ ERROR_RTD_AUTODOC_FAILED = "Autodoc failed on ReadTheDocs. (Likely need to autom
 ERROR_RTD_SPHINX_FAILED = "Sphinx missing files"
 ERROR_GITHUB_RELEASE_FAILED = "Failed to fetch latest release from GitHub"
 ERROR_GITHUB_NO_RELEASE = "Library repository has no releases."
-ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE = "Library has new commits since last release."
+ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM = "Library has new commits since last release over a month ago."
+ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M = "Library has new commits since last release within the last month."
+ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W = "Library has new commits since last release within the last week."
 ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is released. Only on pushes.)"
 ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = "Failed to download drivers page from CircuitPython docs"
 ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing driver"
@@ -330,6 +332,7 @@ def validate_release_state(repo):
     repo_release_json = repo_last_release.json()
     if "tag_name" in repo_release_json:
         tag_name = repo_release_json["tag_name"]
+        pub_date = datetime.datetime.strptime(repo_release_json["published_at"], "%Y-%m-%dT%H:%M:%SZ")
     elif "message" in repo_release_json:
         if repo_release_json["message"] == "Not Found":
             return [ERROR_GITHUB_NO_RELEASE]
@@ -345,10 +348,18 @@ def validate_release_state(repo):
     compare_tags_json = compare_tags.json()
     if "status" in compare_tags_json:
         if compare_tags.json()["status"] != "identical":
+            date_diff = datetime.datetime.today() - pub_date
+            #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, pub_date, datetime.datetime.today(), date_diff.days))
             #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
             #      compare_tags_json["status"], compare_tags_json["ahead_by"],
             #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
-            return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE]
+            if date_diff.days > datetime.date.today().max.day:
+                return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM]
+            elif date_diff.days <= datetime.date.today().max.day:
+                if date_diff.days > 7:
+                    return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M]
+                else:
+                    return [ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W]
     elif "errors" in compare_tags_json:
         output_handler("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
                        repo["name"], compare_tags_json["message"]))
