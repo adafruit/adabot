@@ -24,7 +24,7 @@ import datetime
 import sys
 import argparse
 import traceback
-
+import operator
 import requests
 
 from adabot import github_requests as github
@@ -45,13 +45,22 @@ output_filename = None
 verbosity = 1
 file_data = []
 
-def get_pypi_stats(repo):
-    api_url = "https://pypistats.org/api/packages/" + repo.replace("_", "-").lower() + "/recent"
-    pypi_stats = requests.get(api_url, timeout=30)
-    if not pypi_stats.ok:
-        return "Failed to retrieve data ({})".format(pypi_stats.text)
+def get_pypi_stats():
+    successful_stats = {}
+    failed_stats = []
+    repos = cpy_libs.list_repos()
+    for repo in repos:
+        if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
+            if cpy_libs.repo_is_on_pypi(repo):
+                api_url = "https://pypistats.org/api/packages/" + repo["name"].replace("_", "-").lower() + "/recent"
+                pypi_stats = requests.get(api_url, timeout=30)
+                if not pypi_stats.ok:
+                    # return "Failed to retrieve data ({})".format(pypi_stats.text)
+                    failed_stats.append(repo["name"])
+                    continue
+                successful_stats[repo["name"]] = pypi_stats.json()["data"]["last_week"]
 
-    return pypi_stats.json()["data"]["last_week"]
+    return successful_stats, failed_stats
 
 def get_bundle_stats(bundle):
     """ Returns the download stats for 'bundle'. Uses release tag names to compile download
@@ -97,19 +106,22 @@ def run_stat_check():
     output_handler("Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p")))
     output_handler()
     output_handler("Adafruit_CircuitPython_Bundle downloads for the past week:")
-    for stat in get_bundle_stats("Adafruit_CircuitPython_Bundle").items():
+    for stat in sorted(get_bundle_stats("Adafruit_CircuitPython_Bundle").items(),
+                       key=operator.itemgetter(1), reverse=True):
         output_handler(" * {0}: {1}".format(stat[0], stat[1]))
     output_handler()
 
     pypi_downloads = {}
+    pypi_failures = []
     output_handler("Adafruit CircuitPython Library PyPi downloads for the past week: ")
-    repos = cpy_libs.list_repos()
-    for repo in repos:
-        if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
-            if cpy_libs.repo_is_on_pypi(repo):
-                pypi_downloads[repo["name"]] = get_pypi_stats(repo["name"])
-    for stat in sorted(pypi_downloads.items()):
+    pypi_downloads, pypi_failures = get_pypi_stats()
+    for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1), reverse=True):
         output_handler(" * {0}: {1}".format(stat[0], stat[1]))
+    if len(pypi_failures) > 0:
+        output_handler()
+        output_handler(" * Failed to retrieve stats for the following libraries:")
+        for fail in pypi_failures:
+            output_handler("   * {}".format(fail))
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
