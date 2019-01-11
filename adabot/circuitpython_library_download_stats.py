@@ -52,13 +52,24 @@ def get_pypi_stats():
     for repo in repos:
         if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
             if cpy_libs.repo_is_on_pypi(repo):
+                # get download stats for the last week
                 api_url = "https://pypistats.org/api/packages/" + repo["name"].replace("_", "-").lower() + "/recent"
-                pypi_stats = requests.get(api_url, timeout=30)
-                if not pypi_stats.ok:
+                pypi_stats_last_week = requests.get(api_url, timeout=30)
+                if not pypi_stats_last_week.ok:
                     # return "Failed to retrieve data ({})".format(pypi_stats.text)
                     failed_stats.append(repo["name"])
                     continue
-                successful_stats[repo["name"]] = pypi_stats.json()["data"]["last_week"]
+                pypi_dl_last_week = pypi_stats_last_week.json()["data"]["last_week"]
+
+                # get total download stats
+                pypi_dl_total = 0
+                api_url = "https://pypistats.org/api/packages/" + repo["name"].replace("_", "-").lower() + "/overall?mirrors=false"
+                pypi_stats_total = requests.get(api_url, timeout=30)
+                if pypi_stats_total.ok:
+                    for data in pypi_stats_total.json()["data"]:
+                        pypi_dl_total += data["downloads"]
+
+                successful_stats[repo["name"]] = (pypi_dl_last_week, pypi_dl_total)
 
     return successful_stats, failed_stats
 
@@ -108,15 +119,24 @@ def run_stat_check():
     output_handler("Adafruit_CircuitPython_Bundle downloads for the past week:")
     for stat in sorted(get_bundle_stats("Adafruit_CircuitPython_Bundle").items(),
                        key=operator.itemgetter(1), reverse=True):
-        output_handler(" * {0}: {1}".format(stat[0], stat[1]))
+        output_handler(" {0}: {1}".format(stat[0], stat[1]))
     output_handler()
 
     pypi_downloads = {}
     pypi_failures = []
-    output_handler("Adafruit CircuitPython Library PyPi downloads for the past week: ")
+    downloads_list = [[" Repo", "Last Week", "Total"],
+                      [" ----", "---------", "-----"]]
+    output_handler("Adafruit CircuitPython Library PyPi downloads: ")
     pypi_downloads, pypi_failures = get_pypi_stats()
-    for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1), reverse=True):
-        output_handler(" * {0}: {1}".format(stat[0], stat[1]))
+    for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1,1), reverse=True):
+        downloads_list.append([" " + stat[0], stat[1][0], stat[1][1]])
+
+    long_col = [(max([len(str(row[i])) for row in downloads_list]) + 3)
+                for i in range(len(downloads_list[0]))]
+    row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+    for lib in downloads_list:
+        output_handler(row_format.format(*lib))
+
     if len(pypi_failures) > 0:
         output_handler()
         output_handler(" * Failed to retrieve stats for the following libraries:")
