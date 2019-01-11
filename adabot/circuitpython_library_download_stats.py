@@ -45,6 +45,30 @@ output_filename = None
 verbosity = 1
 file_data = []
 
+# List containing libraries on PyPi that are not returned by the 'list_repos()' function,
+# i.e. are not named 'Adafruit_CircuitPython_'.
+PYPI_FORCE_NON_CIRCUITPYTHON = ["Adafruit-Blinka"]
+
+
+def pypistats_get(repo_name):
+    # get download stats for the last week
+    api_url = "https://pypistats.org/api/packages/" + repo_name + "/recent"
+    pypi_stats_last_week = requests.get(api_url, timeout=30)
+    if not pypi_stats_last_week.ok:
+        # return "Failed to retrieve data ({})".format(pypi_stats.text)
+        return None, None
+    pypi_dl_last_week = pypi_stats_last_week.json()["data"]["last_week"]
+
+    # get total download stats
+    pypi_dl_total = 0
+    api_url = "https://pypistats.org/api/packages/" + repo_name + "/overall?mirrors=false"
+    pypi_stats_total = requests.get(api_url, timeout=30)
+    if pypi_stats_total.ok:
+        for data in pypi_stats_total.json()["data"]:
+            pypi_dl_total += data["downloads"]
+
+    return pypi_dl_last_week, pypi_dl_total
+
 def get_pypi_stats():
     successful_stats = {}
     failed_stats = []
@@ -52,24 +76,18 @@ def get_pypi_stats():
     for repo in repos:
         if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
             if cpy_libs.repo_is_on_pypi(repo):
-                # get download stats for the last week
-                api_url = "https://pypistats.org/api/packages/" + repo["name"].replace("_", "-").lower() + "/recent"
-                pypi_stats_last_week = requests.get(api_url, timeout=30)
-                if not pypi_stats_last_week.ok:
-                    # return "Failed to retrieve data ({})".format(pypi_stats.text)
+                pypi_dl_last_week, pypi_dl_total = pypistats_get(repo["name"].replace("_", "-").lower())
+                if pypi_dl_last_week is None:
                     failed_stats.append(repo["name"])
                     continue
-                pypi_dl_last_week = pypi_stats_last_week.json()["data"]["last_week"]
-
-                # get total download stats
-                pypi_dl_total = 0
-                api_url = "https://pypistats.org/api/packages/" + repo["name"].replace("_", "-").lower() + "/overall?mirrors=false"
-                pypi_stats_total = requests.get(api_url, timeout=30)
-                if pypi_stats_total.ok:
-                    for data in pypi_stats_total.json()["data"]:
-                        pypi_dl_total += data["downloads"]
-
                 successful_stats[repo["name"]] = (pypi_dl_last_week, pypi_dl_total)
+
+    for lib in PYPI_FORCE_NON_CIRCUITPYTHON:
+        pypi_dl_last_week, pypi_dl_total = pypistats_get(lib.lower())
+        if pypi_dl_last_week is None:
+            failed_stats.append(lib)
+            continue
+        successful_stats[lib] = (pypi_dl_last_week, pypi_dl_total)
 
     return successful_stats, failed_stats
 
