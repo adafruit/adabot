@@ -142,13 +142,13 @@ def run_stat_check():
 
     pypi_downloads = {}
     pypi_failures = []
-    downloads_list = [["| Repo", "| Last Week", "| Total |"],
-                      ["| ----", "|:--------:", "|:-----:|"]]
-    output_handler("Adafruit CircuitPython Library PyPi downloads: ")
+    downloads_list = [["| Library", "| Last Week", "| Total |"],
+                      ["|:-------", "|:--------:", "|:-----:|"]]
+    output_handler("Adafruit CircuitPython Library PyPi downloads:")
     output_handler()
     pypi_downloads, pypi_failures = get_pypi_stats()
     for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1,1), reverse=True):
-        downloads_list.append(["| " + str(stat[0]), " | " + str(stat[1][0]), " | " + str(stat[1][1]) +" |"])
+        downloads_list.append(["| " + str(stat[0]), "| " + str(stat[1][0]), "| " + str(stat[1][1]) +" |"])
 
     long_col = [(max([len(str(row[i])) for row in downloads_list]) + 3)
                 for i in range(len(downloads_list[0]))]
