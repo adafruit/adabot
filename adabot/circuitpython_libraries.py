@@ -25,7 +25,6 @@ import re
 import sys
 import argparse
 import traceback
-import operator
 
 import requests
 
@@ -1072,11 +1071,7 @@ def print_circuitpython_download_stats():
             total[release["tag_name"]] += count
 
     output_handler("Download stats by board:")
-    #output_handler("{} total".format(total))
     output_handler()
-    #output_handler("By board:")
-    #for board in by_board:
-    #    output_handler("* {} - {}".format(board, by_board[board]))
     by_board_list = [["Board", "{}".format(stable_tag.strip(" ")), "{}".format(prerelease_tag.strip(" "))],]
     for board in sorted(by_board.items()):
         by_board_list.append([str(board[0]),
@@ -1095,22 +1090,52 @@ def print_circuitpython_download_stats():
                           "{}".format("-"*(long_col[1])),
                           "{}".format("-"*(long_col[2]))])
 
-    by_board_list.append(["{}".format("-"*(long_col[0])),
+    by_board_list.extend((["{}".format("-"*(long_col[0])),
                           "{}".format("-"*(long_col[1])),
-                          "{}".format("-"*(long_col[2]))])
-
-    by_board_list.append(["{0}{1}".format(" "*(long_col[0] - 6), "Total"),
+                          "{}".format("-"*(long_col[2]))],
+                         ["{0}{1}".format(" "*(long_col[0] - 6), "Total"),
                           "{}".format(total[stable_tag]),
-                          "{}".format(total[prerelease_tag])])
-
-    by_board_list.append(["{}".format("-"*(long_col[0])),
+                          "{}".format(total[prerelease_tag])],
+                         ["{}".format("-"*(long_col[0])),
                           "{}".format("-"*(long_col[1])),
-                          "{}".format("-"*(long_col[2]))])
+                          "{}".format("-"*(long_col[2]))]))
 
     for row in by_board_list:
         output_handler(row_format.format(*row))
     output_handler()
-    output_handler("By language:")
+
+    output_handler("Download stats by language:")
+    output_handler()
+    by_lang_list = [["Board", "{}".format(stable_tag.strip(" ")), "{}".format(prerelease_tag.strip(" "))],]
+    for board in sorted(by_language.items()):
+        by_lang_list.append([str(board[0]),
+                              (str(board[1][stable_tag]) if stable_tag in board[1] else "-"),
+                              (str(board[1][prerelease_tag]) if prerelease_tag in board[1] else "-")])
+
+    long_col = [(max([len(str(row[i])) for row in by_lang_list]) + 3)
+                for i in range(len(by_lang_list[0]))]
+    #row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+    row_format = "".join(["| {:<" + str(long_col[0]) + "}",
+                          "|{:^" + str(long_col[1]) + "}",
+                          "|{:^" + str(long_col[2]) + "}|"])
+
+    by_lang_list.insert(1,
+                         ["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))])
+
+    by_lang_list.extend((["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))],
+                         ["{0}{1}".format(" "*(long_col[0] - 6), "Total"),
+                          "{}".format(total[stable_tag]),
+                          "{}".format(total[prerelease_tag])],
+                         ["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))]))
+
+    for row in by_lang_list:
+        output_handler(row_format.format(*row))
     #for language in by_language:
     #    output_handler("* {} - {}".format(language, by_language[language]))
     output_handler()
@@ -1174,9 +1199,6 @@ if __name__ == "__main__":
                                "Available validators are: {1}".format(func.strip(),
                                ", ".join([vals for vals in sys.modules[__name__].__dict__ if vals.startswith("validate")])))
                 sys.exit()
-    # TODO: remove after debug
-    print_circuitpython_download_stats()
-    sys.exit()
 
     try:
         run_library_checks()
