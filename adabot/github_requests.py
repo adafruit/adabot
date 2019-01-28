@@ -58,9 +58,10 @@ def _fix_kwargs(kwargs):
 
 def get(url, **kwargs):
     response = requests.get(_fix_url(url), **_fix_kwargs(kwargs))
-    remaining = int(response.headers["X-RateLimit-Remaining"])
-    if remaining % 100 == 0:
-        print(remaining, "requests remaining this hour")
+    if "X-RateLimit-Remaining" in response.headers:
+        remaining = int(response.headers["X-RateLimit-Remaining"])
+        if remaining % 100 == 0:
+            print(remaining, "requests remaining this hour")
     return response
 
 def post(url, **kwargs):
