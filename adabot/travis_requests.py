@@ -65,4 +65,4 @@ def post(url, **kwargs):
     return requests.post(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
 def put(url, **kwargs):
-    return requests.put(_fix_url(url), timeout=30 **_fix_kwargs(kwargs))
+    return requests.put(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
