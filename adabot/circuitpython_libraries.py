@@ -262,8 +262,8 @@ def list_repos():
                         params={"q":"Adafruit_CircuitPython in:name fork:true",
                                 "per_page": 100,
                                 "sort": "updated",
-                                "order": "asc"},
-                        timeout=15)
+                                "order": "asc"}
+                        )
     while result.ok:
         links = result.headers["Link"]
         #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
