@@ -1109,12 +1109,18 @@ verbosity = 1
 github_token = False
 
 if __name__ == "__main__":
+    startup_message = ["Running CircuitPython Library checks...",
+                       "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p"))
+                      ]
     cmd_line_args = cmd_line_parser.parse_args()
     error_depth = cmd_line_args.error_depth
+    startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
     verbosity = cmd_line_args.verbose
     github_token = cmd_line_args.gh_token
+    startup_message.append(" - Prompts for the GitHub Token are {}.".format(("enabled" if github_token else "disabled")))
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
+        startup_message.append(" - Report output will be saved to: {}".format(output_filename))
     if cmd_line_args.validator:
         validators = []
         for func in cmd_line_args.validator.split(","):
@@ -1127,7 +1133,11 @@ if __name__ == "__main__":
                                "Available validators are: {1}".format(func.strip(),
                                ", ".join([vals for vals in sys.modules[__name__].__dict__ if vals.startswith("validate")])))
                 sys.exit()
+        startup_message.append(" - Only these selected validators will run: {}".format(", ".join(name.__name__ for name in validators)))
     try:
+        for message in startup_message:
+            output_handler(message)
+        output_handler()
         run_library_checks()
     except:
         if output_filename is not None:
