@@ -778,7 +778,7 @@ def validate_core_driver_page(repo):
         return []
     global core_driver_page
     if not core_driver_page:
-        driver_page = requests.get("https://raw.githubusercontent.com/adafruit/circuitpython/master/docs/drivers.rst",
+        driver_page = requests.get("https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/docs/drivers.rst",
                                    timeout=15)
         if not driver_page.ok:
             return [ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED]
