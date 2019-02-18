@@ -127,6 +127,10 @@ rtd_subprojects = None
 # Cache the CircuitPython driver page so we can make sure every driver is linked to.
 core_driver_page = None
 
+# GitHub API Serch has stopped returning the core repo for some reason. Tried several
+# different search params, and came up emtpy. Hardcoding it as a failsafe.
+core_repo_url = "/repos/adafruit/circuitpython"
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -282,6 +286,10 @@ def list_repos():
             break
         # Subsequent links have our access token already so we use requests directly.
         result = requests.get(link, timeout=30)
+    if "circuitpython" not in [repo["name"] for repo in repos]:
+        core = github.get(core_repo_url)
+        if core.ok:
+            repos.append(core.json())
 
     return repos
 
