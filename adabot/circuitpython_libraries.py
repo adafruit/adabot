@@ -709,7 +709,7 @@ def validate_readthedocs(repo):
         errors.append(ERROR_RTD_ADABOT_MISSING)
 
     valid_versions = requests.get(
-        "https://readthedocs.org/api/v2/project/{}/valid_versions/".format(subproject["id"]),
+        "https://readthedocs.org/api/v2/project/{}/active_versions/".format(subproject["id"]),
         timeout=15)
     if not valid_versions.ok:
         errors.append(ERROR_RTD_VALID_VERSIONS_FAILED)
@@ -719,7 +719,8 @@ def validate_readthedocs(repo):
         if not latest_release.ok:
             errors.append(ERROR_GITHUB_RELEASE_FAILED)
         else:
-            if latest_release.json()["tag_name"] not in valid_versions["flat"]:
+            if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
+                #print("{} tag: {} | {} | {}".format(repo["name"], latest_release.json()["tag_name"], subproject["id"], [tag["verbose_name"] for tag in valid_versions["versions"]]))
                 errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
 
     # There is no API which gives access to a list of builds for a project so we parse the html
