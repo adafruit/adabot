@@ -720,7 +720,6 @@ def validate_readthedocs(repo):
             errors.append(ERROR_GITHUB_RELEASE_FAILED)
         else:
             if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
-                #print("{} tag: {} | {} | {}".format(repo["name"], latest_release.json()["tag_name"], subproject["id"], [tag["verbose_name"] for tag in valid_versions["versions"]]))
                 errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
 
     # There is no API which gives access to a list of builds for a project so we parse the html
