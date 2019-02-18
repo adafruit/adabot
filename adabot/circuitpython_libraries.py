@@ -127,6 +127,10 @@ rtd_subprojects = None
 # Cache the CircuitPython driver page so we can make sure every driver is linked to.
 core_driver_page = None
 
+# GitHub API Serch has stopped returning the core repo for some reason. Tried several
+# different search params, and came up emtpy. Hardcoding it as a failsafe.
+core_repo_url = "/repos/adafruit/circuitpython"
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -282,6 +286,10 @@ def list_repos():
             break
         # Subsequent links have our access token already so we use requests directly.
         result = requests.get(link, timeout=30)
+    if "circuitpython" not in [repo["name"] for repo in repos]:
+        core = github.get(core_repo_url)
+        if core.ok:
+            repos.append(core.json())
 
     return repos
 
@@ -1023,20 +1031,27 @@ def print_circuitpython_download_stats():
     if not response.ok:
         output_handler("Core CircuitPython GitHub analytics request failed.")
     releases = response.json()
+
     found_unstable = False
     found_stable = False
+    stable_tag = None
+    prerelease_tag = None
+
+    by_board = {}
+    by_language = {}
+    by_both = {}
+    total = {}
+
     for release in releases:
         if not found_unstable and not release["draft"] and release["prerelease"]:
             found_unstable = True
+            prerelease_tag = release["tag_name"]
         elif not found_stable and not release["draft"] and not release["prerelease"]:
             found_stable = True
+            stable_tag = release["tag_name"]
         else:
             continue
 
-        by_board = {}
-        by_language = {}
-        by_both = {}
-        total = 0
         for asset in release["assets"]:
             if not asset["name"].startswith("adafruit-circuitpython"):
                 continue
@@ -1047,26 +1062,91 @@ def print_circuitpython_download_stats():
             if len(parts) == 6:
                 language = parts[3]
             if language not in by_language:
-                by_language[language] = 0
-            by_language[language] += count
+                by_language[language] = {release["tag_name"]: 0}
+            if release["tag_name"] not in by_language[language]:
+                by_language[language][release["tag_name"]] = 0
+            by_language[language][release["tag_name"]] += count
             if board not in by_board:
-                by_board[board] = 0
+                by_board[board] = {release["tag_name"]: 0}
                 by_both[board] = {}
-            by_board[board] += count
+            if release["tag_name"] not in by_board[board]:
+                by_board[board][release["tag_name"]] = 0
+            by_board[board][release["tag_name"]] += count
             by_both[board][language] = count
 
-            total += count
-        output_handler("Download stats for {}".format(release["tag_name"]))
-        output_handler("{} total".format(total))
-        output_handler()
-        output_handler("By board:")
-        for board in by_board:
-            output_handler("* {} - {}".format(board, by_board[board]))
-        output_handler()
-        output_handler("By language:")
-        for language in by_language:
-            output_handler("* {} - {}".format(language, by_language[language]))
-        output_handler()
+            if release["tag_name"] not in total:
+                total[release["tag_name"]] = 0
+            total[release["tag_name"]] += count
+
+    output_handler("Download stats by board:")
+    output_handler()
+    by_board_list = [["Board", "{}".format(stable_tag.strip(" ")), "{}".format(prerelease_tag.strip(" "))],]
+    for board in sorted(by_board.items()):
+        by_board_list.append([str(board[0]),
+                              (str(board[1][stable_tag]) if stable_tag in board[1] else "-"),
+                              (str(board[1][prerelease_tag]) if prerelease_tag in board[1] else "-")])
+
+    long_col = [(max([len(str(row[i])) for row in by_board_list]) + 3)
+                for i in range(len(by_board_list[0]))]
+    #row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+    row_format = "".join(["| {:<" + str(long_col[0]) + "}",
+                          "|{:^" + str(long_col[1]) + "}",
+                          "|{:^" + str(long_col[2]) + "}|"])
+
+    by_board_list.insert(1,
+                         ["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))])
+
+    by_board_list.extend((["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))],
+                         ["{0}{1}".format(" "*(long_col[0] - 6), "Total"),
+                          "{}".format(total[stable_tag]),
+                          "{}".format(total[prerelease_tag])],
+                         ["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))]))
+
+    for row in by_board_list:
+        output_handler(row_format.format(*row))
+    output_handler()
+
+    output_handler("Download stats by language:")
+    output_handler()
+    by_lang_list = [["Board", "{}".format(stable_tag.strip(" ")), "{}".format(prerelease_tag.strip(" "))],]
+    for board in sorted(by_language.items()):
+        by_lang_list.append([str(board[0]),
+                              (str(board[1][stable_tag]) if stable_tag in board[1] else "-"),
+                              (str(board[1][prerelease_tag]) if prerelease_tag in board[1] else "-")])
+
+    long_col = [(max([len(str(row[i])) for row in by_lang_list]) + 3)
+                for i in range(len(by_lang_list[0]))]
+    #row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+    row_format = "".join(["| {:<" + str(long_col[0]) + "}",
+                          "|{:^" + str(long_col[1]) + "}",
+                          "|{:^" + str(long_col[2]) + "}|"])
+
+    by_lang_list.insert(1,
+                         ["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))])
+
+    by_lang_list.extend((["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))],
+                         ["{0}{1}".format(" "*(long_col[0] - 6), "Total"),
+                          "{}".format(total[stable_tag]),
+                          "{}".format(total[prerelease_tag])],
+                         ["{}".format("-"*(long_col[0])),
+                          "{}".format("-"*(long_col[1])),
+                          "{}".format("-"*(long_col[2]))]))
+
+    for row in by_lang_list:
+        output_handler(row_format.format(*row))
+    #for language in by_language:
+    #    output_handler("* {} - {}".format(language, by_language[language]))
+    output_handler()
 
 def print_pr_overview(*insights):
     merged_prs = sum([x["merged_prs"] for x in insights])
