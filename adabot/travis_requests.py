@@ -56,15 +56,13 @@ def _fix_kwargs(kwargs):
             "User-Agent": user_agent,
             "Travis-API-Version": "3"
         }
-    if "timeout" not in kwargs:
-        kwargs["timeout"] = 30
     return kwargs
 
 def get(url, **kwargs):
-    return requests.get(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.get(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
 def post(url, **kwargs):
-    return requests.post(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.post(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
 def put(url, **kwargs):
-    return requests.put(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.put(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))

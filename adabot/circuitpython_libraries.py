@@ -262,8 +262,8 @@ def list_repos():
                         params={"q":"Adafruit_CircuitPython in:name fork:true",
                                 "per_page": 100,
                                 "sort": "updated",
-                                "order": "asc"},
-                        timeout=15)
+                                "order": "asc"}
+                        )
     while result.ok:
         links = result.headers["Link"]
         #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
@@ -709,7 +709,7 @@ def validate_readthedocs(repo):
         errors.append(ERROR_RTD_ADABOT_MISSING)
 
     valid_versions = requests.get(
-        "https://readthedocs.org/api/v2/project/{}/valid_versions/".format(subproject["id"]),
+        "https://readthedocs.org/api/v2/project/{}/active_versions/".format(subproject["id"]),
         timeout=15)
     if not valid_versions.ok:
         errors.append(ERROR_RTD_VALID_VERSIONS_FAILED)
@@ -719,7 +719,7 @@ def validate_readthedocs(repo):
         if not latest_release.ok:
             errors.append(ERROR_GITHUB_RELEASE_FAILED)
         else:
-            if latest_release.json()["tag_name"] not in valid_versions["flat"]:
+            if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
                 errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
 
     # There is no API which gives access to a list of builds for a project so we parse the html
@@ -778,7 +778,7 @@ def validate_core_driver_page(repo):
         return []
     global core_driver_page
     if not core_driver_page:
-        driver_page = requests.get("https://raw.githubusercontent.com/adafruit/circuitpython/master/docs/drivers.rst",
+        driver_page = requests.get("https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/docs/drivers.rst",
                                    timeout=15)
         if not driver_page.ok:
             return [ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED]
@@ -1181,12 +1181,18 @@ verbosity = 1
 github_token = False
 
 if __name__ == "__main__":
+    startup_message = ["Running CircuitPython Library checks...",
+                       "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p"))
+                      ]
     cmd_line_args = cmd_line_parser.parse_args()
     error_depth = cmd_line_args.error_depth
+    startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
     verbosity = cmd_line_args.verbose
     github_token = cmd_line_args.gh_token
+    startup_message.append(" - Prompts for the GitHub Token are {}.".format(("enabled" if github_token else "disabled")))
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
+        startup_message.append(" - Report output will be saved to: {}".format(output_filename))
     if cmd_line_args.validator:
         validators = []
         for func in cmd_line_args.validator.split(","):
@@ -1199,8 +1205,11 @@ if __name__ == "__main__":
                                "Available validators are: {1}".format(func.strip(),
                                ", ".join([vals for vals in sys.modules[__name__].__dict__ if vals.startswith("validate")])))
                 sys.exit()
-
+        startup_message.append(" - Only these selected validators will run: {}".format(", ".join(name.__name__ for name in validators)))
     try:
+        for message in startup_message:
+            output_handler(message)
+        output_handler()
         run_library_checks()
     except:
         if output_filename is not None:

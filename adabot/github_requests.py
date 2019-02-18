@@ -52,25 +52,24 @@ def _fix_kwargs(kwargs):
             kwargs["params"]["access_token"] = access_token
         else:
             kwargs["params"] = {"access_token": access_token}
-    if "timeout" not in kwargs:
-        kwargs["timeout"] = 30
     return kwargs
 
 def get(url, **kwargs):
-    response = requests.get(_fix_url(url), **_fix_kwargs(kwargs))
-    remaining = int(response.headers["X-RateLimit-Remaining"])
-    if remaining % 100 == 0:
-        print(remaining, "requests remaining this hour")
+    response = requests.get(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+    if "X-RateLimit-Remaining" in response.headers:
+        remaining = int(response.headers["X-RateLimit-Remaining"])
+        if remaining % 100 == 0:
+            print(remaining, "requests remaining this hour")
     return response
 
 def post(url, **kwargs):
-    return requests.post(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.post(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
 def put(url, **kwargs):
-    return requests.put(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.put(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
 def patch(url, **kwargs):
-    return requests.patch(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.patch(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
 def delete(url, **kwargs):
-    return requests.delete(_fix_url(url), **_fix_kwargs(kwargs))
+    return requests.delete(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
