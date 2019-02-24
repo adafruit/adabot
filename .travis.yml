@@ -3,48 +3,51 @@ dist: xenial
 language: python
 python:
   - "3.6"
-cache:
-  pip: true
 
 services:
   - redis-server
 
-env:
-    # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
-    # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
-    # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
-  - |
-    LIB_CHECK_CP_FILE='bin/adabot/circuitpython_library_report_'`date +%Y%m%d`'.txt' \
-    LIB_CHECK_ARD_FILE='bin/adabot/arduino_library_report_'`date +%Y%m%d`'.txt' \
-    LIB_DL_STATS_FILE='bin/adabot/library_download_stats_'`date +%Y%m%d`'.txt' \
+jobs:
+  include:
+    - python: "3.6"
+      name: "Update Bundle"
+      script:
+        - echo "Updating CircuitPython Library Bundles..."
+        - python -m adabot.circuitpython_bundle
 
-addons:
-  artifacts:
-    paths:
-    - $(ls bin/adabot/* | tr "\n" ":")
-    target_paths: /adabot
-    debug: true
+    - python: "3.6"
+      name: "Run Reports"
 
-script:
-  # A folder for Adabot files
-  - mkdir -p bin/adabot
+      addons:
+        artifacts:
+          paths:
+          - $(ls bin/adabot/* | tr "\n" ":")
+          target_paths: /adabot
+          debug: true
 
-  # Run the Bundle update script
-  - echo "Updating CircuitPython Library Bundles..." && echo -en 'travis_fold:start:update\\r'
-  - python -m adabot.circuitpython_bundle
-  - echo -en 'travis_fold:end:update\\r'
+      env:
+        # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
+        # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
+        # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
+        - LIB_CHECK_CP_FILE='bin/adabot/circuitpython_library_report_'`date +%Y%m%d`'.txt'
+        - LIB_CHECK_ARD_FILE='bin/adabot/arduino_library_report_'`date +%Y%m%d`'.txt'
+        - LIB_DL_STATS_FILE='bin/adabot/library_download_stats_'`date +%Y%m%d`'.txt'
 
-  # Run the circuitpython_libraries.py report; output a file with results for AWS
-  - echo "Running CircuitPython library checks..." && echo -en 'travis_fold:start:lib_check\\r'
-  - python -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
-  - echo -en 'travis_fold:end:lib_check\\r'
+      script:
+        # A folder for Adabot files
+        - mkdir -p bin/adabot
 
-  # Run the circuitpython_library_download_stats.py; output a file with results for AWS
-  - echo "Getting CircuitPython Library Download Stats..." && echo -en 'travis_fold:start:stats\\r'
-  - python -m adabot.circuitpython_library_download_stats -o $LIB_DL_STATS_FILE
-  - echo -en 'travis_fold:end:stats\\r'
+        # Run the circuitpython_libraries.py report; output a file with results for AWS
+        - echo "Running CircuitPython library checks..." && echo 'travis_fold:start:lib_check'
+        - python -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
+        - echo 'travis_fold:end:lib_check'
 
-  # Run the arduino_libraries.py report; output a file with results for AWS
-  - echo "Running Arduino library checks..." && echo -en 'travis_fold:start:ard_lib_check\\r'
-  - python -m adabot.arduino_libraries -o $LIB_CHECK_ARD_FILE
-  - echo -en 'travis_fold:end:ard_lib_check\\r'
+        # Run the circuitpython_library_download_stats.py; output a file with results for AWS
+        - echo "Getting CircuitPython Library Download Stats..." && echo 'travis_fold:start:stats'
+        - python -u -m adabot.circuitpython_library_download_stats -o $LIB_DL_STATS_FILE
+        - echo 'travis_fold:end:stats'
+
+        # Run the arduino_libraries.py report; output a file with results for AWS
+        - echo "Running Arduino library checks..." && echo 'travis_fold:start:ard_lib_check'
+        - python -u -m adabot.arduino_libraries -o $LIB_CHECK_ARD_FILE
+        - echo 'travis_fold:end:ard_lib_check'
