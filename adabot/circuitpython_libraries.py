@@ -131,6 +131,9 @@ core_driver_page = None
 # different search params, and came up emtpy. Hardcoding it as a failsafe.
 core_repo_url = "/repos/adafruit/circuitpython"
 
+# global setting for validate_contents; used with the -v flag
+validate_contents_quiet = False
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -504,6 +507,7 @@ def validate_contents(repo):
     a dictionary with a GitHub API repository state (like from the list_repos
     function).  Returns a list of string error messages for the repository.
     """
+
     if not (repo["owner"]["login"] == "adafruit" and
             repo["name"].startswith("Adafruit_CircuitPython")):
         return []
@@ -512,7 +516,8 @@ def validate_contents(repo):
 
     content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
     if not content_list.ok:
-        return [ERROR_UNABLE_PULL_REPO_CONTENTS]
+        if not validate_contents_quiet:
+            return [ERROR_UNABLE_PULL_REPO_CONTENTS]
 
     content_list = content_list.json()
     files = [x["name"] for x in content_list]
@@ -521,7 +526,13 @@ def validate_contents(repo):
     # ___.py or folder, CoC, .travis.yml, .readthedocs.yml, docs/, examples/, README, LICENSE
     if len(files) < 8:
         BUNDLE_IGNORE_LIST.append(repo["name"])
-        return [ERROR_NEW_REPO_IN_WORK]
+        if not validate_contents_quiet:
+            return [ERROR_NEW_REPO_IN_WORK]
+
+    # if we're only running due to -v, ignore the rest. we only care about
+    # adding in-work repos to the BUNDLE_IGNORE_LIST
+    if validate_contents_quiet:
+        return []
 
     errors = []
     if ".pylintrc" not in files:
@@ -1207,13 +1218,21 @@ if __name__ == "__main__":
             try:
                 if not func.startswith("validate"):
                     raise KeyError
-                validators.append(sys.modules[__name__].__dict__[func.strip()])
+                if "contents" not in func:
+                    validators.append(sys.modules[__name__].__dict__[func.strip()])
+                else:
+                    validators.insert(0, sys.modules[__name__].__dict__[func.strip()])
             except KeyError:
                 output_handler("Error: '{0}' is not an available validator.\n" \
                                "Available validators are: {1}".format(func.strip(),
                                ", ".join([vals for vals in sys.modules[__name__].__dict__ if vals.startswith("validate")])))
                 sys.exit()
+
         startup_message.append(" - Only these selected validators will run: {}".format(", ".join(name.__name__ for name in validators)))
+
+        if "validate_contents" not in validators:
+            validate_contents_quiet = True
+            validators.insert(0, sys.modules[__name__].__dict__["validate_contents"])
     try:
         for message in startup_message:
             output_handler(message)
