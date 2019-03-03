@@ -58,6 +58,15 @@ ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
 ERROR_PYFILE_MISSING_STRUCT = ".py file contains reference to import ustruct" \
 " without reference to import struct.  See issue " \
 "https://github.com/adafruit/circuitpython/issues/782"
+ERROR_PYFILE_MISSING_RE = ".py file contains reference to import ure" \
+" without reference to import re.  See issue " \
+"https://github.com/adafruit/circuitpython/issues/1582"
+ERROR_PYFILE_MISSING_JSON = ".py file contains reference to import ujson" \
+" without reference to import json.  See issue " \
+"https://github.com/adafruit/circuitpython/issues/1582"
+ERROR_PYFILE_MISSING_ERRNO = ".py file contains reference to import uerrno" \
+" without reference to import errno.  See issue " \
+"https://github.com/adafruit/circuitpython/issues/1582"
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yml"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
@@ -421,10 +430,10 @@ def validate_readme(repo, download_url):
 
     return errors
 
-def validate_py_for_ustruct(repo, download_url):
-    """ For a .py file, look for usage of "import ustruct" and
-        look for "import struct".  If the "import ustruct" is
-        used with NO "import struct" generate an error.
+def validate_py_for_u_modules(repo, download_url):
+    """ For a .py file, look for usage of "import u___" and
+        look for "import ___".  If the "import u___" is
+        used with NO "import ____" generate an error.
     """
     # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
     contents = requests.get(download_url, timeout=30)
@@ -438,6 +447,21 @@ def validate_py_for_ustruct(repo, download_url):
     struct_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*struct", l)]
     if ustruct_lines and not struct_lines:
         errors.append(ERROR_PYFILE_MISSING_STRUCT)
+
+    ure_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*ure", l)]
+    re_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*re", l)]
+    if ure_lines and not re_lines:
+        errors.append(ERROR_PYFILE_MISSING_RE)
+
+    ujson_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*ujson", l)]
+    json_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*json", l)]
+    if ujson_lines and not json_lines:
+        errors.append(ERROR_PYFILE_MISSING_JSON)
+
+    uerrno_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*uerrno", l)]
+    errno_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*errno", l)]
+    if uerrno_lines and not errno_lines:
+        errors.append(ERROR_PYFILE_MISSING_ERRNO)
 
     return errors
 
@@ -611,8 +635,8 @@ def validate_contents(repo):
     re_str = re.compile('adafruit\_[\w]*\.py')
     pyfiles = [x["download_url"] for x in content_list if re_str.fullmatch(x["name"])]
     for pyfile in pyfiles:
-        # adafruit_xxx.py file; check if for proper usage of ustruct
-        errors.extend(validate_py_for_ustruct(repo, pyfile))
+        # adafruit_xxx.py file; check if for proper usage of u___ versions of modules
+        errors.extend(validate_py_for_u_modules(repo, pyfile))
 
     # now location any directories whose names begin with "adafruit_"
     re_str = re.compile('adafruit\_[\w]*')
@@ -626,8 +650,8 @@ def validate_contents(repo):
             # search for .py files in that directory
             dir_files = [x["download_url"] for x in dir_file_list if x["type"] == "file" and x["name"].endswith(".py")]
             for dir_file in dir_files:
-                # .py files in subdirectory adafruit_xxx; check if for proper usage of ustruct
-                errors.extend(validate_py_for_ustruct(repo, dir_file))
+                # .py files in subdirectory adafruit_xxx; check if for proper usage of u___ versions of modules
+                errors.extend(validate_py_for_u_modules(repo, dir_file))
 
     return errors
 
