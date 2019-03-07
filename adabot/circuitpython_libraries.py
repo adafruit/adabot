@@ -920,6 +920,18 @@ def gather_insights(repo, insights, since):
         else:
             insights["open_issues"].append(issue["html_url"])
 
+    # get milestones for core repo
+    if repo["name"] == "circuitpython":
+        params = {"state": "open"}
+        response = github.get("/repos/adafruit/circuitpython/milestones", params=params)
+        if not response.ok:
+            output_handler("Failed to get core milestone insights.")
+        else:
+            milestones = response.json()
+            for milestone in milestones:
+                #print(milestone)
+                insights["milestones"][milestone["title"]] = milestone["open_issues"]
+
 def repo_is_on_pypi(repo):
     """returns True when the provided repository is in pypi"""
     is_on = False
@@ -979,6 +991,7 @@ def run_library_checks():
             core_insights[k] = set()
         if isinstance(core_insights[k], list):
             core_insights[k] = []
+    core_insights["milestones"] = dict()
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
@@ -1021,6 +1034,12 @@ def run_library_checks():
     print_issue_overview(core_insights)
     output_handler("* {} open issues".format(len(core_insights["open_issues"])))
     output_handler("  * https://github.com/adafruit/circuitpython/issues")
+    output_handler("* {} active milestones".format(len(core_insights["milestones"])))
+    ms_count = 0
+    for milestone in sorted(core_insights["milestones"].keys()):
+        ms_count += core_insights["milestones"][milestone]
+        output_handler("  * {0}: {1} open issues".format(milestone, core_insights["milestones"][milestone]))
+    output_handler("  * {} issues not assigned a milestone".format(len(core_insights["open_issues"]) - ms_count))
     output_handler()
     print_circuitpython_download_stats()
 
