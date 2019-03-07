@@ -275,7 +275,7 @@ def list_repos():
     """
     repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Adafruit_CircuitPython in:name fork:true",
+                        params={"q":"Adafruit_CircuitPython user:adafruit",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"}
@@ -847,11 +847,12 @@ def gather_insights(repo, insights, since):
     list_repos function) and will fill in the provided insights dictionary
     with analytics it computes for the repository.
     """
+
     if repo["owner"]["login"] != "adafruit":
         return
     params = {"sort": "updated",
               "state": "all",
-              "since": str(since)}
+              "since": since.strftime("%Y-%m-%dT%H:%M:%SZ")}
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
         output_handler("Insights request failed: {}".format(repo["full_name"]))
