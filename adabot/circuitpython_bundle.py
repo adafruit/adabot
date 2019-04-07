@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 
 from adabot import github_requests as github
-from adabot import circuitpython_libraries
+from adabot.lib import common_funcs
 import os
 import subprocess
 import shlex
@@ -54,7 +54,7 @@ def fetch_bundle(bundle, bundle_path):
 def check_lib_links_md(bundle_path):
     if not "Adafruit_CircuitPython_Bundle" in bundle_path:
         return []
-    submodules_list = sorted(circuitpython_libraries.get_bundle_submodules(),
+    submodules_list = sorted(common_funcs.get_bundle_submodules(),
                              key=lambda module: module[1]["path"])
 
     lib_count = len(submodules_list)
@@ -73,7 +73,7 @@ def check_lib_links_md(bundle_path):
         url = submodule[1]["url"]
         url_name = url[url.rfind("/") + 1:(url.rfind(".") if url.rfind(".") > url.rfind("/") else len(url))]
         pypi_name = ""
-        if circuitpython_libraries.repo_is_on_pypi({"name" : url_name}):
+        if common_funcs.repo_is_on_pypi({"name" : url_name}):
             pypi_name = " ([PyPi](https://pypi.org/project/{}))".format(url_name.replace("_", "-").lower())
         title = url_name.replace("_", " ")
         list_line = "* [{0}]({1}){2}".format(title, url, pypi_name)

@@ -29,7 +29,7 @@ import requests
 
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
-from adabot import circuitpython_libraries as cpy_libs
+from adabot.lib import common_funcs
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Library download stats." \
@@ -72,10 +72,10 @@ def pypistats_get(repo_name):
 def get_pypi_stats():
     successful_stats = {}
     failed_stats = []
-    repos = cpy_libs.list_repos()
+    repos = common_funcs.list_repos()
     for repo in repos:
         if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
-            if cpy_libs.repo_is_on_pypi(repo):
+            if common_funcs.repo_is_on_pypi(repo):
                 pypi_dl_last_week, pypi_dl_total = pypistats_get(repo["name"].replace("_", "-").lower())
                 if pypi_dl_last_week is None:
                     failed_stats.append(repo["name"])

@@ -8,7 +8,7 @@
 import sys
 import unittest
 
-import adabot.circuitpython_libraries as circuitpython_libraries
+import adabot.lib.common_funcs
 
 
 class TestParseGitmodules(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestParseGitmodules(unittest.TestCase):
 	path = libraries/helpers/simpleio
 	url = https://github.com/adafruit/Adafruit_CircuitPython_SimpleIO.git
 """
-        results = circuitpython_libraries.parse_gitmodules(test_input)
+        results = common_funcs.parse_gitmodules(test_input)
         self.assertEqual(len(results), 3)
         self.assertEqual(results[0][0], 'libraries/register')
         self.assertDictEqual(results[0][1], {
@@ -45,11 +45,11 @@ class TestParseGitmodules(unittest.TestCase):
             })
 
     def test_empty_string(self):
-        results = circuitpython_libraries.parse_gitmodules('')
+        results = common_funcs.parse_gitmodules('')
         self.assertSequenceEqual(results, [])
 
     def test_none(self):
-        results = circuitpython_libraries.parse_gitmodules(None)
+        results = common_funcs.parse_gitmodules(None)
         self.assertSequenceEqual(results, [])
 
     def test_invalid_variable_ignored(self):
@@ -59,7 +59,7 @@ class TestParseGitmodules(unittest.TestCase):
 	path = libraries/helpers/register
 	ur l = https://github.com/adafruit/Adafruit_CircuitPython_Register.git
 """
-        results = circuitpython_libraries.parse_gitmodules(test_input)
+        results = common_funcs.parse_gitmodules(test_input)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0][0], 'libraries/register')
         self.assertDictEqual(results[0][1], {
@@ -73,7 +73,7 @@ class TestIsRepoInBundle(unittest.TestCase):
         bundle_submodules = [('libraries/register', {
             'path': 'libraries/helpers/register',
             'url': 'https://github.com/adafruit/Adafruit_CircuitPython_Register.git'})]
-        result = circuitpython_libraries.is_repo_in_bundle(
+        result = common_funcs.is_repo_in_bundle(
             'https://github.com/adafruit/Adafruit_CircuitPython_Register.git',
             bundle_submodules)
         self.assertTrue(result)
@@ -82,7 +82,7 @@ class TestIsRepoInBundle(unittest.TestCase):
         bundle_submodules = [('libraries/register', {
             'path': 'libraries/helpers/register',
             'url': 'https://github.com/adafruit/Adafruit_CircuitPython_Register.git'})]
-        result = circuitpython_libraries.is_repo_in_bundle(
+        result = common_funcs.is_repo_in_bundle(
             'http://github.com/adafruit/Adafruit_CircuitPython_Register.git',
             bundle_submodules)
         self.assertTrue(result)
@@ -91,7 +91,7 @@ class TestIsRepoInBundle(unittest.TestCase):
         bundle_submodules = [('libraries/register', {
             'path': 'libraries/helpers/register',
             'url': 'https://github.com/adafruit/Adafruit_CircuitPython_Register.git'})]
-        result = circuitpython_libraries.is_repo_in_bundle(
+        result = common_funcs.is_repo_in_bundle(
             'https://github.com/adafruit/Adafruit_CircuitPython_SimpleIO.git',
             bundle_submodules)
         self.assertFalse(result)
@@ -100,23 +100,23 @@ class TestIsRepoInBundle(unittest.TestCase):
 class TestSanitizeUrl(unittest.TestCase):
 
     def test_comparing_different_scheme(self):
-        test_a = circuitpython_libraries.sanitize_url('http://foo.bar/foobar.git')
-        test_b = circuitpython_libraries.sanitize_url('https://foo.bar/foobar.git')
+        test_a = common_funcs.sanitize_url('http://foo.bar/foobar.git')
+        test_b = common_funcs.sanitize_url('https://foo.bar/foobar.git')
         self.assertEqual(test_a, test_b)
 
     def test_comparing_different_case(self):
-        test_a = circuitpython_libraries.sanitize_url('http://FOO.bar/foobar.git')
-        test_b = circuitpython_libraries.sanitize_url('http://foo.bar/foobar.git')
+        test_a = common_funcs.sanitize_url('http://FOO.bar/foobar.git')
+        test_b = common_funcs.sanitize_url('http://foo.bar/foobar.git')
         self.assertEqual(test_a, test_b)
 
     def test_comparing_different_git_suffix(self):
-        test_a = circuitpython_libraries.sanitize_url('http://foo.bar/foobar.git')
-        test_b = circuitpython_libraries.sanitize_url('http://foo.bar/foobar')
+        test_a = common_funcs.sanitize_url('http://foo.bar/foobar.git')
+        test_b = common_funcs.sanitize_url('http://foo.bar/foobar')
         self.assertEqual(test_a, test_b)
 
     def test_comparing_different_urls(self):
-        test_a = circuitpython_libraries.sanitize_url('http://foo.bar/fooba.git')
-        test_b = circuitpython_libraries.sanitize_url('http://foo.bar/foobar')
+        test_a = common_funcs.sanitize_url('http://foo.bar/fooba.git')
+        test_b = common_funcs.sanitize_url('http://foo.bar/foobar')
         self.assertNotEqual(test_a, test_b)
 
 
