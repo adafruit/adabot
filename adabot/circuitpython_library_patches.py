@@ -6,7 +6,7 @@ import argparse
 import shutil
 import sh
 from sh.contrib import git
-from adabot import circuitpython_libraries as adabot_libraries
+from adabot.lib import common_funcs
 
 
 working_directory = os.path.abspath(os.getcwd())
@@ -48,7 +48,7 @@ def get_repo_list():
         owned/sponsored CircuitPython libraries.
     """
     repo_list = []
-    get_repos = adabot_libraries.list_repos()
+    get_repos = common_funcs.list_repos()
     for repo in get_repos:
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
