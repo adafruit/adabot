@@ -76,21 +76,60 @@ def is_new_or_updated(repo):
     else:
         return "updated"
 
-def get_open_issues(repo):
+def get_open_issues_and_prs(repo):
     """ Retreive all of the open issues (minus pull requests) for the repo.
     """
     open_issues = []
+    open_pull_requests = []
     params = {"state":"open"}
     result = github.get("/repos/adafruit/" + repo["name"] + "/issues", params=params)
     if not result.ok:
-        return []
+        return [], []
 
     issues = result.json()
     for issue in issues:
         if "pull_request" not in issue: # ignore pull requests
-            open_issues.append(issue["html_url"])
+            open_issues.append({issue["html_url"]: issue["title"]})
+        else:
+            open_pull_requests.append({issue["html_url"]: issue["title"]})
 
-    return open_issues
+    return open_issues, open_pull_requests
+
+def get_contributors(repo):
+    contributors = []
+    reviewers = []
+    params = {"state":"closed", "sort":"updated", "direction":"desc"}
+    result = github.get("/repos/adafruit/" + repo["name"] + "/pulls", params=params)
+    if not result.ok:
+        return [], []
+
+    today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
+    prs = result.json()
+    for pr in prs:
+        if "merged_at" in pr:
+            if pr["merged_at"] is None:
+                continue
+            merged_at = datetime.datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
+        else:
+            continue
+        if merged_at < today_minus_seven:
+            continue
+        contributors.append(pr["user"]["login"])
+
+        # get reviewers (merged_by, and any others)
+        single_pr = github.get(pr["url"])
+        if not single_pr.ok:
+            continue
+        pr_info = single_pr.json()
+        reviewers.append(pr_info["merged_by"]["login"])
+        pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
+        if not pr_reviews.ok:
+            continue
+        for review in pr_reviews.json():
+            if review["state"].lower() == "approved":
+                reviewers.append(review["user"]["login"])
+
+    return contributors, reviewers
 
 def update_json_file(working_directory, cp_org_dir, output_filename, json_string):
     """ Clone the circuitpython-org repo, update libraries.json, and push the updates
@@ -108,9 +147,11 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     os.chdir(cp_org_dir)
     git.pull()
     git.submodule("update", "--init", "--recursive")
+    check_branch = git.branch("-r", "--list")
+    print("branch result:", check_branch.split("\n"))
 
-    with open(output_filename, "w") as json_file:
-        json_file.writelines(json_string)
+    #with open(output_filename, "w") as json_file:
+    #    json_file.writelines(json_string)
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
@@ -152,6 +193,9 @@ if __name__ == "__main__":
     new_libs = {}
     updated_libs = {}
     open_issues_by_repo = {}
+    open_prs_by_repo = {}
+    contributors = []
+    reviewers = []
     for repo in repos:
         if repo["name"] in BUNDLE_IGNORE_LIST or repo["name"] == "circuitpython":
             continue
@@ -165,9 +209,17 @@ if __name__ == "__main__":
             updated_libs[repo_name] = repo["html_url"]
 
         # get a list of open issues
-        check_issues = get_open_issues(repo)
+        check_issues, check_prs = get_open_issues_and_prs(repo)
         if check_issues:
             open_issues_by_repo[repo_name] = check_issues
+        if check_prs:
+            open_prs_by_repo[repo_name] = check_prs
+
+        get_contribs, get_revs = get_contributors(repo)
+        if get_contribs:
+            contributors.extend(get_contribs)
+        if get_revs:
+            reviewers.extend(get_revs)
 
     # sort all of the items alphabetically
     sorted_new_list = {}
@@ -182,10 +234,18 @@ if __name__ == "__main__":
     for issue in sorted(open_issues_by_repo, key=str.lower):
         sorted_issues_list[issue] = open_issues_by_repo[issue]
 
+    sorted_prs_list = {}
+    for pr in sorted(open_prs_by_repo, key=str.lower):
+        sorted_prs_list[pr] = open_prs_by_repo[pr]
+
     # assemble the JSON data
     build_json = {
+        "updated_at": run_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "library_updates": {"new": sorted_new_list, "updated": sorted_updated_list},
-        "open_issues": sorted_issues_list
+        "open_issues": sorted_issues_list,
+        "pull_requests": sorted_prs_list,
+        "contributors": [contrib for contrib in set(contributors)],
+        "reviewers": [rev for rev in set(reviewers)],
     }
     json_obj = json.dumps(build_json, indent=2)
 
