@@ -27,9 +27,11 @@ TODO(description)
 
 * Author(s): Scott Shawcroft
 """
-import os
 
+import datetime
+import os
 import requests
+import time
 
 
 def _fix_url(url):
@@ -58,6 +60,19 @@ def get(url, **kwargs):
     response = requests.get(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
     if "X-RateLimit-Remaining" in response.headers:
         remaining = int(response.headers["X-RateLimit-Remaining"])
+        if remaining <= 1:
+            rate_limit_reset = datetime.datetime.fromtimestamp(int(response.headers["X-RateLimit-Reset"]))
+            print("GitHub API Rate Limit reached. Pausing until Rate Limit reset.")
+            while datetime.datetime.now() < rate_limit_reset:
+                print("Rate Limit will reset at: {}".format(rate_limit_reset))
+                if "TRAVIS" in os.environ:
+                    # only pause for 5 minutes so that Travis doesn't timeout
+                    # due to idle console output.
+                    time.sleep(300)
+                else:
+                    reset_diff = rate_limit_reset - datetime.datetime.now()
+                    print("Sleeping {} seconds".format(reset_diff.seconds))
+                    time.sleep(reset_diff.seconds)
         if remaining % 100 == 0:
             print(remaining, "requests remaining this hour")
     return response
