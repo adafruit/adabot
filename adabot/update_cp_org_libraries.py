@@ -20,16 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import json
-import datetime
 import argparse
+import datetime
+import inspect
+import json
 import os
-import sys
 import sh
 from sh.contrib import git
+import sys
 
 from adabot.lib import common_funcs
-from adabot.lib.circuitpython_library_validators import BUNDLE_IGNORE_LIST
+from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
 
 # Setup ArgumentParser
@@ -196,30 +197,54 @@ if __name__ == "__main__":
     open_prs_by_repo = {}
     contributors = []
     reviewers = []
+    repos_by_error = {}
+
+    default_validators = [vals[1] for vals in inspect.getmembers(cpy_vals.library_validator) if vals[0].startswith("validate")]
+    bundle_submodules = []
+    validator = cpy_vals.library_validator(default_validators, bundle_submodules, 0.0)
+
     for repo in repos:
-        if repo["name"] in BUNDLE_IGNORE_LIST or repo["name"] == "circuitpython":
+        if repo["name"] in cpy_vals.BUNDLE_IGNORE_LIST or repo["name"] == "circuitpython":
             continue
         repo_name = repo["name"]
 
-        # get a list of new & updated libraries
+        # get a list of new & updated libraries for the last week
         check_releases = is_new_or_updated(repo)
         if check_releases == "new":
             new_libs[repo_name] = repo["html_url"]
         elif check_releases == "updated":
             updated_libs[repo_name] = repo["html_url"]
 
-        # get a list of open issues
+        # get a list of open issues and pull requests
         check_issues, check_prs = get_open_issues_and_prs(repo)
         if check_issues:
             open_issues_by_repo[repo_name] = check_issues
         if check_prs:
             open_prs_by_repo[repo_name] = check_prs
 
+        # get the contributors and reviewers for the last week
         get_contribs, get_revs = get_contributors(repo)
         if get_contribs:
             contributors.extend(get_contribs)
         if get_revs:
             reviewers.extend(get_revs)
+
+        # run repo validators to check for infrastructure errors
+        errors = validator.run_repo_validation(repo)
+        for error in errors:
+            if not isinstance(error, tuple):
+                # check for an error occurring in the valiator module
+                if error == cpy_vals.ERROR_OUTPUT_HANDLER:
+                    #print(errors, "repo output handler error:", validator.output_file_data)
+                    print(", ".join(validator.output_file_data))
+                    validator.output_file_data.clear()
+                if error not in repos_by_error:
+                    repos_by_error[error] = []
+                repos_by_error[error].append(repo["html_url"])
+            else:
+                if error[0] not in repos_by_error:
+                    repos_by_error[error[0]] = []
+                repos_by_error[error[0]].append("{0} ({1} days)".format(repo["html_url"], error[1]))
 
     # sort all of the items alphabetically
     sorted_new_list = {}
@@ -238,14 +263,19 @@ if __name__ == "__main__":
     for pr in sorted(open_prs_by_repo, key=str.lower):
         sorted_prs_list[pr] = open_prs_by_repo[pr]
 
+    sorted_repos_by_error = {}
+    for error in sorted(repos_by_error, key=str.lower):
+        sorted_repos_by_error[error] = repos_by_error[error]
+
     # assemble the JSON data
     build_json = {
         "updated_at": run_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "contributors": [contrib for contrib in set(contributors)],
+        "reviewers": [rev for rev in set(reviewers)],
         "library_updates": {"new": sorted_new_list, "updated": sorted_updated_list},
         "open_issues": sorted_issues_list,
         "pull_requests": sorted_prs_list,
-        "contributors": [contrib for contrib in set(contributors)],
-        "reviewers": [rev for rev in set(reviewers)],
+        "repo_infrastructure_errors": sorted_repos_by_error
     }
     json_obj = json.dumps(build_json, indent=2)
 
