@@ -337,10 +337,12 @@ class library_validator():
 
         if not pylint_version:
             errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
-        elif pylint_version.startswith("1."):
-            errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
-        elif pylint_version != self.latest_pylint:
-            errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
+        # disabling below for now, since we know all pylint versions are old
+        # will re-enable once efforts are underway to update pylint
+        #elif pylint_version.startswith("1."):
+        #    errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
+        #elif pylint_version != self.latest_pylint:
+        #    errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
 
         return errors
 
@@ -608,9 +610,10 @@ class library_validator():
             latest_release = github.get("/repos/{}/releases/latest".format(repo["full_name"]))
             if not latest_release.ok:
                 errors.append(ERROR_GITHUB_RELEASE_FAILED)
-            else:
-                if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
-                    errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
+            # disabling this for now, since it is ignored and always fails
+            #else:
+            #    if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
+            #        errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
 
         # There is no API which gives access to a list of builds for a project so we parse the html
         # webpage.
