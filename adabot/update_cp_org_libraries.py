@@ -203,7 +203,7 @@ if __name__ == "__main__":
     repos_by_error = {}
 
     default_validators = [vals[1] for vals in inspect.getmembers(cpy_vals.library_validator) if vals[0].startswith("validate")]
-    bundle_submodules = []
+    bundle_submodules = common_funcs.get_bundle_submodules()
     validator = cpy_vals.library_validator(default_validators, bundle_submodules, 0.0)
 
     for repo in repos:
