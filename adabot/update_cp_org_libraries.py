@@ -151,8 +151,8 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     check_branch = git.branch("-r", "--list")
     print("branch result:", check_branch.split("\n"))
 
-    #with open(output_filename, "w") as json_file:
-    #    json_file.writelines(json_string)
+    with open(output_filename, "w") as json_file:
+        json.dump(json_string, json_file, indent=2)
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
@@ -183,8 +183,11 @@ if __name__ == "__main__":
     startup_message = ["Run Date: {}".format(run_time.strftime("%d %B %Y, %I:%M%p"))]
 
     output_filename = os.path.join(cp_org_dir, "_data/libraries.json")
+    local_file_output = False
     if cmd_line_args.output_file:
-        output_filename = cmd_line_args.output_file
+        output_filename = os.path.abspath(cmd_line_args.output_file)
+        print(output_filename)
+        local_file_output = True
     startup_message.append(" - Output will be saved to: {}".format(output_filename))
 
     print("\n".join(startup_message))
@@ -279,6 +282,12 @@ if __name__ == "__main__":
     }
     json_obj = json.dumps(build_json, indent=2)
 
-
-    print(json_obj)
-    #update_json_file(working_directory, cp_org_dir, output_filename, json_obj)
+    if "TRAVIS" in os.environ:
+        # WIP: will finish after final deployment is determined.
+        #update_json_file(working_directory, cp_org_dir, output_filename, build_json)
+        print()
+    else:
+        if local_file_output:
+            with open(output_filename, "w") as json_file:
+                json.dump(build_json, json_file, indent=2)
+        print(json.dumps(build_json, indent=2))
