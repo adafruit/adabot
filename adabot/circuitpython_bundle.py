@@ -86,7 +86,7 @@ def check_lib_links_md(bundle_path):
 
     with open(os.path.join(bundle_path, "circuitpython_library_list.md"), 'w') as f:
         f.write("# Adafruit CircuitPython Libraries\n")
-        f.write("![Blinka Reading](https://raw.githubusercontent.com/adafruit/circuitpython-weekly-newsletter/gh-pages/assets/22_1023blinka.png)\n\n")
+        f.write("![Blinka Reading](https://raw.githubusercontent.com/adafruit/circuitpython-weekly-newsletter/gh-pages/assets/archives/22_1023blinka.png)\n\n")
         f.write("Here is a listing of current Adafruit CircuitPython Libraries. There are {} libraries available.\n\n".format(lib_count))
         f.write("## Drivers:\n")
         for line in sorted(write_drivers):
