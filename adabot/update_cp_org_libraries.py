@@ -107,6 +107,7 @@ def get_contributors(repo):
     today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
     prs = result.json()
     for pr in prs:
+        merged_at = datetime.datetime.min
         if "merged_at" in pr:
             if pr["merged_at"] is None:
                 continue
@@ -148,11 +149,17 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     os.chdir(cp_org_dir)
     git.pull()
     git.submodule("update", "--init", "--recursive")
-    check_branch = git.branch("-r", "--list")
-    print("branch result:", check_branch.split("\n"))
+    #check_branch = git.branch("-r", "--list")
+    #print("branch result:", check_branch.split("\n"))
 
     with open(output_filename, "w") as json_file:
         json.dump(json_string, json_file, indent=2)
+
+    if "TRAVIS" in os.environ:
+        commit_day = date.date.strftime(datetime.datetime.today(), "%Y-%m-%d")
+        commit_msg = "adabot: auto-update of libraries.json ({})".format(commit_day)
+        git.commit("-a", "-m", commit_msg)
+        git.push()
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
