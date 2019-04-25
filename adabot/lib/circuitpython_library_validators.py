@@ -27,7 +27,7 @@ import requests
 from adabot import github_requests as github
 from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
-from adabot.lib.common_funcs import *
+from adabot.lib import common_funcs
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -169,7 +169,7 @@ class library_validator():
             errors.append(ERROR_MISSING_LICENSE)
         if not repo["permissions"]["push"]:
             errors.append(ERROR_MISSING_LIBRARIANS)
-        if not is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules) and \
+        if not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules) and \
            not repo["name"] in BUNDLE_IGNORE_LIST:  # Don't assume the bundle will
                                                     # bundle itself and possibly
                                                     # other repos.
@@ -337,10 +337,12 @@ class library_validator():
 
         if not pylint_version:
             errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
-        elif pylint_version.startswith("1."):
-            errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
-        elif pylint_version != self.latest_pylint:
-            errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
+        # disabling below for now, since we know all pylint versions are old
+        # will re-enable once efforts are underway to update pylint
+        #elif pylint_version.startswith("1."):
+        #    errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
+        #elif pylint_version != self.latest_pylint:
+        #    errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
 
         return errors
 
@@ -586,9 +588,9 @@ class library_validator():
                 return [ERROR_RTD_SUBPROJECT_FAILED]
             rtd_subprojects = {}
             for subproject in rtd_response.json()["subprojects"]:
-                rtd_subprojects[sanitize_url(subproject["repo"])] = subproject
+                rtd_subprojects[common_funcs.sanitize_url(subproject["repo"])] = subproject
 
-        repo_url = sanitize_url(repo["clone_url"])
+        repo_url = common_funcs.sanitize_url(repo["clone_url"])
         if repo_url not in rtd_subprojects:
             return [ERROR_RTD_SUBPROJECT_MISSING]
 
@@ -608,9 +610,10 @@ class library_validator():
             latest_release = github.get("/repos/{}/releases/latest".format(repo["full_name"]))
             if not latest_release.ok:
                 errors.append(ERROR_GITHUB_RELEASE_FAILED)
-            else:
-                if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
-                    errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
+            # disabling this for now, since it is ignored and always fails
+            #else:
+            #    if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
+            #        errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
 
         # There is no API which gives access to a list of builds for a project so we parse the html
         # webpage.
@@ -786,6 +789,6 @@ class library_validator():
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
-        if not repo_is_on_pypi(repo):
+        if not common_funcs.repo_is_on_pypi(repo):
             return [ERROR_NOT_ON_PYPI]
         return []
