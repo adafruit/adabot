@@ -99,48 +99,47 @@ def get_open_issues_and_prs(repo):
 def get_contributors(repo):
     contributors = []
     reviewers = []
+    merged_pr_count = 0
     params = {"state":"closed", "sort":"updated", "direction":"desc"}
     result = github.get("/repos/adafruit/" + repo["name"] + "/pulls", params=params)
-    if not result.ok:
-        return [], []
-
-    today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
-    prs = result.json()
-    for pr in prs:
-        merged_at = datetime.datetime.min
-        if "merged_at" in pr:
-            if pr["merged_at"] is None:
+    if result.ok:
+        today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
+        prs = result.json()
+        for pr in prs:
+            merged_at = datetime.datetime.min
+            if "merged_at" in pr:
+                if pr["merged_at"] is None:
+                    continue
+                merged_at = datetime.datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
+            else:
                 continue
-            merged_at = datetime.datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
-        else:
-            continue
-        if merged_at < today_minus_seven:
-            continue
-        contributors.append(pr["user"]["login"])
+            if merged_at < today_minus_seven:
+                continue
+            contributors.append(pr["user"]["login"])
+            merged_pr_count += 1
 
-        # get reviewers (merged_by, and any others)
-        single_pr = github.get(pr["url"])
-        if not single_pr.ok:
-            continue
-        pr_info = single_pr.json()
-        reviewers.append(pr_info["merged_by"]["login"])
-        pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
-        if not pr_reviews.ok:
-            continue
-        for review in pr_reviews.json():
-            if review["state"].lower() == "approved":
-                reviewers.append(review["user"]["login"])
+            # get reviewers (merged_by, and any others)
+            single_pr = github.get(pr["url"])
+            if not single_pr.ok:
+                continue
+            pr_info = single_pr.json()
+            reviewers.append(pr_info["merged_by"]["login"])
+            pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
+            if not pr_reviews.ok:
+                continue
+            for review in pr_reviews.json():
+                if review["state"].lower() == "approved":
+                    reviewers.append(review["user"]["login"])
 
-    return contributors, reviewers
+    return contributors, reviewers, merged_pr_count
 
 def update_json_file(working_directory, cp_org_dir, output_filename, json_string):
     """ Clone the circuitpython-org repo, update libraries.json, and push the updates
-        in a commit/pull request.
+        in a commit.
     """
     if not os.path.isdir(cp_org_dir):
         os.makedirs(cp_org_dir, exist_ok=True)
         if "TRAVIS" in os.environ:
-            #git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit-adabot/circuitpython-org.git"
             git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit/circuitpython-org.git"
             git.clone("-o", "adafruit", git_url, cp_org_dir)
         else:
@@ -149,8 +148,6 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     os.chdir(cp_org_dir)
     git.pull()
     git.submodule("update", "--init", "--recursive")
-    #check_branch = git.branch("-r", "--list")
-    #print("branch result:", check_branch.split("\n"))
 
     with open(output_filename, "w") as json_file:
         json.dump(json_string, json_file, indent=2)
@@ -159,7 +156,8 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
         commit_day = date.date.strftime(datetime.datetime.today(), "%Y-%m-%d")
         commit_msg = "adabot: auto-update of libraries.json ({})".format(commit_day)
         git.commit("-a", "-m", commit_msg)
-        git.push()
+        git_push = git.push("adafruit", "master")
+        print(git_push)
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
@@ -193,7 +191,6 @@ if __name__ == "__main__":
     local_file_output = False
     if cmd_line_args.output_file:
         output_filename = os.path.abspath(cmd_line_args.output_file)
-        print(output_filename)
         local_file_output = True
     startup_message.append(" - Output will be saved to: {}".format(output_filename))
 
@@ -207,6 +204,7 @@ if __name__ == "__main__":
     open_prs_by_repo = {}
     contributors = []
     reviewers = []
+    merged_pr_count_total = 0
     repos_by_error = {}
 
     default_validators = [vals[1] for vals in inspect.getmembers(cpy_vals.library_validator) if vals[0].startswith("validate")]
@@ -233,11 +231,12 @@ if __name__ == "__main__":
             open_prs_by_repo[repo_name] = check_prs
 
         # get the contributors and reviewers for the last week
-        get_contribs, get_revs = get_contributors(repo)
+        get_contribs, get_revs, get_merge_count = get_contributors(repo)
         if get_contribs:
             contributors.extend(get_contribs)
         if get_revs:
             reviewers.extend(get_revs)
+        merged_pr_count_total += get_merge_count
 
         # run repo validators to check for infrastructure errors
         errors = validator.run_repo_validation(repo)
@@ -282,19 +281,18 @@ if __name__ == "__main__":
         "updated_at": run_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "contributors": [contrib for contrib in set(contributors)],
         "reviewers": [rev for rev in set(reviewers)],
+        "merged_pr_count": str(merged_pr_count_total),
         "library_updates": {"new": sorted_new_list, "updated": sorted_updated_list},
         "open_issues": sorted_issues_list,
         "pull_requests": sorted_prs_list,
-        "repo_infrastructure_errors": sorted_repos_by_error
+        "repo_infrastructure_errors": sorted_repos_by_error,
     }
     json_obj = json.dumps(build_json, indent=2)
 
     if "TRAVIS" in os.environ:
-        # WIP: will finish after final deployment is determined.
-        #update_json_file(working_directory, cp_org_dir, output_filename, build_json)
-        print()
+        update_json_file(working_directory, cp_org_dir, output_filename, build_json)
     else:
         if local_file_output:
             with open(output_filename, "w") as json_file:
                 json.dump(build_json, json_file, indent=2)
-        print(json.dumps(build_json, indent=2))
+    print(json.dumps(build_json, indent=2))
