@@ -137,22 +137,18 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     """ Clone the circuitpython-org repo, update libraries.json, and push the updates
         in a commit.
     """
-    if not os.path.isdir(cp_org_dir):
-        os.makedirs(cp_org_dir, exist_ok=True)
-        if "TRAVIS" in os.environ:
+    if "TRAIVS" in os.environ:
+        if not os.path.isdir(cp_org_dir):
+            os.makedirs(cp_org_dir, exist_ok=True)
             git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit/circuitpython-org.git"
             git.clone("-o", "adafruit", git_url, cp_org_dir)
-        else:
-            git.clone("-o", "adafruit", "https://github.com/adafruit/circuitpython-org.git", cp_org_dir)
+        os.chdir(cp_org_dir)
+        git.pull()
+        git.submodule("update", "--init", "--recursive")
 
-    os.chdir(cp_org_dir)
-    git.pull()
-    git.submodule("update", "--init", "--recursive")
+        with open(output_filename, "w") as json_file:
+            json.dump(json_string, json_file, indent=2)
 
-    with open(output_filename, "w") as json_file:
-        json.dump(json_string, json_file, indent=2)
-
-    if "TRAVIS" in os.environ:
         commit_day = date.date.strftime(datetime.datetime.today(), "%Y-%m-%d")
         commit_msg = "adabot: auto-update of libraries.json ({})".format(commit_day)
         git.commit("-a", "-m", commit_msg)
