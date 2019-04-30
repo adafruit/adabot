@@ -36,18 +36,45 @@ from adabot.lib import circuitpython_library_validators
 from adabot.lib.common_funcs import *
 
 # Setup ArgumentParser
-cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Libraries.",
-                                          prog="Adabot CircuitPython Libraries Utility")
-cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
-                             metavar="<OUTPUT FILENAME>", dest="output_file")
-cmd_line_parser.add_argument("-p", "--print", help="Set the level of verbosity printed to the command prompt."
-                             " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
-cmd_line_parser.add_argument("-e", "--error_depth", help="Set the threshold for outputting an error list. Default is 5.",
-                             dest="error_depth", type=int, default=5, metavar="n")
-cmd_line_parser.add_argument("-t", "--token", help="Prompt for a GitHub token to use for activating Travis.",
-                             dest="gh_token", action="store_true")
-cmd_line_parser.add_argument("-v", "--validator", help="Run only the validator(s) supplied in a string.", dest="validator",
-                             metavar='"validator1, validator2, ..."')
+cmd_line_parser = argparse.ArgumentParser(
+    description="Adabot utility for CircuitPython Libraries.",
+    prog="Adabot CircuitPython Libraries Utility"
+)
+cmd_line_parser.add_argument(
+    "-o", "--output_file",
+    help="Output log to the filename provided.",
+    metavar="<OUTPUT FILENAME>",
+    dest="output_file"
+)
+cmd_line_parser.add_argument(
+    "-p", "--print",
+    help="Set the level of verbosity printed to the command prompt."
+    " Zero is off; One is on (default).",
+    type=int,
+    default=1,
+    dest="verbose",
+    choices=[0,1]
+)
+cmd_line_parser.add_argument(
+    "-e", "--error_depth",
+    help="Set the threshold for outputting an error list. Default is 5.",
+    dest="error_depth",
+    type=int,
+    default=5,
+    metavar="n"
+)
+cmd_line_parser.add_argument(
+    "-t", "--token",
+    help="Prompt for a GitHub token to use for activating Travis.",
+    dest="gh_token",
+    action="store_true"
+)
+cmd_line_parser.add_argument(
+    "-v", "--validator",
+    help="Run validators with 'all', or only the validator(s) supplied in a string.",
+    dest="validator",
+    metavar='all OR "validator1, validator2, ..."'
+)
 
 # Define global state shared by the functions above:
 # Submodules inside the bundle (result of get_bundle_submodules)
@@ -114,27 +141,28 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
 
     validator = circuitpython_library_validators.library_validator(validators, bundle_submodules, latest_pylint, **kw_args)
     for repo in repos:
-        errors = validator.run_repo_validation(repo)
-        if errors:
-            need_work += 1
-            repo_needs_work.append(repo)
-            # print(repo["full_name"])
-            # print("\n".join(errors))
-            # print()
-        for error in errors:
-            if not isinstance(error, tuple):
-                # check for an error occurring in the valiator module
-                if error == circuitpython_library_validators.ERROR_OUTPUT_HANDLER:
-                    #print(errors, "repo output handler error:", validator.output_file_data)
-                    output_handler(", ".join(validator.output_file_data))
-                    validator.output_file_data.clear()
-                if error not in repos_by_error:
-                    repos_by_error[error] = []
-                repos_by_error[error].append(repo["html_url"])
-            else:
-                if error[0] not in repos_by_error:
-                    repos_by_error[error[0]] = []
-                repos_by_error[error[0]].append("{0} ({1} days)".format(repo["html_url"], error[1]))
+        if len(validators) != 0:
+            errors = validator.run_repo_validation(repo)
+            if errors:
+                need_work += 1
+                repo_needs_work.append(repo)
+                # print(repo["full_name"])
+                # print("\n".join(errors))
+                # print()
+            for error in errors:
+                if not isinstance(error, tuple):
+                    # check for an error occurring in the valiator module
+                    if error == circuitpython_library_validators.ERROR_OUTPUT_HANDLER:
+                        #print(errors, "repo output handler error:", validator.output_file_data)
+                        output_handler(", ".join(validator.output_file_data))
+                        validator.output_file_data.clear()
+                    if error not in repos_by_error:
+                        repos_by_error[error] = []
+                    repos_by_error[error].append(repo["html_url"])
+                else:
+                    if error[0] not in repos_by_error:
+                        repos_by_error[error[0]] = []
+                    repos_by_error[error[0]].append("{0} ({1} days)".format(repo["html_url"], error[1]))
         insights = lib_insights
         if repo["name"] == "circuitpython" and repo["owner"]["login"] == "adafruit":
             insights = core_insights
@@ -179,27 +207,26 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         output_handler("  * {}".format(pr))
     print_issue_overview(lib_insights)
     output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
-    for issue in lib_insights["open_issues"]:
-        output_handler("  * {}".format(issue))
+    output_handler("  * https://circuitpython.org/libraries/contributing")
 
-    lib_repos = []
-    for repo in repos:
-        if repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython"):
-            lib_repos.append(repo)
+    if len(validators) != 0:
+        lib_repos = []
+        for repo in repos:
+            if repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython"):
+                lib_repos.append(repo)
 
-    # print("- [ ] [{0}](https://github.com/{1})".format(repo["name"], repo["full_name"]))
-    output_handler("{} out of {} repos need work.".format(need_work, len(lib_repos)))
+        output_handler("{} out of {} repos need work.".format(need_work, len(lib_repos)))
 
-    list_repos_for_errors = [circuitpython_library_validators.ERROR_NOT_IN_BUNDLE]
-    output_handler()
-    for error in sorted(repos_by_error):
-        if not repos_by_error[error]:
-            continue
+        list_repos_for_errors = [circuitpython_library_validators.ERROR_NOT_IN_BUNDLE]
         output_handler()
-        error_count = len(repos_by_error[error])
-        output_handler("{} - {}".format(error, error_count))
-        if error_count <= error_depth or error in list_repos_for_errors:
-            output_handler("\n".join(["  * " + x for x in repos_by_error[error]]))
+        for error in sorted(repos_by_error):
+            if not repos_by_error[error]:
+                continue
+            output_handler()
+            error_count = len(repos_by_error[error])
+            output_handler("{} - {}".format(error, error_count))
+            if error_count <= error_depth or error in list_repos_for_errors:
+                output_handler("\n".join(["  * " + x for x in repos_by_error[error]]))
 
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
@@ -369,37 +396,36 @@ if __name__ == "__main__":
         output_filename = cmd_line_args.output_file
         startup_message.append(" - Report output will be saved to: {}".format(output_filename))
 
-    validators = [val_funcs[1] for val_funcs in default_validators]
+    validators = []
     if cmd_line_args.validator:
-        validators = []
-        validator_names = []
-        for func in cmd_line_args.validator.split(","):
-            func_name = func.strip()
-            try:
-                if not func_name.startswith("validate"):
-                    #raise KeyError
-                    print('{}'.format(func_name))
-                if "contents" not in func_name:
-                    validators.append([val[1] for val in default_validators if func_name in val[0]][0])
-                else:
-                    validators.insert(0, [val[1] for val in default_validators if func_name in val[0]][0])
-                validator_names.append(func_name)
-            except KeyError:
-                #print(", ".join([vals for vals in sys.modules[__name__].__dict__["circuitpython_library_validators"]]))
-                #print(sys.modules[__name__].__dict__["circuitpython_library_validators"].__dict__["library_validator"].__dict__)
-                print(default_validators)
-                output_handler("Error: '{0}' is not an available validator.\n" \
-                               "Available validators are: {1}".format(func.strip(),
-                               ", ".join([val[0] for val in default_validators])))
-                sys.exit()
+        if cmd_line_args.validator != "all":
+            validators = []
+            for func in cmd_line_args.validator.split(","):
+                func_name = func.strip()
+                try:
+                    if not func_name.startswith("validate"):
+                        raise KeyError
+                        #print('{}'.format(func_name))
+                    if "contents" not in func_name:
+                        validators.append([val[1] for val in default_validators if func_name in val[0]][0])
+                    else:
+                        validators.insert(0, [val[1] for val in default_validators if func_name in val[0]][0])
+                    validator_names.append(func_name)
+                except KeyError:
+                    #print(default_validators)
+                    output_handler("Error: '{0}' is not an available validator.\n" \
+                                   "Available validators are: {1}".format(func.strip(),
+                                   ", ".join([val[0] for val in default_validators])))
+                    sys.exit()
+        else:
+            validators = [val_funcs[1] for val_funcs in default_validators]
+            validator_names = [val_names[0] for val_names in default_validators]
 
-        startup_message.append(" - Only these selected validators will run: {}".format(", ".join(validator_names)))
+        startup_message.append(" - These validators will run: {}".format(", ".join(validator_names)))
 
         if "validate_contents" not in validators:
             validator_kwarg_list["validate_contents_quiet"] = True
             validators.insert(0, [val[1] for val in default_validators if "validate_contents" in val[0]][0])
-
-        #validator_kwarg_list["validators"] = validators
 
     try:
         for message in startup_message:
