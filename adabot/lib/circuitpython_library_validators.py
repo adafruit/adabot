@@ -119,7 +119,19 @@ BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
 # full name on Github (like Adafruit_CircuitPython_Bundle).
 BUNDLE_IGNORE_LIST = [BUNDLE_REPO_NAME]
 
-LIBRARY_DOESNT_NEED_BLINKA = "Adafruit_CircuitPython_ImageLoad"
+LIBRARIES_DONT_NEED_BLINKA = [
+    "Adafruit_CircuitPython_BusDevice",
+    "Adafruit_CircuitPython_CircuitPlayground",
+    "Adafruit_CircuitPython_FancyLED",
+    "Adafruit_CircuitPython_IRRemote",
+    "Adafruit_CircuitPython_ImageLoad",
+    "Adafruit_CircuitPython_MCP9808",
+    "Adafruit_CircuitPython_PCA9685",
+    "Adafruit_CircuitPython_PCF8523",
+    "Adafruit_CircuitPython_TLC59711",
+    "Adafruit_CircuitPython_Waveform",
+    "Adafruit_CircuitPython_miniQR",
+]
 
 # Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
 rtd_subprojects = None
@@ -371,7 +383,7 @@ class library_validator():
         lines = contents.text.split("\n")
         blinka_lines = [l for l in lines if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)]
 
-        if not blinka_lines and repo["name"] not in LIBRARY_DOESNT_NEED_BLINKA:
+        if not blinka_lines and repo["name"] not in LIBRARIES_DONT_NEED_BLINKA:
             errors.append(ERROR_MISSING_BLINKA)
         return errors
 
