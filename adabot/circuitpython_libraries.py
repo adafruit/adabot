@@ -397,6 +397,7 @@ if __name__ == "__main__":
         startup_message.append(" - Report output will be saved to: {}".format(output_filename))
 
     validators = []
+    validator_names = []
     if cmd_line_args.validator:
         if cmd_line_args.validator != "all":
             validators = []
@@ -423,7 +424,7 @@ if __name__ == "__main__":
 
         startup_message.append(" - These validators will run: {}".format(", ".join(validator_names)))
 
-        if "validate_contents" not in validators:
+        if "validate_contents" not in validator_names:
             validator_kwarg_list["validate_contents_quiet"] = True
             validators.insert(0, [val[1] for val in default_validators if "validate_contents" in val[0]][0])
 
