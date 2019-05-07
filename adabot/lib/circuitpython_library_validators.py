@@ -478,7 +478,7 @@ class library_validator():
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
-                lib_name = repo["name"][repo["name"].rfind("_") + 1:].lower()
+                lib_name = repo["name"][repo["name"].rfind("CircuitPython_") + 14:].lower()
                 all_have_name = True
                 simpletest_exists = False
                 for example in examples_list:
