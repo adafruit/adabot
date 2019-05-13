@@ -166,14 +166,17 @@ if __name__ == "__main__":
     # check for the day we want this to run.
     if "TRAVIS" in os.environ:
         should_run = int(os.environ["CP_ORG_UPDATER_RUN_DAY"])
-        if datetime.datetime.weekday(run_time) != should_run:
-            should_run_date = datetime.date.today() - datetime.timedelta(days=(6 - should_run))
+        if run_time.isoweekday() != should_run:
+            delta_days = should_run - run_time.isoweekday()
+            run_delta = datetime.timedelta(days=delta_days)
+            should_run_date = run_time + run_delta
             msg = [
                 "Aborting...",
                 " - Today is not {}.".format(should_run_date.strftime("%A")),
+                " - Next scheduled run is: {}".format(should_run_date.strftime("%Y-%m-%d")),
                 " - To run the updater on a different day, change the",
                 "   'CP_ORG_UPDATER_RUN_DAY' environment variable in Travis.",
-                " - Day is a number between 0 & 6, with 0 being Monday."
+                " - Day is a number between 1 & 7, with 1 being Monday."
             ]
             print("\n".join(msg))
             sys.exit()
