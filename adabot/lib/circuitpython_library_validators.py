@@ -181,13 +181,15 @@ class library_validator():
             errors.append(ERROR_MISSING_LICENSE)
         if not repo["permissions"]["push"]:
             errors.append(ERROR_MISSING_LIBRARIANS)
-        if not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules) and \
-           not repo["name"] in BUNDLE_IGNORE_LIST:  # Don't assume the bundle will
-                                                    # bundle itself and possibly
-                                                    # other repos.
-            errors.append(ERROR_NOT_IN_BUNDLE)
-        if "allow_squash_merge" not in full_repo or full_repo["allow_squash_merge"] or full_repo["allow_rebase_merge"]:
-            errors.append(ERROR_ONLY_ALLOW_MERGES)
+        if (not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules)
+            and not repo["name"] in BUNDLE_IGNORE_LIST):
+                # Don't assume the bundle will bundle itself and possibly
+                # other repos.
+                errors.append(ERROR_NOT_IN_BUNDLE)
+        if ("allow_squash_merge" not in full_repo
+            or full_repo["allow_squash_merge"]
+            or full_repo["allow_rebase_merge"]):
+                errors.append(ERROR_ONLY_ALLOW_MERGES)
         return errors
 
     def validate_release_state(self, repo):
@@ -204,7 +206,9 @@ class library_validator():
         if repo["name"] in BUNDLE_IGNORE_LIST:
             return []
 
-        repo_last_release = github.get("/repos/" + repo["full_name"] + "/releases/latest")
+        repo_last_release = github.get("/repos/"
+                                       + repo["full_name"]
+                                       + "/releases/latest")
         if not repo_last_release.ok:
             return [ERROR_GITHUB_NO_RELEASE]
         repo_release_json = repo_last_release.json()
@@ -215,14 +219,27 @@ class library_validator():
                 return [ERROR_GITHUB_NO_RELEASE]
             else:
                 # replace 'output_handler' with ERROR_OUTPUT_HANDLER
-                self.output_file_data.append("Error: retrieving latest release information failed on '{0}'. Information Received: {1}".format(
-                               repo["name"], repo_release_json["message"]))
+                err_msg = [
+                    "Error: retrieving latest release information failed on ",
+                    "'{}'. "format(repo["name"]),
+                    "Information Received: ",
+                    "{}".format(repo_release_json["message"])
+                ]
+                self.output_file_data.append("".join(err_msg))
                 return [ERROR_OUTPUT_HANDLER]
 
-        compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/" + tag_name + "...master")
+        compare_tags = github.get("/repos/"
+                                  + repo["full_name"]
+                                  + "/compare/"
+                                  + tag_name
+                                  + "...master")
         if not compare_tags.ok:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
-            self.output_file_data.append("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], tag_name))
+            err_msg = [
+                "Error: failed to compare {} 'master' ".format(repo["name"]),
+                "to tag '{}'".format(tag_name)
+            ]
+            self.output_file_data.append("".join(err_msg))
             return [ERROR_OUTPUT_HANDLER]
         compare_tags_json = compare_tags.json()
         if "status" in compare_tags_json:
@@ -239,22 +256,30 @@ class library_validator():
                 #      compare_tags_json["status"], compare_tags_json["ahead_by"],
                 #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
                 if date_diff.days > datetime.date.today().max.day:
-                    return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM, date_diff.days)]
+                    return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM,
+                            date_diff.days)]
                 elif date_diff.days <= datetime.date.today().max.day:
                     if date_diff.days > 7:
-                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M, date_diff.days)]
+                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M,
+                                date_diff.days)]
                     else:
-                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W, date_diff.days)]
+                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
+                                date_diff.days)]
         elif "errors" in compare_tags_json:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
-            self.output_file_data.append("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
-                           repo["name"], compare_tags_json["message"]))
+            err_msg = [
+                "Error: comparing latest release to 'master' failed on ",
+                "'{}'. ".format(repo["name"]),
+                "Error Message: {}".format(compare_tags_json["message"])
+            ]
+            self.output_file_data.append("".join(err_msg))
             return [ERROR_OUTPUT_HANDLER]
 
         return []
 
     def _validate_readme(self, repo, download_url):
-        # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
+        # We use requests because file contents are hosted by
+        # githubusercontent.com, not the API domain.
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
             return [ERROR_README_DOWNLOAD_FAILED]
@@ -295,7 +320,8 @@ class library_validator():
             look for "import ___".  If the "import u___" is
             used with NO "import ____" generate an error.
         """
-        # We use requests because file contents are hosted by githubusercontent.com, not the API domain.
+        # We use requests because file contents are hosted by
+        # githubusercontent.com, not the API domain.
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
@@ -303,23 +329,31 @@ class library_validator():
         errors = []
 
         lines = contents.text.split("\n")
-        ustruct_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*ustruct", l)]
-        struct_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*struct", l)]
+        ustruct_lines = ([l for l in lines
+                         if re.match(r"[\s]*import[\s][\s]*ustruct", l)])
+        struct_lines = ([l for l in lines
+                        if re.match(r"[\s]*import[\s][\s]*struct", l)])
         if ustruct_lines and not struct_lines:
             errors.append(ERROR_PYFILE_MISSING_STRUCT)
 
-        ure_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*ure", l)]
-        re_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*re", l)]
+        ure_lines = ([l for l in lines
+                     if re.match(r"[\s]*import[\s][\s]*ure", l)])
+        re_lines = ([l for l in lines
+                    if re.match(r"[\s]*import[\s][\s]*re", l)])
         if ure_lines and not re_lines:
             errors.append(ERROR_PYFILE_MISSING_RE)
 
-        ujson_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*ujson", l)]
-        json_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*json", l)]
+        ujson_lines = ([l for l in lines
+                       if re.match(r"[\s]*import[\s][\s]*ujson", l)])
+        json_lines = ([l for l in lines
+                      if re.match(r"[\s]*import[\s][\s]*json", l)])
         if ujson_lines and not json_lines:
             errors.append(ERROR_PYFILE_MISSING_JSON)
 
-        uerrno_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*uerrno", l)]
-        errno_lines = [l for l in lines if re.match(r"[\s]*import[\s][\s]*errno", l)]
+        uerrno_lines = ([l for l in lines
+                        if re.match(r"[\s]*import[\s][\s]*uerrno", l)])
+        errno_lines = ([l for l in lines
+                       if re.match(r"[\s]*import[\s][\s]*errno", l)])
         if uerrno_lines and not errno_lines:
             errors.append(ERROR_PYFILE_MISSING_ERRNO)
 
@@ -336,7 +370,10 @@ class library_validator():
         errors = []
 
         lines = contents.text.split("\n")
-        pypi_providers_lines = [l for l in lines if re.match(r"[\s]*-[\s]*provider:[\s]*pypi[\s]*", l)]
+        pypi_providers_lines = (
+            [l for l in lines
+            if re.match(r"[\s]*-[\s]*provider:[\s]*pypi[\s]*", l)]
+        )
 
         if not pypi_providers_lines:
             errors.append(ERROR_MISSING_PYPIPROVIDER)
@@ -381,7 +418,8 @@ class library_validator():
 
         errors = []
         lines = contents.text.split("\n")
-        blinka_lines = [l for l in lines if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)]
+        blinka_lines = ([l for l in lines
+                        if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)])
 
         if not blinka_lines and repo["name"] not in LIBRARIES_DONT_NEED_BLINKA:
             errors.append(ERROR_MISSING_BLINKA)
@@ -409,7 +447,8 @@ class library_validator():
         files = [x["name"] for x in content_list]
 
         # ignore new/in-work repos, which should have less than 8 files:
-        # ___.py or folder, CoC, .travis.yml, .readthedocs.yml, docs/, examples/, README, LICENSE
+        # ___.py or folder, CoC, .travis.yml, .readthedocs.yml, docs/,
+        # examples/, README, LICENSE
         if len(files) < 8:
             BUNDLE_IGNORE_LIST.append(repo["name"])
             if not self.validate_contents_quiet:
@@ -435,7 +474,8 @@ class library_validator():
                 if f["name"] == "README.rst":
                     readme_info = f
                     break
-            errors.extend(self._validate_readme(repo, readme_info["download_url"]))
+            errors.extend(self._validate_readme(repo,
+                                                readme_info["download_url"]))
 
         if ".travis.yml" in files:
             file_info = content_list[files.index(".travis.yml")]
@@ -471,19 +511,23 @@ class library_validator():
         dirs = [x["name"] for x in content_list if x["type"] == "dir"]
         if "examples" in dirs:
             # check for at least on .py file
-            examples_list = github.get("/repos/" + repo["full_name"] + "/contents/examples")
+            examples_list = github.get("/repos/"
+                                       + repo["full_name"]
+                                       + "/contents/examples")
             if not examples_list.ok:
                 errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
             examples_list = examples_list.json()
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
-                lib_name = repo["name"][repo["name"].rfind("CircuitPython_") + 14:].lower()
+                lib_name = (repo["name"][repo["name"].rfind("CircuitPython_")
+                            + 14:].lower())
                 all_have_name = True
                 simpletest_exists = False
                 for example in examples_list:
-                    if not example["name"].lower().startswith(lib_name):
-                        all_have_name = False
+                    if (not example["name"].lower().startswith(lib_name)
+                        and example["name"].endswith(".py")):
+                            all_have_name = False
                     if "simpletest" in example["name"].lower():
                         simpletest_exists = True
                 if not all_have_name:
@@ -495,7 +539,8 @@ class library_validator():
 
         # first location .py files whose names begin with "adafruit_"
         re_str = re.compile('adafruit\_[\w]*\.py')
-        pyfiles = [x["download_url"] for x in content_list if re_str.fullmatch(x["name"])]
+        pyfiles = ([x["download_url"] for x in content_list
+                   if re_str.fullmatch(x["name"])])
         for pyfile in pyfiles:
             # adafruit_xxx.py file; check if for proper usage of u___ versions of modules
             errors.extend(self._validate_py_for_u_modules(repo, pyfile))
@@ -505,14 +550,20 @@ class library_validator():
         for adir in dirs:
             if re_str.fullmatch(adir):
                 # retrieve the files in that directory
-                dir_file_list = github.get("/repos/" + repo["full_name"] + "/contents/" + adir)
+                dir_file_list = github.get("/repos/"
+                                           + repo["full_name"]
+                                           + "/contents/"
+                                           + adir)
                 if not dir_file_list.ok:
                     errors.append(ERROR_UNABLE_PULL_REPO_DIR)
                 dir_file_list = dir_file_list.json()
                 # search for .py files in that directory
-                dir_files = [x["download_url"] for x in dir_file_list if x["type"] == "file" and x["name"].endswith(".py")]
+                dir_files = ([x["download_url"] for x in dir_file_list
+                             if x["type"] == "file"
+                             and x["name"].endswith(".py")])
                 for dir_file in dir_files:
-                    # .py files in subdirectory adafruit_xxx; check if for proper usage of u___ versions of modules
+                    # .py files in subdirectory adafruit_xxx
+                    # check if for proper usage of u___ versions of modules
                     errors.extend(self._validate_py_for_u_modules(repo, dir_file))
 
         return errors
