@@ -221,7 +221,7 @@ class library_validator():
                 # replace 'output_handler' with ERROR_OUTPUT_HANDLER
                 err_msg = [
                     "Error: retrieving latest release information failed on ",
-                    "'{}'. "format(repo["name"]),
+                    "'{}'. ".format(repo["name"]),
                     "Information Received: ",
                     "{}".format(repo_release_json["message"])
                 ]
