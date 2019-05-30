@@ -34,10 +34,16 @@ from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
 
 # Setup ArgumentParser
-cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for updating circuitpython.org libraries info.",
-                                          prog="Adabot circuitpython.org/libraries Updater")
-cmd_line_parser.add_argument("-o", "--output_file", help="Output JSON file to the filename provided.",
-                             metavar="<OUTPUT FILENAME>", dest="output_file")
+cmd_line_parser = argparse.ArgumentParser(
+    description="Adabot utility for updating circuitpython.org libraries info.",
+    prog="Adabot circuitpython.org/libraries Updater"
+)
+cmd_line_parser.add_argument(
+    "-o", "--output_file",
+    help="Output JSON file to the filename provided.",
+    metavar="<OUTPUT FILENAME>",
+    dest="output_file"
+)
 
 def is_new_or_updated(repo):
     """ Check the repo for new release(s) within the last week. Then determine
@@ -55,12 +61,15 @@ def is_new_or_updated(repo):
     if "published_at" not in release_info:
         return
     else:
-        release_date = datetime.datetime.strptime(release_info["published_at"], "%Y-%m-%dT%H:%M:%SZ")
+        release_date = datetime.datetime.strptime(
+            release_info["published_at"],
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         if release_date < today_minus_seven:
             return
 
-    # we have a release within the last 7 days. now check if its a newly released library
-    # within the last week, or if its just an update
+    # we have a release within the last 7 days. now check if its a newly
+    # released library within the last week, or if its just an update
     result = github.get("/repos/adafruit/" + repo["name"] + "/releases")
     if not result.ok:
         return
@@ -68,7 +77,10 @@ def is_new_or_updated(repo):
     new_releases = 0
     releases = result.json()
     for release in releases:
-        release_date = datetime.datetime.strptime(release["published_at"], "%Y-%m-%dT%H:%M:%SZ")
+        release_date = datetime.datetime.strptime(
+            release["published_at"],
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         if not release_date < today_minus_seven:
             new_releases += 1
 
@@ -83,7 +95,8 @@ def get_open_issues_and_prs(repo):
     open_issues = []
     open_pull_requests = []
     params = {"state":"open"}
-    result = github.get("/repos/adafruit/" + repo["name"] + "/issues", params=params)
+    result = github.get("/repos/adafruit/" + repo["name"] + "/issues",
+                        params=params)
     if not result.ok:
         return [], []
 
@@ -101,7 +114,8 @@ def get_contributors(repo):
     reviewers = []
     merged_pr_count = 0
     params = {"state":"closed", "sort":"updated", "direction":"desc"}
-    result = github.get("/repos/adafruit/" + repo["name"] + "/pulls", params=params)
+    result = github.get("/repos/adafruit/" + repo["name"] + "/pulls",
+                        params=params)
     if result.ok:
         today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
         prs = result.json()
@@ -110,7 +124,8 @@ def get_contributors(repo):
             if "merged_at" in pr:
                 if pr["merged_at"] is None:
                     continue
-                merged_at = datetime.datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
+                merged_at = datetime.datetime.strptime(pr["merged_at"],
+                                                       "%Y-%m-%dT%H:%M:%SZ")
             else:
                 continue
             if merged_at < today_minus_seven:
@@ -137,10 +152,12 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     """ Clone the circuitpython-org repo, update libraries.json, and push the updates
         in a commit.
     """
-    if "TRAIVS" in os.environ:
+    if "TRAVIS" in os.environ:
         if not os.path.isdir(cp_org_dir):
             os.makedirs(cp_org_dir, exist_ok=True)
-            git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit/circuitpython-org.git"
+            git_url = ("https://"
+                       + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
+                       + "@github.com/adafruit/circuitpython-org.git")
             git.clone("-o", "adafruit", git_url, cp_org_dir)
         os.chdir(cp_org_dir)
         git.pull()
@@ -184,7 +201,9 @@ if __name__ == "__main__":
     working_directory = os.path.abspath(os.getcwd())
     cp_org_dir = os.path.join(working_directory, ".cp_org")
 
-    startup_message = ["Run Date: {}".format(run_time.strftime("%d %B %Y, %I:%M%p"))]
+    startup_message = [
+        "Run Date: {}".format(run_time.strftime("%d %B %Y, %I:%M%p"))
+    ]
 
     output_filename = os.path.join(cp_org_dir, "_data/libraries.json")
     local_file_output = False
@@ -206,13 +225,21 @@ if __name__ == "__main__":
     merged_pr_count_total = 0
     repos_by_error = {}
 
-    default_validators = [vals[1] for vals in inspect.getmembers(cpy_vals.library_validator) if vals[0].startswith("validate")]
+    default_validators = [
+        vals[1] for vals in inspect.getmembers(cpy_vals.library_validator)
+        if vals[0].startswith("validate")
+    ]
     bundle_submodules = common_funcs.get_bundle_submodules()
-    validator = cpy_vals.library_validator(default_validators, bundle_submodules, 0.0)
+    validator = cpy_vals.library_validator(
+        default_validators,
+        bundle_submodules,
+        0.0
+    )
 
     for repo in repos:
-        if repo["name"] in cpy_vals.BUNDLE_IGNORE_LIST or repo["name"] == "circuitpython":
-            continue
+        if (repo["name"] in cpy_vals.BUNDLE_IGNORE_LIST
+            or repo["name"] == "circuitpython"):
+                continue
         repo_name = repo["name"]
 
         # get a list of new & updated libraries for the last week
@@ -252,7 +279,9 @@ if __name__ == "__main__":
             else:
                 if error[0] not in repos_by_error:
                     repos_by_error[error[0]] = []
-                repos_by_error[error[0]].append("{0} ({1} days)".format(repo["html_url"], error[1]))
+                repos_by_error[error[0]].append(
+                    "{0} ({1} days)".format(repo["html_url"], error[1])
+                )
 
     # sort all of the items alphabetically
     sorted_new_list = {}
