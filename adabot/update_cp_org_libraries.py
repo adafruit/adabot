@@ -137,10 +137,12 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
     """ Clone the circuitpython-org repo, update libraries.json, and push the updates
         in a commit.
     """
-    if "TRAIVS" in os.environ:
+    if "TRAVIS" in os.environ:
         if not os.path.isdir(cp_org_dir):
             os.makedirs(cp_org_dir, exist_ok=True)
-            git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit/circuitpython-org.git"
+            git_url = ("https://"
+                       + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
+                       + "@github.com/adafruit/circuitpython-org.git")
             git.clone("-o", "adafruit", git_url, cp_org_dir)
         os.chdir(cp_org_dir)
         git.pull()
