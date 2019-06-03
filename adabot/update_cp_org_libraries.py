@@ -166,7 +166,7 @@ def update_json_file(working_directory, cp_org_dir, output_filename, json_string
         with open(output_filename, "w") as json_file:
             json.dump(json_string, json_file, indent=2)
 
-        commit_day = date.date.strftime(datetime.datetime.today(), "%Y-%m-%d")
+        commit_day = datetime.date.strftime(datetime.date.today(), "%Y-%m-%d")
         commit_msg = "adabot: auto-update of libraries.json ({})".format(commit_day)
         git.commit("-a", "-m", commit_msg)
         git_push = git.push("adafruit", "master")
