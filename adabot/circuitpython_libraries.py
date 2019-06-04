@@ -1,6 +1,7 @@
 # The MIT License (MIT)
 #
 # Copyright (c) 2017 Scott Shawcroft for Adafruit Industries
+#               2019 Michael Schroeder
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -252,6 +253,17 @@ def print_circuitpython_download_stats():
     by_both = {}
     total = {}
 
+    asset_re = re.compile(
+        r"""
+            circuitpython\-   # end of the prefix
+            (?P<board>.+)\-   # board name
+            (?P<lang>.+)\-    # language
+            (\d\.\d\.\d.*)    # version
+            \.(?=uf2|bin|hex) # file extension
+        """,
+        re.I | re.X
+    )
+
     for release in releases:
         if not found_unstable and not release["draft"] and release["prerelease"]:
             found_unstable = True
@@ -266,11 +278,12 @@ def print_circuitpython_download_stats():
             if not asset["name"].startswith("adafruit-circuitpython"):
                 continue
             count = asset["download_count"]
-            parts = asset["name"].split("-")
-            board = parts[2]
-            language = "en_US"
-            if len(parts) == 6:
-                language = parts[3]
+            info_re = asset_re.search(asset["name"])
+            if not info_re:
+                print("Skipping stats for '{}'".format(asset["name"]))
+                continue
+            board = info_re.group("board")
+            language = info_re.group("lang")
             if language not in by_language:
                 by_language[language] = {release["tag_name"]: 0}
             if release["tag_name"] not in by_language[language]:
