@@ -33,7 +33,7 @@ import requests
 from adabot import github_requests as github
 from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
-from adabot.lib import circuitpython_library_validators
+from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib.common_funcs import *
 
 # Setup ArgumentParser
@@ -94,7 +94,10 @@ github_token = False
 # Functions to run on repositories to validate their state.  By convention these
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
-default_validators = [vals for vals in inspect.getmembers(circuitpython_library_validators.library_validator) if vals[0].startswith("validate")]
+default_validators = [
+    vals for vals in inspect.getmembers(cirpy_lib_vals.library_validator)
+    if vals[0].startswith("validate")
+]
 
 
 def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
@@ -140,7 +143,9 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
 
-    validator = circuitpython_library_validators.library_validator(validators, bundle_submodules, latest_pylint, **kw_args)
+    validator = cirpy_lib_vals.library_validator(validators,
+                                                 bundle_submodules,
+                                                 latest_pylint, **kw_args)
     for repo in repos:
         if len(validators) != 0:
             errors = validator.run_repo_validation(repo)
@@ -153,7 +158,7 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
             for error in errors:
                 if not isinstance(error, tuple):
                     # check for an error occurring in the valiator module
-                    if error == circuitpython_library_validators.ERROR_OUTPUT_HANDLER:
+                    if error == cirpy_lib_vals.ERROR_OUTPUT_HANDLER:
                         #print(errors, "repo output handler error:", validator.output_file_data)
                         output_handler(", ".join(validator.output_file_data))
                         validator.output_file_data.clear()
@@ -163,15 +168,18 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                 else:
                     if error[0] not in repos_by_error:
                         repos_by_error[error[0]] = []
-                    repos_by_error[error[0]].append("{0} ({1} days)".format(repo["html_url"], error[1]))
+                    repos_by_error[error[0]].append(
+                        "{0} ({1} days)".format(repo["html_url"], error[1])
+                    )
         insights = lib_insights
-        if repo["name"] == "circuitpython" and repo["owner"]["login"] == "adafruit":
-            insights = core_insights
+        if (repo["name"] == "circuitpython" and
+            repo["owner"]["login"] == "adafruit"):
+                insights = core_insights
         errors = validator.gather_insights(repo, insights, since)
         if errors:
             print("insights error")
             for error in errors:
-                if error == circuitpython_library_validators.ERROR_OUTPUT_HANDLER:
+                if error == cirpy_lib_vals.ERROR_OUTPUT_HANDLER:
                     output_handler(", ".join(validator.output_file_data))
                     validator.output_file_data.clear()
 
@@ -195,7 +203,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     ms_count = 0
     for milestone in sorted(core_insights["milestones"].keys()):
         ms_count += core_insights["milestones"][milestone]
-        output_handler("  * {0}: {1} open issues".format(milestone, core_insights["milestones"][milestone]))
+        output_handler("  * {0}: {1} open issues".format(milestone,
+                                                         core_insights["milestones"][milestone]))
     output_handler("  * {} issues not assigned a milestone".format(len(core_insights["open_issues"]) - ms_count))
     output_handler()
     print_circuitpython_download_stats()
@@ -213,12 +222,14 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     if len(validators) != 0:
         lib_repos = []
         for repo in repos:
-            if repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython"):
-                lib_repos.append(repo)
+            if (repo["owner"]["login"] == "adafruit" and
+                repo["name"].startswith("Adafruit_CircuitPython")):
+                    lib_repos.append(repo)
 
-        output_handler("{} out of {} repos need work.".format(need_work, len(lib_repos)))
+        output_handler("{} out of {} repos need work.".format(need_work,
+                                                              len(lib_repos)))
 
-        list_repos_for_errors = [circuitpython_library_validators.ERROR_NOT_IN_BUNDLE]
+        list_repos_for_errors = [cirpy_lib_vals.ERROR_NOT_IN_BUNDLE]
         output_handler()
         for error in sorted(repos_by_error):
             if not repos_by_error[error]:
@@ -391,9 +402,10 @@ def print_issue_overview(*insights):
 
 if __name__ == "__main__":
     validator_kwarg_list = {}
-    startup_message = ["Running CircuitPython Library checks...",
-                       "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p"))
-                      ]
+    startup_message = [
+        "Running CircuitPython Library checks...",
+        "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p"))
+    ]
     cmd_line_args = cmd_line_parser.parse_args()
 
     error_depth = cmd_line_args.error_depth
@@ -421,9 +433,14 @@ if __name__ == "__main__":
                         raise KeyError
                         #print('{}'.format(func_name))
                     if "contents" not in func_name:
-                        validators.append([val[1] for val in default_validators if func_name in val[0]][0])
+                        validators.append(
+                            [val[1] for val in default_validators if func_name in val[0]][0]
+                        )
                     else:
-                        validators.insert(0, [val[1] for val in default_validators if func_name in val[0]][0])
+                        validators.insert(
+                            0,
+                            [val[1] for val in default_validators if func_name in val[0]][0]
+                        )
                     validator_names.append(func_name)
                 except KeyError:
                     #print(default_validators)
@@ -439,14 +456,17 @@ if __name__ == "__main__":
 
         if "validate_contents" not in validator_names:
             validator_kwarg_list["validate_contents_quiet"] = True
-            validators.insert(0, [val[1] for val in default_validators if "validate_contents" in val[0]][0])
+            validators.insert(
+                0, [val[1] for val in default_validators if "validate_contents" in val[0]][0]
+            )
 
     try:
         for message in startup_message:
             output_handler(message)
         output_handler()
         #print(validators)
-        run_library_checks(validators, bundle_submodules, latest_pylint, validator_kwarg_list)
+        run_library_checks(validators, bundle_submodules, latest_pylint,
+                           validator_kwarg_list)
     except:
         if output_filename is not None:
             exc_type, exc_val, exc_tb = sys.exc_info()
