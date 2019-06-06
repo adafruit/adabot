@@ -186,11 +186,12 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                     validator.output_file_data.clear()
 
         # get a list of new & updated libraries for the last week
-        check_releases = common_funcs.is_new_or_updated(repo)
-        if check_releases == "new":
-            new_libs[repo_name] = repo["html_url"]
-        elif check_releases == "updated":
-            updated_libs[repo_name] = repo["html_url"]
+        if repo["name"] != "Adafruit_CircuitPython_Bundle":
+            check_releases = common_funcs.is_new_or_updated(repo)
+            if check_releases == "new":
+                new_libs[repo["name"]] = repo["html_url"]
+            elif check_releases == "updated":
+                updated_libs[repo["name"]] = repo["html_url"]
 
     output_handler()
     output_handler("State of CircuitPython + Libraries")
