@@ -23,6 +23,7 @@
 # GitHub API Serch has stopped returning the core repo for some reason. Tried several
 # different search params, and came up emtpy. Hardcoding it as a failsafe.
 
+import datetime
 import re
 import requests
 from adabot import github_requests as github
@@ -200,3 +201,47 @@ def repo_is_on_pypi(repo):
         is_on = True
 
     return is_on
+
+def is_new_or_updated(repo):
+    """ Check the repo for new release(s) within the last week. Then determine
+        if all releases are within the last week to decide if this is a newly
+        released library, or an updated library.
+    """
+
+    today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
+
+    # first, check the latest release to see if within the last 7 days
+    result = github.get("/repos/adafruit/" + repo["name"] + "/releases/latest")
+    if not result.ok:
+        return
+    release_info = result.json()
+    if "published_at" not in release_info:
+        return
+    else:
+        release_date = datetime.datetime.strptime(
+            release_info["published_at"],
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        if release_date < today_minus_seven:
+            return
+
+    # we have a release within the last 7 days. now check if its a newly
+    # released library within the last week, or if its just an update
+    result = github.get("/repos/adafruit/" + repo["name"] + "/releases")
+    if not result.ok:
+        return
+
+    new_releases = 0
+    releases = result.json()
+    for release in releases:
+        release_date = datetime.datetime.strptime(
+            release["published_at"],
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        if not release_date < today_minus_seven:
+            new_releases += 1
+
+    if new_releases == len(releases):
+        return "new"
+    else:
+        return "updated"

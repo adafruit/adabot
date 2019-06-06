@@ -45,50 +45,6 @@ cmd_line_parser.add_argument(
     dest="output_file"
 )
 
-def is_new_or_updated(repo):
-    """ Check the repo for new release(s) within the last week. Then determine
-        if all releases are within the last week to decide if this is a newly
-        released library, or an updated library.
-    """
-
-    today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
-
-    # first, check the latest release to see if within the last 7 days
-    result = github.get("/repos/adafruit/" + repo["name"] + "/releases/latest")
-    if not result.ok:
-        return
-    release_info = result.json()
-    if "published_at" not in release_info:
-        return
-    else:
-        release_date = datetime.datetime.strptime(
-            release_info["published_at"],
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
-        if release_date < today_minus_seven:
-            return
-
-    # we have a release within the last 7 days. now check if its a newly
-    # released library within the last week, or if its just an update
-    result = github.get("/repos/adafruit/" + repo["name"] + "/releases")
-    if not result.ok:
-        return
-
-    new_releases = 0
-    releases = result.json()
-    for release in releases:
-        release_date = datetime.datetime.strptime(
-            release["published_at"],
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
-        if not release_date < today_minus_seven:
-            new_releases += 1
-
-    if new_releases == len(releases):
-        return "new"
-    else:
-        return "updated"
-
 def get_open_issues_and_prs(repo):
     """ Retreive all of the open issues (minus pull requests) for the repo.
     """
@@ -243,7 +199,7 @@ if __name__ == "__main__":
         repo_name = repo["name"]
 
         # get a list of new & updated libraries for the last week
-        check_releases = is_new_or_updated(repo)
+        check_releases = common_funcs.is_new_or_updated(repo)
         if check_releases == "new":
             new_libs[repo_name] = repo["html_url"]
         elif check_releases == "updated":
