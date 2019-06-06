@@ -34,7 +34,7 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
-from adabot.lib.common_funcs import *
+from adabot.lib import common_funcs
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
@@ -142,6 +142,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
+    new_libs = {}
+    updated_libs = {}
 
     validator = cirpy_lib_vals.library_validator(validators,
                                                  bundle_submodules,
@@ -183,6 +185,13 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                     output_handler(", ".join(validator.output_file_data))
                     validator.output_file_data.clear()
 
+        # get a list of new & updated libraries for the last week
+        check_releases = common_funcs.is_new_or_updated(repo)
+        if check_releases == "new":
+            new_libs[repo_name] = repo["html_url"]
+        elif check_releases == "updated":
+            updated_libs[repo_name] = repo["html_url"]
+
     output_handler()
     output_handler("State of CircuitPython + Libraries")
 
@@ -218,6 +227,15 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     print_issue_overview(lib_insights)
     output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
     output_handler("  * https://circuitpython.org/libraries/contributing")
+    output_handler("Library updates in the last seven days:")
+    if len(new_libs) != 0:
+        output_handler("**New Libraries**")
+        for new in new_libs:
+            output_handler(" * [{}]({})".format(new, new_libs[new]))
+    if len(updated_libs) != 0:
+        output_handler("**Updated Libraries**")
+        for updated in updated_libs:
+            output_handler(" * [{}]({})".format(updated, updated_libs[updated]))
 
     if len(validators) != 0:
         lib_repos = []
