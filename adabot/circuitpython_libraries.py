@@ -107,9 +107,9 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         latest_pylint = pylint_info.json()["info"]["version"]
     output_handler("Latest pylint is: {}".format(latest_pylint))
 
-    repos = list_repos()
+    repos = common_funcs.list_repos()
     output_handler("Found {} repos to check.".format(len(repos)))
-    bundle_submodules = get_bundle_submodules()
+    bundle_submodules = common_funcs.get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
     github_user = github.get("/user").json()
     output_handler("Running GitHub checks as " + github_user["login"])
