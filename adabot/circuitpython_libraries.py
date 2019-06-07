@@ -427,14 +427,7 @@ if __name__ == "__main__":
     ]
     cmd_line_args = cmd_line_parser.parse_args()
 
-    error_depth = cmd_line_args.error_depth
-    startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
-
     verbosity = cmd_line_args.verbose
-
-    github_token = cmd_line_args.gh_token
-    validator_kwarg_list["github_token"] = github_token
-    startup_message.append(" - Prompts for the GitHub Token are {}.".format(("enabled" if github_token else "disabled")))
 
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
@@ -443,6 +436,13 @@ if __name__ == "__main__":
     validators = []
     validator_names = []
     if cmd_line_args.validator:
+        error_depth = cmd_line_args.error_depth
+        startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
+
+        github_token = cmd_line_args.gh_token
+        validator_kwarg_list["github_token"] = github_token
+        startup_message.append(" - Prompts for the GitHub Token are {}.".format(("enabled" if github_token else "disabled")))
+
         if cmd_line_args.validator != "all":
             validators = []
             for func in cmd_line_args.validator.split(","):
