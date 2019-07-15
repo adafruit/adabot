@@ -145,8 +145,11 @@ def update_bundle(bundle_path):
     working_directory = os.path.abspath(os.getcwd())
     os.chdir(bundle_path)
     git.submodule("foreach", "git", "fetch")
+    # Regular release tags are 'x.x.x'. Exclude tags that are alpha or beta releases.
+    # They will contain a '-' in the tag, such as '3.0.0-beta.5'.
+    # --exclude must be before --tags.
     # sh fails to find the subcommand so we use subprocess.
-    subprocess.run(shlex.split("git submodule foreach 'git checkout -q `git rev-list --tags --max-count=1`'"), stdout=subprocess.DEVNULL)
+    subprocess.run(shlex.split("git submodule foreach 'git checkout -q `git rev-list --exclude='*-*' --tags --max-count=1`'"), stdout=subprocess.DEVNULL)
     status = StringIO()
     result = git.status("--short", _out=status)
     updates = []
