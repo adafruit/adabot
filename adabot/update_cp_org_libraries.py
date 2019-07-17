@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 
 import argparse
+import base64
 import datetime
 import inspect
 import json
@@ -104,29 +105,74 @@ def get_contributors(repo):
 
     return contributors, reviewers, merged_pr_count
 
-def update_json_file(working_directory, cp_org_dir, output_filename, json_string):
-    """ Clone the circuitpython-org repo, update libraries.json, and push the updates
-        in a commit.
+def update_json_file(json_string):
+    """ Uses GitHub API to do the following:
+            - Creates branch on fork 'adafruit-adabot/circuipython-org'
+            - Updates '_data/libraries.json'
+            - Creates pull request from fork to upstream
+
+        Note: adapted from Scott Shawcroft's code found here
+        https://github.com/adafruit/circuitpython/blob/master/tools/build_board_info.py
     """
-    if "TRAVIS" in os.environ:
-        if not os.path.isdir(cp_org_dir):
-            os.makedirs(cp_org_dir, exist_ok=True)
-            git_url = ("https://"
-                       + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
-                       + "@github.com/adafruit/circuitpython-org.git")
-            git.clone("-o", "adafruit", git_url, cp_org_dir)
-        os.chdir(cp_org_dir)
-        git.pull()
-        git.submodule("update", "--init", "--recursive")
+    master_url = "/repos/adafruit/circuitpython-org/"
+    fork_url = "/repos/adafruit-adabot/circuitpython-org/"
+    commit_date = datetime.date.today()
+    branch_name = "libraries_update_" + commit_date.strftime("%d-%b-%y")
 
-        with open(output_filename, "w") as json_file:
-            json.dump(json_string, json_file, indent=2)
+    response = github.get(master_url + "git/refs/heads/master")
+    if not response.ok:
+        raise RuntimeError(
+            "Failed to retrieve master sha:\n{}".format(response.text)
+        )
+    commit_sha = response.json()["object"]["sha"]
 
-        commit_day = datetime.date.strftime(datetime.date.today(), "%Y-%m-%d")
-        commit_msg = "adabot: auto-update of libraries.json ({})".format(commit_day)
-        git.commit("-a", "-m", commit_msg)
-        git_push = git.push("adafruit", "master")
-        print(git_push)
+    response = github.get(
+        master_url + "contents/_data/libraries.json?ref=" + commit_sha
+    )
+    if not response.ok:
+        raise RuntimeError(
+            "Failed to retrieve libraries.json sha:\n{}".format(response.text)
+        )
+    blob_sha = response.json()["sha"]
+
+    branch_info = {
+        "ref": "refs/heads/" + branch_name,
+        "sha": commit_sha
+    }
+    response = github.post(fork_url + "git/refs", json=branch_info)
+    if not response.ok and response.json()["message"] != "Reference already exists":
+        raise RuntimeError(
+            "Failed to create branch:\n{}".format(response.text)
+        )
+
+    commit_msg = "Automated Libraries update for {}".format(commit_date.strftime("%d-%b-%y"))
+    content = json_string.encode("utf-8") + b"\n"
+    update_json = {
+        "message": commit_msg,
+        "content": base64.b64encode(content).decode("utf-8"),
+        "sha": blob_sha,
+        "branch": branch_name
+    }
+    response = github.put(fork_url + "contents/_data/libraries.json",
+                          json=update_json)
+    if not response.ok:
+        raise RuntimeError(
+            "Failed to update libraries.json:\n{}".format(response.text)
+        )
+
+    pr_info = {
+        "title": commit_msg,
+        "head": "adafruit-adabot:" + branch_name,
+        "base": "master",
+        "body": commit_msg,
+        "maintainer_can_modify": True
+    }
+    response = github.post(master_url + "pulls", json=pr_info)
+    if not response.ok:
+        raise RuntimeError(
+            "Failed to create pull request:\n{}".format(response.text)
+        )
+
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
@@ -155,18 +201,18 @@ if __name__ == "__main__":
             sys.exit()
 
     working_directory = os.path.abspath(os.getcwd())
-    cp_org_dir = os.path.join(working_directory, ".cp_org")
+    #cp_org_dir = os.path.join(working_directory, ".cp_org")
 
     startup_message = [
         "Run Date: {}".format(run_time.strftime("%d %B %Y, %I:%M%p"))
     ]
 
-    output_filename = os.path.join(cp_org_dir, "_data/libraries.json")
+    output_filename = ""
     local_file_output = False
     if cmd_line_args.output_file:
         output_filename = os.path.abspath(cmd_line_args.output_file)
         local_file_output = True
-    startup_message.append(" - Output will be saved to: {}".format(output_filename))
+        startup_message.append(" - Output will be saved to: {}".format(output_filename))
 
     print("\n".join(startup_message))
 
@@ -274,9 +320,10 @@ if __name__ == "__main__":
     json_obj = json.dumps(build_json, indent=2)
 
     if "TRAVIS" in os.environ:
-        update_json_file(working_directory, cp_org_dir, output_filename, build_json)
+        update_json_file(json_obj)
     else:
+        #update_json_file(json_obj)
         if local_file_output:
             with open(output_filename, "w") as json_file:
                 json.dump(build_json, json_file, indent=2)
-    print(json.dumps(build_json, indent=2))
+        print(json_obj)
