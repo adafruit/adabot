@@ -175,8 +175,8 @@ def validate_release_state(repo):
 def validate_travis(repo):
     """Validate if a repo has .travis.yml.
     """
-    repo_has_ino = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
-    if not repo_last_release.ok:
+    repo_has_travis = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
+    if not repo_has_travis.ok:
         return True
 
 def has_ino(repo):
