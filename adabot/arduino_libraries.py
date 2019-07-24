@@ -175,7 +175,6 @@ def validate_release_state(repo):
 def validate_travis(repo):
     """Validate if a repo has .travis.yml.
     """
-    repo_last_release = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
     repo_has_ino = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
     if not repo_last_release.ok:
         return True
@@ -187,6 +186,13 @@ def has_ino(repo):
     if repo_has_ino.ok and repo_has_ino.json()["total_count"] > 0:
         return True
 
+def has_library_properties(repo):
+    """Validate if a repo has library.properties file.
+    """
+    repo_has_file = github.get("/search/code?q=library+extension:properties+repo:adafruit/" + repo["name"])
+    if repo_has_file.ok and repo_has_file.json()["total_count"] > 0:
+        return True
+
 def run_arduino_lib_checks():
     output_handler("Running Arduino Library Checks")
     output_handler("Getting list of libraries to check...")
@@ -196,6 +202,7 @@ def run_arduino_lib_checks():
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
     missing_travis_list = [["  Repo"], ["  ----"]]
+    missing_library_properties_list = [["  Repo"], ["  ----"]]
 
     for repo in repo_list:
         lib_check = validate_library_properties(repo)
@@ -205,6 +212,7 @@ def run_arduino_lib_checks():
 
         needs_release = validate_release_state(repo)
         missing_travis = validate_travis(repo) and has_ino(repo)
+        missing_library_properties = has_ino(repo) and not has_library_properties(repo)
 
         if needs_release:
             needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
@@ -212,14 +220,21 @@ def run_arduino_lib_checks():
         if missing_travis:
             missing_travis_list.append(["  " + str(repo["name"])])
 
+        if missing_library_properties:
+            missing_library_properties_list.append(["  " + str(repo["name"])])
+
     if len(failed_lib_prop) > 2:
-        print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop);
+        print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop)
 
     if len(needs_release_list) > 2:
         print_list_output("Libraries have commits since last release: ({})", needs_release_list);
 
     if len(missing_travis_list) > 2:
-        print_list_output("Libraries that is not configured with Travis (but have *.ino files): ({})", missing_travis_list);
+        print_list_output("Libraries that is not configured with Travis (but have *.ino files): ({})", missing_travis_list)
+
+    if len(missing_library_properties_list) > 2:
+        print_list_output("Libraries that is missing library.properties file (but have *.ino files): ({})", missing_library_properties_list)
+
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
