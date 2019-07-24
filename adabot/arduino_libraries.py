@@ -80,6 +80,16 @@ def is_arduino_library(repo):
     else:
         return False
 
+def print_list_output(title="", list=[]):
+    ""
+    output_handler()
+    output_handler(title.format(len(list)))
+    long_col = [(max([len(str(row[i])) for row in list]) + 3)
+                for i in range(len(list[0]))]
+    row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
+    for lib in list:
+        output_handler(row_format.format(*lib))
+
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
     if output_filename is not None:
@@ -162,6 +172,21 @@ def validate_release_state(repo):
 
     return
 
+def validate_travis(repo):
+    """Validate if a repo has .travis.yml.
+    """
+    repo_last_release = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
+    repo_has_ino = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
+    if not repo_last_release.ok:
+        return True
+
+def has_ino(repo):
+    """Validate if a repo has any *.ino files.
+    """
+    repo_has_ino = github.get("/search/code?q=extension:ino+repo:adafruit/" + repo["name"])
+    if repo_has_ino.ok and repo_has_ino.json()["total_count"] > 0:
+        return True
+
 def run_arduino_lib_checks():
     output_handler("Running Arduino Library Checks")
     output_handler("Getting list of libraries to check...")
@@ -170,6 +195,8 @@ def run_arduino_lib_checks():
     output_handler("Found {} Arduino libraries to check\n".format(len(repo_list)))
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
+    missing_travis_list = [["  Repo"], ["  ----"]]
+
     for repo in repo_list:
         lib_check = validate_library_properties(repo)
         if lib_check:
@@ -177,25 +204,22 @@ def run_arduino_lib_checks():
                 failed_lib_prop.append(["  " + str(repo["name"]), lib_check[0], lib_check[1]])
 
         needs_release = validate_release_state(repo)
+        missing_travis = validate_travis(repo) and has_ino(repo)
+
         if needs_release:
             needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
 
+        if missing_travis:
+            missing_travis_list.append(["  " + str(repo["name"])])
+
     if len(failed_lib_prop) > 2:
-        output_handler("Libraries Have Mismatched Release Tag and library.properties Version: ({})".format(len(failed_lib_prop)))
-        long_col = [(max([len(str(row[i])) for row in failed_lib_prop]) + 3)
-                    for i in range(len(failed_lib_prop[0]))]
-        row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
-        for lib in failed_lib_prop:
-            output_handler(row_format.format(*lib))
+        print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop);
 
     if len(needs_release_list) > 2:
-        output_handler()
-        output_handler("Libraries have commits since last release: ({})".format(len(needs_release_list)))
-        long_col = [(max([len(str(row[i])) for row in needs_release_list]) + 3)
-                    for i in range(len(needs_release_list[0]))]
-        row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
-        for lib in needs_release_list:
-            output_handler(row_format.format(*lib))
+        print_list_output("Libraries have commits since last release: ({})", needs_release_list);
+
+    if len(missing_travis_list) > 2:
+        print_list_output("Libraries that is not configured with Travis (but have *.ino files): ({})", missing_travis_list);
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
