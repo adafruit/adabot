@@ -176,7 +176,7 @@ def validate_travis(repo):
     """Validate if a repo has .travis.yml.
     """
     repo_has_travis = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
-    if not repo_has_travis.ok:
+    if repo_has_travis.ok:
         return True
 
 def has_ino(repo):
@@ -211,7 +211,7 @@ def run_arduino_lib_checks():
                 failed_lib_prop.append(["  " + str(repo["name"]), lib_check[0], lib_check[1]])
 
         needs_release = validate_release_state(repo)
-        missing_travis = validate_travis(repo) 
+        missing_travis = not validate_travis(repo) 
         have_ino = has_ino(repo)
         missing_library_properties = not has_library_properties(repo)
 
