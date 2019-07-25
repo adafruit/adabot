@@ -211,16 +211,17 @@ def run_arduino_lib_checks():
                 failed_lib_prop.append(["  " + str(repo["name"]), lib_check[0], lib_check[1]])
 
         needs_release = validate_release_state(repo)
-        missing_travis = validate_travis(repo) and has_ino(repo)
-        missing_library_properties = has_ino(repo) and not has_library_properties(repo)
+        missing_travis = validate_travis(repo) 
+        have_ino = has_ino(repo)
+        missing_library_properties = not has_library_properties(repo)
 
         if needs_release:
             needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
 
-        if missing_travis:
+        if missing_travis and have_ino:
             missing_travis_list.append(["  " + str(repo["name"])])
 
-        if missing_library_properties:
+        if missing_library_properties and have_ino:
             missing_library_properties_list.append(["  " + str(repo["name"])])
 
     if len(failed_lib_prop) > 2:
