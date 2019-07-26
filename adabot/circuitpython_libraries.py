@@ -65,8 +65,8 @@ cmd_line_parser.add_argument(
     metavar="n"
 )
 cmd_line_parser.add_argument(
-    "-t", "--token",
-    help="Prompt for a GitHub token to use for activating Travis.",
+    "-t", "--travis-github-token",
+    help="Prompt for the GitHub user's password in order to make a GitHub token to use on Travis.",
     dest="gh_token",
     action="store_true"
 )
