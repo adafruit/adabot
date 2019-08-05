@@ -31,8 +31,11 @@ TODO(description)
 import datetime
 import os
 import requests
+import sys
 import time
+import traceback
 
+TIMEOUT = 60
 
 def _fix_url(url):
     if url.startswith("/"):
@@ -57,7 +60,17 @@ def _fix_kwargs(kwargs):
     return kwargs
 
 def get(url, **kwargs):
-    response = requests.get(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+    ok = True
+    try:
+        response = requests.get(_fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs))
+    except Exception as e:
+        exception_text = traceback.format_exc()
+        if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
+            exception_text = exception_text.replace(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"], "[secure]")
+        print(exception_text, file=sys.stderr)
+        ok = False
+    if not ok:
+        raise RuntimeError("See print for error text that as been sanitized for secrets")
     if "X-RateLimit-Remaining" in response.headers:
         remaining = int(response.headers["X-RateLimit-Remaining"])
         if remaining <= 1:
@@ -78,13 +91,41 @@ def get(url, **kwargs):
     return response
 
 def post(url, **kwargs):
-    return requests.post(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+    try:
+        return requests.post(_fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs))
+    except Exception as e:
+        exception_text = traceback.format_exc()
+        if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
+            exception_text = exception_text.replace(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"], "[secure]")
+        print(exception_text, file=sys.stderr)
+    raise RuntimeError("See print for error text that as been sanitized for secrets")
 
 def put(url, **kwargs):
-    return requests.put(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+    try:
+        return requests.put(_fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs))
+    except Exception as e:
+        exception_text = traceback.format_exc()
+        if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
+            exception_text = exception_text.replace(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"], "[secure]")
+        print(exception_text, file=sys.stderr)
+    raise RuntimeError("See print for error text that as been sanitized for secrets")
 
 def patch(url, **kwargs):
-    return requests.patch(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+    try:
+        return requests.patch(_fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs))
+    except Exception as e:
+        exception_text = traceback.format_exc()
+        if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
+            exception_text = exception_text.replace(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"], "[secure]")
+        print(exception_text, file=sys.stderr)
+    raise RuntimeError("See print for error text that as been sanitized for secrets")
 
 def delete(url, **kwargs):
-    return requests.delete(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+    try:
+        return requests.delete(_fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs))
+    except Exception as e:
+        exception_text = traceback.format_exc()
+        if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
+            exception_text = exception_text.replace(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"], "[secure]")
+        print(exception_text, file=sys.stderr)
+    raise RuntimeError("See print for error text that as been sanitized for secrets")
