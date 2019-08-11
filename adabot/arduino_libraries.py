@@ -192,7 +192,7 @@ def run_arduino_lib_checks():
     output_handler("Running Arduino Library Checks")
     output_handler("Getting list of libraries to check...")
 
-    repo_list = list_repos()[0:10]
+    repo_list = list_repos()
     output_handler("Found {} Arduino libraries to check\n".format(len(repo_list)))
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
