@@ -80,14 +80,14 @@ def is_arduino_library(repo):
     else:
         return False
 
-def print_list_output(title="", list=[]):
+def print_list_output(title, coll):
     ""
     output_handler()
-    output_handler(title.format(len(list)))
-    long_col = [(max([len(str(row[i])) for row in list]) + 3)
-                for i in range(len(list[0]))]
+    output_handler(title.format(len(coll)))
+    long_col = [(max([len(str(row[i])) for row in coll]) + 3)
+                for i in range(len(coll[0]))]
     row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
-    for lib in list:
+    for lib in coll:
         output_handler(row_format.format(*lib))
 
 def output_handler(message="", quiet=False):
