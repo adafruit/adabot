@@ -108,7 +108,7 @@ def validate_library_properties(repo):
     has_lib_prop = github.get("/repos/adafruit/" + repo["name"] + "/contents")
     if has_lib_prop.ok:
         if "library.properties" not in has_lib_prop.text:
-            return
+            return False
         for file in has_lib_prop.json():
             if file["name"] == "library.properties":
                 lib_prop_file = requests.get(file["download_url"], timeout=30)
@@ -179,25 +179,20 @@ def validate_travis(repo):
     if repo_has_travis.ok:
         return True
 
-def has_ino(repo):
+def validate_example(repo):
     """Validate if a repo has any *.ino files.
     """
-    repo_has_ino = github.get("/search/code?q=extension:ino+repo:adafruit/" + repo["name"])
-    if repo_has_ino.ok and repo_has_ino.json()["total_count"] > 0:
+    repo_has_ino = github.get("/repos/adafruit/" + repo["name"] + "/contents/examples")
+    if repo_has_ino.ok and len(repo_has_ino.json()):
         return True
-
-def has_library_properties(repo):
-    """Validate if a repo has library.properties file.
-    """
-    repo_has_file = github.get("/search/code?q=library+extension:properties+repo:adafruit/" + repo["name"])
-    if repo_has_file.ok and repo_has_file.json()["total_count"] > 0:
-        return True
+    else:
+        return False
 
 def run_arduino_lib_checks():
     output_handler("Running Arduino Library Checks")
     output_handler("Getting list of libraries to check...")
 
-    repo_list = list_repos()
+    repo_list = list_repos()[0:10]
     output_handler("Found {} Arduino libraries to check\n".format(len(repo_list)))
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
@@ -212,8 +207,8 @@ def run_arduino_lib_checks():
 
         needs_release = validate_release_state(repo)
         missing_travis = not validate_travis(repo) 
-        have_ino = has_ino(repo)
-        missing_library_properties = not has_library_properties(repo)
+        have_ino = validate_example(repo)
+        missing_library_properties = lib_check == False
 
         if needs_release:
             needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
