@@ -180,7 +180,7 @@ def validate_travis(repo):
         return True
 
 def validate_example(repo):
-    """Validate if a repo has any *.ino files.
+    """Validate if a repo has any files in examples directory
     """
     repo_has_ino = github.get("/repos/adafruit/" + repo["name"] + "/contents/examples")
     if repo_has_ino.ok and len(repo_has_ino.json()):
