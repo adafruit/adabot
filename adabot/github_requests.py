@@ -84,8 +84,9 @@ def get(url, **kwargs):
                     time.sleep(300)
                 else:
                     reset_diff = rate_limit_reset - datetime.datetime.now()
+
                     print("Sleeping {} seconds".format(reset_diff.seconds))
-                    time.sleep(reset_diff.seconds)
+                    time.sleep(reset_diff.seconds + 1)
         if remaining % 100 == 0:
             print(remaining, "requests remaining this hour")
     return response
