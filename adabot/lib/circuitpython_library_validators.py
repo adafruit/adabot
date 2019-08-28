@@ -781,6 +781,11 @@ class library_validator():
                         insights["merged_prs"] += 1
                         insights["pr_merged_authors"].add(pr_info["user"]["login"])
                         insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
+                        pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
+                        if pr_reviews.ok:
+                            for review in pr_reviews.json():
+                                if review["state"].lower() == "approved":
+                                    insights["pr_reviewers"].add(review["user"]["login"])
                     else:
                         insights["closed_prs"] += 1
             else:
