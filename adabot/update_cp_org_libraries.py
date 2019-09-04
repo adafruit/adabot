@@ -26,6 +26,7 @@ import datetime
 import inspect
 import json
 import os
+import re
 import sh
 from sh.contrib import git
 import sys
@@ -46,6 +47,8 @@ cmd_line_parser.add_argument(
     dest="output_file"
 )
 
+sort_re = re.compile("(?<=\(Open\s)(.+)(?=\sdays)")
+
 def get_open_issues_and_prs(repo):
     """ Retreive all of the open issues (minus pull requests) for the repo.
     """
@@ -59,10 +62,17 @@ def get_open_issues_and_prs(repo):
 
     issues = result.json()
     for issue in issues:
+        created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
+        days_open = datetime.datetime.today() - created
+        if days_open.days < 0: # opened earlier today
+            days_open += datetime.timedelta(days=(days_open.days * -1))
+
+        issue_title = "{0} (Open {1} days)".format(issue["title"],
+                                                   days_open.days)
         if "pull_request" not in issue: # ignore pull requests
-            open_issues.append({issue["html_url"]: issue["title"]})
+            open_issues.append({issue["html_url"]: issue_title})
         else:
-            open_pull_requests.append({issue["html_url"]: issue["title"]})
+            open_pull_requests.append({issue["html_url"]: issue_title})
 
     return open_issues, open_pull_requests
 

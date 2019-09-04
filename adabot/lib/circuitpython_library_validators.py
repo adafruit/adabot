@@ -830,10 +830,17 @@ class library_validator():
 
         for issue in issues:
             created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
+            days_open = datetime.datetime.today() - created
+            if days_open.days < 0: # opened earlier today
+                days_open += datetime.timedelta(days=(days_open.days * -1))
             if "pull_request" in issue:
-                insights["open_prs"].append(issue["pull_request"]["html_url"])
+                pr_link = "{0} (Open {1} days)".format(issue["pull_request"]["html_url"],
+                                                       days_open.days)
+                insights["open_prs"].append(pr_link)
             else:
-                insights["open_issues"].append(issue["html_url"])
+                issue_link = "{0} (Open {1} days)".format(issue["html_url"],
+                                                          days_open.days)
+                insights["open_issues"].append(issue_link)
 
         # get milestones for core repo
         if repo["name"] == "circuitpython":
