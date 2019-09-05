@@ -56,6 +56,7 @@ ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
 ERROR_EXAMPLE_MISSING_SENSORNAME = "Example file(s) missing sensor/library name"
 ERROR_MISSING_EXAMPLE_SIMPLETEST = "Missing simpletest example."
+ERROR_MISSING_STANDARD_LABELS = "Missing one or more standard issue labels (bug, documentation, enhancement, good first issue)."
 ERROR_MISSING_LIBRARIANS = "CircuitPythonLibrarians team missing or does not have write access"
 ERROR_MISSING_LICENSE = "Missing license."
 ERROR_MISSING_LINT = "Missing lint config"
@@ -132,6 +133,8 @@ LIBRARIES_DONT_NEED_BLINKA = [
     "Adafruit_CircuitPython_Waveform",
     "Adafruit_CircuitPython_miniQR",
 ]
+
+STD_REPO_LABELS = ("bug", "documentation", "enhancement", "good first issue")
 
 # Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
 rtd_subprojects = None
@@ -444,7 +447,10 @@ class library_validator():
                 return [ERROR_UNABLE_PULL_REPO_CONTENTS]
 
         content_list = content_list.json()
-        files = [x["name"] for x in content_list]
+        files = ""
+        # an empty repo will return a 'message'
+        if "message" not in content_list:
+            files = [x["name"] for x in content_list]
 
         # ignore new/in-work repos, which should have less than 8 files:
         # ___.py or folder, CoC, .travis.yml, .readthedocs.yml, docs/,
@@ -867,3 +873,22 @@ class library_validator():
         if not common_funcs.repo_is_on_pypi(repo):
             return [ERROR_NOT_ON_PYPI]
         return []
+
+    def validate_labels(self, repo):
+        """ensures the repo has the standard labels available"""
+        response = github.get("/repos/" + repo["full_name"] + "/labels")
+        if not response.ok:
+            # replace 'output_handler' with ERROR_OUTPUT_HANDLER
+            self.output_file_data.append("Labels request failed: {}".format(repo["full_name"]))
+            return [ERROR_OUTPUT_HANDLER]
+
+        repo_labels = [label["name"] for label in response.json()]
+        has_all_labels = True
+        for label in STD_REPO_LABELS:
+            if not label in repo_labels:
+                has_all_labels = False
+
+        if not has_all_labels:
+            return [ERROR_MISSING_STANDARD_LABELS]
+        else:
+            return []
