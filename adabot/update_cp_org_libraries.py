@@ -190,25 +190,6 @@ if __name__ == "__main__":
     print("Running circuitpython.org/libraries updater...")
 
     run_time = datetime.datetime.now()
-    # Travis CI weekly cron jobs do not allow or guarantee that they will be run
-    # on a specific day of the week. So, we set the cron to run daily, and then
-    # check for the day we want this to run.
-    if "TRAVIS" in os.environ:
-        should_run = int(os.environ["CP_ORG_UPDATER_RUN_DAY"])
-        if run_time.isoweekday() != should_run:
-            delta_days = should_run - run_time.isoweekday()
-            run_delta = datetime.timedelta(days=delta_days)
-            should_run_date = run_time + run_delta
-            msg = [
-                "Aborting...",
-                " - Today is not {}.".format(should_run_date.strftime("%A")),
-                " - Next scheduled run is: {}".format(should_run_date.strftime("%Y-%m-%d")),
-                " - To run the updater on a different day, change the",
-                "   'CP_ORG_UPDATER_RUN_DAY' environment variable in Travis.",
-                " - Day is a number between 1 & 7, with 1 being Monday."
-            ]
-            print("\n".join(msg))
-            sys.exit()
 
     working_directory = os.path.abspath(os.getcwd())
     #cp_org_dir = os.path.join(working_directory, ".cp_org")
@@ -329,11 +310,8 @@ if __name__ == "__main__":
     }
     json_obj = json.dumps(build_json, indent=2)
 
-    if "TRAVIS" in os.environ:
-        update_json_file(json_obj)
-    else:
-        #update_json_file(json_obj)
-        if local_file_output:
-            with open(output_filename, "w") as json_file:
-                json.dump(build_json, json_file, indent=2)
-        print(json_obj)
+    #update_json_file(json_obj)
+    if local_file_output:
+        with open(output_filename, "w") as json_file:
+            json.dump(build_json, json_file, indent=2)
+    print(json_obj)
