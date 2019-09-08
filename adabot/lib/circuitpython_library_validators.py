@@ -447,7 +447,7 @@ class library_validator():
                 return [ERROR_UNABLE_PULL_REPO_CONTENTS]
 
         content_list = content_list.json()
-        files = ""
+        files = []
         # an empty repo will return a 'message'
         if "message" not in content_list:
             files = [x["name"] for x in content_list]
