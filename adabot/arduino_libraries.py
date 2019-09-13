@@ -39,6 +39,8 @@ output_filename = None
 verbosity = 1
 file_data = []
 
+all_libraries = []
+
 def list_repos():
     """ Return a list of all Adafruit repositories with 'Arduino' in either the
         name, description, or readme. Each list item is a dictionary of GitHub API
@@ -46,13 +48,17 @@ def list_repos():
     """
     repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Arduino in:name in:description in:readme fork:true user:adafruit archived:false",
+                        params={"q":"Arduino in:name in:description in:readme fork:true user:adafruit archived:false AND NOT PCB in:name AND NOT CircuitPython in:name",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"})
     while result.ok:
-        links = result.headers["Link"]
         repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
+
+        try:
+            links = result.headers["Link"]
+        except KeyError:
+            break
 
         if links:
             next_url = None
@@ -67,18 +73,14 @@ def list_repos():
                 break
             # Subsequent links have our access token already so we use requests directly.
             result = requests.get(link, timeout=30)
-
     return repos
 
 def is_arduino_library(repo):
     """ Returns if the repo is an Arduino library, as determined by the existence of
         the 'library.properties' file.
     """
-    has_lib_prop = github.get("/repos/adafruit/" + repo["name"] + "/contents")
-    if has_lib_prop.ok:
-        return ("library.properties" in has_lib_prop.text)
-    else:
-        return False
+    lib_prop_file = requests.get("https://raw.githubusercontent.com/adafruit/" + repo["name"] + "/master/library.properties")
+    return lib_prop_file.ok
 
 def print_list_output(title, coll):
     ""
@@ -105,59 +107,44 @@ def validate_library_properties(repo):
     lib_prop_file = None
     lib_version = None
     release_tag = None
-    has_lib_prop = github.get("/repos/adafruit/" + repo["name"] + "/contents")
-    if has_lib_prop.ok:
-        if "library.properties" not in has_lib_prop.text:
-            return False
-        for file in has_lib_prop.json():
-            if file["name"] == "library.properties":
-                lib_prop_file = requests.get(file["download_url"], timeout=30)
-                if lib_prop_file.ok:
-                    lines = lib_prop_file.text.split("\n")
-                    for line in lines:
-                        if "version" in line:
-                            lib_version = line[len("version="):]
-                            break
+    lib_prop_file = requests.get("https://raw.githubusercontent.com/adafruit/" + repo["name"] + "/master/library.properties")
+    if not lib_prop_file.ok:
+        print("{} skipped".format(repo["name"]))
+        return None # no library properties file!
+    
+    lines = lib_prop_file.text.split("\n")
+    for line in lines:
+        if "version" in line:
+            lib_version = line[len("version="):]
+            break
 
-        get_latest_release = github.get("/repos/adafruit/" + repo["name"] + "/releases/latest")
-        if get_latest_release.ok:
-            response = get_latest_release.json()
-            if "tag_name" in response:
-                release_tag = response["tag_name"]
-            if "message" in response:
-                if response["message"] == "Not Found":
-                    release_tag = "None"
-                else:
-                    release_tag = "Unknown"
+    get_latest_release = github.get("/repos/adafruit/" + repo["name"] + "/releases/latest")
+    if get_latest_release.ok:
+        response = get_latest_release.json()
+        if "tag_name" in response:
+            release_tag = response["tag_name"]
+        if "message" in response:
+            if response["message"] == "Not Found":
+                release_tag = "None"
+            else:
+                release_tag = "Unknown"
 
-        if lib_version and release_tag:
+    if lib_version and release_tag:
             return [release_tag, lib_version]
 
-    #print("{} skipped".format(repo["name"]))
-    return
+    return None
 
 def validate_release_state(repo):
     """Validate if a repo 1) has a release, and 2) if there have been commits
     since the last release. Returns a list of string error messages for the
     repository.
     """
-
     if not is_arduino_library(repo):
         return
-    repo_last_release = github.get("/repos/" + repo["full_name"] + "/releases/latest")
-    if not repo_last_release.ok:
-        return
-    repo_release_json = repo_last_release.json()
-    if "tag_name" in repo_release_json:
-        tag_name = repo_release_json["tag_name"]
-    elif "message" in repo_release_json:
-        output_handler("Error: retrieving latest release information failed on '{0}'. Information Received: {1}".format(
-                           repo["name"], repo_release_json["message"]))
-        return
 
-    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + tag_name)
+    compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + repo['tag_name'])
     if not compare_tags.ok:
-        output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], tag_name))
+        output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], repo['tag_name']))
         return
     compare_tags_json = compare_tags.json()
     if "status" in compare_tags_json:
@@ -165,7 +152,7 @@ def validate_release_state(repo):
             #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
             #      compare_tags_json["status"], compare_tags_json["ahead_by"],
             #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
-            return [tag_name, compare_tags_json["behind_by"]]
+            return [repo['tag_name'], compare_tags_json["behind_by"]]
     elif "errors" in compare_tags_json:
         output_handler("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
                        repo["name"], compare_tags_json["message"]))
@@ -175,18 +162,14 @@ def validate_release_state(repo):
 def validate_travis(repo):
     """Validate if a repo has .travis.yml.
     """
-    repo_has_travis = github.get("/repos/" + repo["full_name"] + "/contents/.travis.yml")
-    if repo_has_travis.ok:
-        return True
+    repo_has_travis = requests.get("https://raw.githubusercontent.com/adafruit/" + repo["name"] + "/master/.travis.yml")
+    return repo_has_travis.ok
 
 def validate_example(repo):
     """Validate if a repo has any files in examples directory
     """
     repo_has_ino = github.get("/repos/adafruit/" + repo["name"] + "/contents/examples")
-    if repo_has_ino.ok and len(repo_has_ino.json()):
-        return True
-    else:
-        return False
+    return repo_has_ino.ok and len(repo_has_ino.json())
 
 def run_arduino_lib_checks():
     output_handler("Running Arduino Library Checks")
@@ -200,24 +183,36 @@ def run_arduino_lib_checks():
     missing_library_properties_list = [["  Repo"], ["  ----"]]
 
     for repo in repo_list:
+        have_examples = validate_example(repo)
+        if not have_examples:
+            # not a library
+            continue
+
+        entry = {'name': repo["name"]}
+        
         lib_check = validate_library_properties(repo)
-        if lib_check:
-            if lib_check[0] != lib_check[1]:
-                failed_lib_prop.append(["  " + str(repo["name"]), lib_check[0], lib_check[1]])
+        if not lib_check:
+            missing_library_properties_list.append(["  " + str(repo["name"])])
+            continue
+
+        entry['release'] = lib_check[0]
+        entry['version'] = lib_check[1]
+        repo['tag_name'] = lib_check[0]
 
         needs_release = validate_release_state(repo)
-        missing_travis = not validate_travis(repo) 
-        have_ino = validate_example(repo)
-        missing_library_properties = lib_check == False
-
+        entry['needs_release'] = needs_release
         if needs_release:
             needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
 
-        if missing_travis and have_ino:
+        missing_travis = not validate_travis(repo)
+        entry['needs_travis'] = missing_travis
+        if missing_travis:
             missing_travis_list.append(["  " + str(repo["name"])])
 
-        if missing_library_properties and have_ino:
-            missing_library_properties_list.append(["  " + str(repo["name"])])
+        all_libraries.append(entry)
+
+    for entry in all_libraries:
+        print(entry)            
 
     if len(failed_lib_prop) > 2:
         print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop)
@@ -226,10 +221,10 @@ def run_arduino_lib_checks():
         print_list_output("Libraries have commits since last release: ({})", needs_release_list);
 
     if len(missing_travis_list) > 2:
-        print_list_output("Libraries that is not configured with Travis (but have *.ino files): ({})", missing_travis_list)
+        print_list_output("Libraries that is not configured with Travis: ({})", missing_travis_list)
 
     if len(missing_library_properties_list) > 2:
-        print_list_output("Libraries that is missing library.properties file (but have *.ino files): ({})", missing_library_properties_list)
+        print_list_output("Libraries that is missing library.properties file: ({})", missing_library_properties_list)
 
 
 if __name__ == "__main__":
