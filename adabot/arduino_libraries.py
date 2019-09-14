@@ -40,6 +40,7 @@ verbosity = 1
 file_data = []
 
 all_libraries = []
+adafruit_library_index = []
 
 def list_repos():
     """ Return a list of all Adafruit repositories with 'Arduino' in either the
@@ -109,7 +110,7 @@ def validate_library_properties(repo):
     release_tag = None
     lib_prop_file = requests.get("https://raw.githubusercontent.com/adafruit/" + repo["name"] + "/master/library.properties")
     if not lib_prop_file.ok:
-        print("{} skipped".format(repo["name"]))
+        #print("{} skipped".format(repo["name"]))
         return None # no library properties file!
     
     lines = lib_prop_file.text.split("\n")
@@ -179,6 +180,7 @@ def run_arduino_lib_checks():
     output_handler("Found {} Arduino libraries to check\n".format(len(repo_list)))
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
+    needs_registration_list = [["  Repo"], ["  ----"]]
     missing_travis_list = [["  Repo"], ["  ----"]]
     missing_library_properties_list = [["  Repo"], ["  ----"]]
 
@@ -189,11 +191,22 @@ def run_arduino_lib_checks():
             continue
 
         entry = {'name': repo["name"]}
-        
+
         lib_check = validate_library_properties(repo)
         if not lib_check:
             missing_library_properties_list.append(["  " + str(repo["name"])])
             continue
+
+        #print(repo['clone_url'])
+        needs_registration = False
+        for lib in adafruit_library_index:
+            if (repo['clone_url'] == lib['repository']) or (repo['html_url'] == lib['website']):
+                entry['arduino_version'] = lib['version'] # found it!
+                break            
+        else:
+            needs_registration = True
+        if needs_registration:
+            needs_registration_list.append(["  " + str(repo["name"])])
 
         entry['release'] = lib_check[0]
         entry['version'] = lib_check[1]
@@ -217,6 +230,9 @@ def run_arduino_lib_checks():
     if len(failed_lib_prop) > 2:
         print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop)
 
+    if len(needs_registration_list) > 2:
+        print_list_output("Libraries that are not registered with Arduino: ({})", needs_registration_list)
+
     if len(needs_release_list) > 2:
         print_list_output("Libraries have commits since last release: ({})", needs_release_list);
 
@@ -232,8 +248,15 @@ if __name__ == "__main__":
     verbosity = cmd_line_args.verbose
     if cmd_line_args.output_file:
         output_filename = cmd_line_args.output_file
-
     try:
+        reply = requests.get("http://downloads.arduino.cc/libraries/library_index.json")
+        if not reply.ok:
+            print("Could not fetch http://downloads.arduino.cc/libraries/library_index.json")
+            exit()
+        arduino_library_index = reply.json()
+        for lib in arduino_library_index['libraries']:
+            if 'adafruit' in lib['url']:
+                adafruit_library_index.append(lib)
         run_arduino_lib_checks()
     except:
         if output_filename is not None:
