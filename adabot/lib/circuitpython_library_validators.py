@@ -442,9 +442,11 @@ class library_validator():
             return []
 
         content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
-        if not content_list.ok:
+        # Empty repos return an object with a "message" that the repo is empty.
+        if not content_list.ok or "message" in content_list.json():
             if not self.validate_contents_quiet:
                 return [ERROR_UNABLE_PULL_REPO_CONTENTS]
+            return []
 
         content_list = content_list.json()
         files = []
@@ -747,7 +749,9 @@ class library_validator():
             core_driver_page = driver_page.text
 
         repo_short_name = repo["name"][len("Adafruit_CircuitPython_"):].lower()
-        if "https://circuitpython.readthedocs.io/projects/" + repo_short_name + "/en/latest/" not in core_driver_page:
+        full_url = "https://circuitpython.readthedocs.io/projects/" + repo_short_name + "/en/latest/"
+        full_url_dashes = full_url.replace("_", "-")
+        if full_url not in core_driver_page and full_url_dashes not in core_driver_page:
             return [ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER]
         return []
 
