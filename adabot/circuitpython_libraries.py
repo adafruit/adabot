@@ -99,6 +99,7 @@ default_validators = [
     if vals[0].startswith("validate")
 ]
 
+pr_sort_re = re.compile("(?<=\(Open\s)(.+)(?=\sdays)")
 
 def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     """runs the various library checking functions"""
@@ -204,7 +205,10 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     output_handler("Core")
     print_pr_overview(core_insights)
     output_handler("* {} open pull requests".format(len(core_insights["open_prs"])))
-    for pr in core_insights["open_prs"]:
+    sorted_prs = sorted(core_insights["open_prs"],
+                        key=lambda days: int(pr_sort_re.search(days).group(1)),
+                        reverse=True)
+    for pr in sorted_prs:
         output_handler("  * {}".format(pr))
     print_issue_overview(core_insights)
     output_handler("* {} open issues".format(len(core_insights["open_issues"])))
@@ -223,7 +227,10 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     output_handler("Libraries")
     print_pr_overview(lib_insights)
     output_handler("* {} open pull requests".format(len(lib_insights["open_prs"])))
-    for pr in lib_insights["open_prs"]:
+    sorted_prs = sorted(lib_insights["open_prs"],
+                        key=lambda days: int(pr_sort_re.search(days).group(1)),
+                        reverse=True)
+    for pr in sorted_prs:
         output_handler("  * {}".format(pr))
     print_issue_overview(lib_insights)
     output_handler("* {} open issues".format(len(lib_insights["open_issues"])))

@@ -234,6 +234,8 @@ def is_new_or_updated(repo):
     new_releases = 0
     releases = result.json()
     for release in releases:
+        if not release["published_at"]:
+            continue
         release_date = datetime.datetime.strptime(
             release["published_at"],
             "%Y-%m-%dT%H:%M:%SZ"
