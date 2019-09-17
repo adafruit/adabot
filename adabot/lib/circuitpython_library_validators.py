@@ -442,16 +442,23 @@ class library_validator():
             return []
 
         content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
-        # Empty repos return an object with a "message" that the repo is empty.
-        if not content_list.ok or "message" in content_list.json():
-            if not self.validate_contents_quiet:
-                return [ERROR_UNABLE_PULL_REPO_CONTENTS]
-            return []
+        empty_repo = False
+        if not content_list.ok:
+            # Empty repos return:
+            #  - a 404 status code
+            #  - a "message" that the repo is empty.
+            if "message" in content_list.json():
+                if "empty" in content_list.json()["message"]:
+                    empty_repo = True
+            if not empty_repo:
+                if not self.validate_contents_quiet:
+                    return [ERROR_UNABLE_PULL_REPO_CONTENTS]
+                return []
 
         content_list = content_list.json()
         files = []
         # an empty repo will return a 'message'
-        if "message" not in content_list:
+        if not empty_repo:
             files = [x["name"] for x in content_list]
 
         # ignore new/in-work repos, which should have less than 8 files:
