@@ -124,7 +124,7 @@ def process_hacktoberfest(repo):
 if __name__ == "__main__":
     labels_assigned = 0
 
-    print("Checking for open issues to assing the Hacktoberfest label to...")
+    print("Checking for open issues to assign the Hacktoberfest label to...")
 
     repos = common_funcs.list_repos()
     for repo in repos:
