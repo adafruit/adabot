@@ -28,6 +28,7 @@ from adabot import github_requests as github
 from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
+from adabot.lib import assign_hacktober_label as hacktober
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -858,6 +859,24 @@ class library_validator():
                 issue_link = "{0} (Open {1} days)".format(issue["html_url"],
                                                           days_open.days)
                 insights["open_issues"].append(issue_link)
+
+        # process Hacktoberfest labels if it is Hacktoberfest season
+        in_season, season_action = hacktober.is_hacktober_season()
+        if in_season:
+            hacktober_issues = [
+                issue for issue in issues if "pull_request" not in issue
+            ]
+            if season_action == "add":
+                insights["hacktober_assigned"] += (
+                    hacktober.assign_hacktoberfest(repo,
+                                                   issues=hacktober_issues)
+                )
+            elif season_action == "remove":
+                insights["hacktober_removed"] += (
+                    hacktober.assign_hacktoberfest(repo,
+                                                   issues=hacktober_issues,
+                                                   remove_labels=True)
+                )
 
         # get milestones for core repo
         if repo["name"] == "circuitpython":

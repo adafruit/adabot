@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 
 import argparse
+import datetime
 import requests
 
 from adabot import github_requests as github
@@ -30,6 +31,32 @@ cli_args = argparse.ArgumentParser(description="Hacktoberfest Label Assigner")
 cli_args.add_argument("-r", "--remove-label", action="store_true",
                      help="Option to remove Hacktoberfest labels, instead of adding them.",
                      dest="remove_label")
+
+
+# Hacktoberfest Season
+#  - lists are in [start, stop] format.
+#  - tuples are in (month, day) format.
+_ADD_SEASON = [(9, 29), (10, 30)]
+_REMOVE_SEASON = [(11, 1), (11, 10)]
+
+def is_hacktober_season():
+    """ Checks if the current day falls within either the add range (_ADD_SEASON)
+        or the remove range (_REMOVE_SEASON). Returns boolean if within
+        Hacktoberfest season, and which action to take.
+    """
+    today = datetime.date.today()
+    add_range = [
+        datetime.date(today.year, *month_day) for month_day in _ADD_SEASON
+    ]
+    remove_range = [
+        datetime.date(today.year, *month_day) for month_day in _REMOVE_SEASON
+    ]
+    if add_range[0] <= today <= add_range[1]:
+        return True, "add"
+    elif remove_range[0] <= today <= remove_range[1]:
+        return True, "remove"
+
+    return False, None
 
 
 def get_open_issues(repo):
@@ -97,12 +124,13 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
     """ Gathers open issues on a repo, and assigns the 'Hacktoberfest' label
         to each issue if its not already assigned.
     """
-    labels_assigned = 0
+    labels_changed = 0
 
     if not issues:
         issues = get_open_issues(repo)
 
     for issue in issues:
+        update_issue = False
         label_names = [label["name"] for label in issue["labels"]]
         has_good_first = "good first issue" in label_names
         has_hacktober = {"Hacktoberfest", "hacktoberfest"} & set(label_names)
@@ -113,33 +141,36 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
                     label for label in lable_names
                     if label not in has_hacktober
                 ]
+                update_issue = True
         else:
             if has_good_first and not has_hacktober:
                 label_exists = ensure_hacktober_label_exists(repo)
                 if not label_exists:
                     continue
+                update_issue = True
 
-        params = {
-            "labels": label_names
-        }
-        result = github.patch("/repos/"
-                              + repo["full_name"]
-                              + "/issues/"
-                              + str(issue["number"]),
-                              json=params)
+        if update_issue:
+            params = {
+                "labels": label_names
+            }
+            result = github.patch("/repos/"
+                                  + repo["full_name"]
+                                  + "/issues/"
+                                  + str(issue["number"]),
+                                  json=params)
 
-        if result.ok:
-            labels_changed += 1
-        else:
-            # sadly, GitHub will only silently ignore labels that are
-            # not added and return a 200. so this will most likely only
-            # trigger on endpoint/connection failures.
-            print("Failed to add Hacktoberfest label to: {}".format(issue["url"]))
+            if result.ok:
+                labels_changed += 1
+            else:
+                # sadly, GitHub will only silently ignore labels that are
+                # not added and return a 200. so this will most likely only
+                # trigger on endpoint/connection failures.
+                print("Failed to add Hacktoberfest label to: {}".format(issue["url"]))
 
     return labels_changed
 
-def process_hacktoberfest(repo, remove_labels=False):
-    result = assign_hacktoberfest(repo, remove_labels)
+def process_hacktoberfest(repo, issues=None, remove_labels=False):
+    result = assign_hacktoberfest(repo, issues, remove_labels)
     return result
 
 

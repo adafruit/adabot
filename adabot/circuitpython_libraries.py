@@ -35,6 +35,7 @@ from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
+from adabot.lib import assign_hacktober_label as hacktober
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
@@ -132,6 +133,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         "open_issues": [],
         "issue_authors": set(),
         "issue_closers": set(),
+        "hacktober_assigned": 0,
+        "hacktober_removed": 0,
     }
     core_insights = copy.deepcopy(lib_insights)
     for k in core_insights:
@@ -425,6 +428,20 @@ def print_issue_overview(*insights):
     output_handler("* {} closed issues by {} people, {} opened by {} people"
                    .format(closed_issues, len(issue_closers),
                    new_issues, len(issue_authors)))
+
+    # print Hacktoberfest labels changes if its Hacktober
+    in_season, season_action = hacktober.is_hacktober_season()
+    if in_season:
+        hacktober_changes = ""
+        if season_action == "add":
+            hacktober_changes = "* Assigned Hacktoberfest label to {} issues.".format(
+                sum([x["hacktober_assigned"] for x in insights])
+            )
+        elif season_action == "remove":
+            hacktober_changes += "* Removed Hacktoberfest label from {} issues.".format(
+                sum([x["hacktober_removed"] for x in insights])
+            )
+        output_handler(hacktober_changes)
 
 if __name__ == "__main__":
     validator_kwarg_list = {}
