@@ -523,15 +523,23 @@ class library_validator():
 
 
         #Check for an examples folder.
-        dirs = [x["name"] for x in content_list if x["type"] == "dir"]
-        if "examples" in dirs:
-            # check for at least on .py file
-            examples_list = github.get("/repos/"
-                                       + repo["full_name"]
-                                       + "/contents/examples")
-            if not examples_list.ok:
-                errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
-            examples_list = examples_list.json()
+        dirs = [
+            x["url"] for x in content_list
+            if (x["type"] == "dir" and x["name"] == "examples")
+        ]
+        examples_list = []
+        if dirs:
+            while dirs:
+                # loop through the results to ensure we capture files
+                # in subfolders, and add any files in the current directory
+                result = github.get(dirs.pop(0))
+                if not result.ok:
+                    errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
+                    break
+                result_json = result.json()
+                dirs.extend([x["url"] for x in result_json if x["type"] == "dir"])
+                examples_list.extend([x for x in result_json if x["type"] == "file"])
+
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
