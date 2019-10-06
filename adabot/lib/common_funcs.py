@@ -163,17 +163,19 @@ def list_repos():
     """
     repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Adafruit_CircuitPython user:adafruit",
+                        params={"q":"Adafruit_CircuitPython_Adafruit user:adafruit",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"}
                         )
     while result.ok:
-        links = result.headers["Link"]
         #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
         repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
                      (repo["name"].startswith("Adafruit_CircuitPython") or repo["name"] == "circuitpython")))
-
+        try:
+            links = result.headers["Link"]
+        except KeyError:
+            break
         next_url = None
         for link in links.split(","):
             link, rel = link.split(";")
