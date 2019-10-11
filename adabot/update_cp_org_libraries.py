@@ -70,7 +70,17 @@ def get_open_issues_and_prs(repo):
         issue_title = "{0} (Open {1} days)".format(issue["title"],
                                                    days_open.days)
         if "pull_request" not in issue: # ignore pull requests
-            open_issues.append({issue["html_url"]: issue_title})
+            issue_labels = ["None"]
+            if len(issue["labels"]) != 0:
+                issue_labels = [label["name"] for label in issue["labels"]]
+
+            issue_dict = {
+                "title": issue_title,
+                "url": issue["html_url"],
+                "labels": issue_labels,
+            }
+
+            open_issues.append(issue_dict)
         else:
             open_pull_requests.append({issue["html_url"]: issue_title})
 
