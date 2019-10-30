@@ -237,7 +237,7 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         output_handler("  * {}".format(pr))
     print_issue_overview(lib_insights)
     output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
-    output_handler("  * https://circuitpython.org/libraries/contributing")
+    output_handler("  * https://circuitpython.org/contributing")
     output_handler("Library updates in the last seven days:")
     if len(new_libs) != 0:
         output_handler("**New Libraries**")
