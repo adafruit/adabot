@@ -104,6 +104,9 @@ ERROR_PYLINT_VERSION_VERY_OUTDATED = "PyLint version very out of date"
 ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
+# Temp category for GitHub Actions migration.
+ERROR_NEEDS_ACTION_MIGRATION = "Repo(s) need to be migrated from TravisCI to GitHub Actions"
+
 # Since this has been refactored into a separate module, the connection to 'output_handler()'
 # and associated 'file_data' list is broken. To keep from possibly having conflicted
 # file operations, and writing to the `output_filename` concurrently, establish an
@@ -494,10 +497,7 @@ class library_validator():
                                                 readme_info["download_url"]))
 
         if ".travis.yml" in files:
-            file_info = content_list[files.index(".travis.yml")]
-            errors.extend(self._validate_travis_yml(repo, file_info))
-        else:
-            errors.append(ERROR_MISSING_TRAVIS_CONFIG)
+            errors.append(ERROR_NEEDS_ACTION_MIGRATION)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
             fn = "readthedocs.yml"
