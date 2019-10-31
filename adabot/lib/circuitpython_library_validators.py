@@ -38,7 +38,9 @@ ERROR_README_IMAGE_MISSING_ALT = "README image missing alt text"
 ERROR_README_DUPLICATE_ALT_TEXT = "README has duplicate alt text"
 ERROR_README_MISSING_DISCORD_BADGE = "README missing Discord badge"
 ERROR_README_MISSING_RTD_BADGE = "README missing ReadTheDocs badge"
-ERROR_README_MISSING_TRAVIS_BADGE = "README missing Travis badge"
+ERROR_README_MISSING_CI_BADGE = "README missing CI badge"
+ERROR_README_MISSING_CI_ACTIONS_BADGE = "README CI badge needs to be changed" \
+" to GitHub Actions"
 ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
 ERROR_PYFILE_MISSING_STRUCT = ".py file contains reference to import ustruct" \
 " without reference to import struct.  See issue " \
@@ -317,8 +319,12 @@ class library_validator():
         if "Documentation Status" not in badges:
             errors.append(ERROR_README_MISSING_RTD_BADGE)
 
-        #if "Build Status" not in badges:
-        #    errors.append(ERROR_README_MISSING_TRAVIS_BADGE)
+        if "Build Status" not in badges:
+            errors.append(ERROR_README_MISSING_CI_BADGE)
+        else:
+            status_img = badges["Build Status"]["image"]
+            if "travis-ci.com" in status_img:
+                errors.append(ERROR_README_MISSING_CI_ACTIONS_BADGE)
 
         return errors
 
