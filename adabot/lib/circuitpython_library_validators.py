@@ -38,7 +38,9 @@ ERROR_README_IMAGE_MISSING_ALT = "README image missing alt text"
 ERROR_README_DUPLICATE_ALT_TEXT = "README has duplicate alt text"
 ERROR_README_MISSING_DISCORD_BADGE = "README missing Discord badge"
 ERROR_README_MISSING_RTD_BADGE = "README missing ReadTheDocs badge"
-ERROR_README_MISSING_TRAVIS_BADGE = "README missing Travis badge"
+ERROR_README_MISSING_CI_BADGE = "README missing CI badge"
+ERROR_README_MISSING_CI_ACTIONS_BADGE = "README CI badge needs to be changed" \
+" to GitHub Actions"
 ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
 ERROR_PYFILE_MISSING_STRUCT = ".py file contains reference to import ustruct" \
 " without reference to import struct.  See issue " \
@@ -103,6 +105,9 @@ ERROR_PYLINT_VERSION_NOT_FIXED = "PyLint version not fixed"
 ERROR_PYLINT_VERSION_VERY_OUTDATED = "PyLint version very out of date"
 ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
+
+# Temp category for GitHub Actions migration.
+ERROR_NEEDS_ACTION_MIGRATION = "Repo(s) need to be migrated from TravisCI to GitHub Actions"
 
 # Since this has been refactored into a separate module, the connection to 'output_handler()'
 # and associated 'file_data' list is broken. To keep from possibly having conflicted
@@ -315,7 +320,11 @@ class library_validator():
             errors.append(ERROR_README_MISSING_RTD_BADGE)
 
         if "Build Status" not in badges:
-            errors.append(ERROR_README_MISSING_TRAVIS_BADGE)
+            errors.append(ERROR_README_MISSING_CI_BADGE)
+        else:
+            status_img = badges["Build Status"]["image"]
+            if "travis-ci.com" in status_img:
+                errors.append(ERROR_README_MISSING_CI_ACTIONS_BADGE)
 
         return errors
 
@@ -364,8 +373,10 @@ class library_validator():
         return errors
 
     def _validate_travis_yml(self, repo, travis_yml_file_info):
-        """Check size and then check pypi compatibility.
+        """DISABLED/NO LONGER CALLED: Check size and then check pypi compatibility.
         """
+        return []
+
         download_url = travis_yml_file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
@@ -494,10 +505,7 @@ class library_validator():
                                                 readme_info["download_url"]))
 
         if ".travis.yml" in files:
-            file_info = content_list[files.index(".travis.yml")]
-            errors.extend(self._validate_travis_yml(repo, file_info))
-        else:
-            errors.append(ERROR_MISSING_TRAVIS_CONFIG)
+            errors.append(ERROR_NEEDS_ACTION_MIGRATION)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
             fn = "readthedocs.yml"
@@ -592,13 +600,15 @@ class library_validator():
 
         return errors
 
-    def validate_travis(self, repo):
-        """Validate and configure a repository has the expected state in Travis
+    def _validate_travis(self, repo):
+        """ DISABLED: Validate and configure a repository has the expected state in Travis
         CI.  This will both check Travis state and attempt to enable Travis CI
         and setup the expected state in Travis if not enabled.  Expects a
         dictionary with a GitHub API repository state (like from the list_repos
         function).  Returns a list of string error messages for the repository.
         """
+        return []
+
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
