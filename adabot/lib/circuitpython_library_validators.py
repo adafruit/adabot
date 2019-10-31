@@ -317,8 +317,8 @@ class library_validator():
         if "Documentation Status" not in badges:
             errors.append(ERROR_README_MISSING_RTD_BADGE)
 
-        if "Build Status" not in badges:
-            errors.append(ERROR_README_MISSING_TRAVIS_BADGE)
+        #if "Build Status" not in badges:
+        #    errors.append(ERROR_README_MISSING_TRAVIS_BADGE)
 
         return errors
 
@@ -367,8 +367,10 @@ class library_validator():
         return errors
 
     def _validate_travis_yml(self, repo, travis_yml_file_info):
-        """Check size and then check pypi compatibility.
+        """DISABLED/NO LONGER CALLED: Check size and then check pypi compatibility.
         """
+        return []
+
         download_url = travis_yml_file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
@@ -592,13 +594,15 @@ class library_validator():
 
         return errors
 
-    def validate_travis(self, repo):
-        """Validate and configure a repository has the expected state in Travis
+    def _validate_travis(self, repo):
+        """ DISABLED: Validate and configure a repository has the expected state in Travis
         CI.  This will both check Travis state and attempt to enable Travis CI
         and setup the expected state in Travis if not enabled.  Expects a
         dictionary with a GitHub API repository state (like from the list_repos
         function).  Returns a list of string error messages for the repository.
         """
+        return []
+
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
