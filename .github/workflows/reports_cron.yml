@@ -1,7 +1,9 @@
 name: Run Daily Reports
 
 on:
-  push: [action-ify]
+  push:
+    branches:
+      - action-ify
   #schedule:
   #  - cron: * 5 * * *
 
