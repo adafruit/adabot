@@ -1,0 +1,46 @@
+name: Run Daily Reports
+
+on:
+  push:
+    - branch: action-ify
+  #schedule:
+  #  - cron: * 5 * * *
+
+jobs:
+  run-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+      run: echo "$GITHUB_CONTEXT"
+
+    - name: Set up Python 3.6
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.6
+    - name: Versions
+      run: |
+        python3 --version
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - name: Install deps
+      run: |
+        pip install -r requirements.txt
+    - name: Make Directory For Report Files
+      run: mkdir -p bin/adabot
+    - name: Run adabot.circuitpython_libraries
+      env:
+        # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
+        # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
+        # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
+        LIB_CHECK_CP_FILE='bin/adabot/circuitpython_library_report_'`date +%Y%m%d`'.txt'
+        LIB_CHECK_ARD_FILE='bin/adabot/arduino_library_report_'`date +%Y%m%d`'.txt'
+        LIB_DL_STATS_FILE='bin/adabot/library_download_stats_'`date +%Y%m%d`'.txt'
+      run: |
+        python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
+    - name: Check For File
+      run: |
+        ls $GITHUB_WORKSPACE/bin/adabot

@@ -1,0 +1,41 @@
+name: Update Bundles
+
+on:
+  push:
+    - branch: action-ify
+  #schedule:
+  #  - cron: * 5 * * *
+
+jobs:
+  update-bundles:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379/tcp
+        options: --entrypoint redis-server
+
+    steps:
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+      run: echo "$GITHUB_CONTEXT"
+
+    - name: Set up Python 3.6
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.6
+    - name: Versions
+      run: |
+        python3 --version
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - name: Install deps
+      run: |
+        pip install -r requirements.txt
+    - name: Run adabot.circuitpython_bundle
+      run: |
+        python3 -u -m adabot.circuitpython_bundle
