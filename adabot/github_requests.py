@@ -58,6 +58,9 @@ def _fix_kwargs(kwargs):
             kwargs["params"]["access_token"] = access_token
         else:
             kwargs["params"] = {"access_token": access_token}
+    else:
+        print("ADABOT_GITHUB_ACCESS_TOKEN not applied to github request. kwargs:", kwargs)
+
     return kwargs
 
 def get(url, **kwargs):
@@ -73,7 +76,6 @@ def get(url, **kwargs):
     if not ok:
         raise RuntimeError("See print for error text that as been sanitized for secrets")
     if "X-RateLimit-Remaining" in response.headers:
-        print(response.headers)
         remaining = int(response.headers["X-RateLimit-Remaining"])
         if remaining <= 1:
             rate_limit_reset = datetime.datetime.fromtimestamp(int(response.headers["X-RateLimit-Reset"]))
