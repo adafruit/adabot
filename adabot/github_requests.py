@@ -52,6 +52,7 @@ def _fix_kwargs(kwargs):
     else:
         kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
     if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ and "auth" not in kwargs:
+        print("ADABOT_GITHUB_ACCESS_TOKEN applied to github request.")
         access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
         if "params" in kwargs:
             kwargs["params"]["access_token"] = access_token
@@ -72,6 +73,7 @@ def get(url, **kwargs):
     if not ok:
         raise RuntimeError("See print for error text that as been sanitized for secrets")
     if "X-RateLimit-Remaining" in response.headers:
+        print(response.headers)
         remaining = int(response.headers["X-RateLimit-Remaining"])
         if remaining <= 1:
             rate_limit_reset = datetime.datetime.fromtimestamp(int(response.headers["X-RateLimit-Reset"]))
