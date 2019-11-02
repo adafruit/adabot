@@ -138,7 +138,7 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
         if remove_labels:
             if has_hacktober:
                 label_names = [
-                    label for label in lable_names
+                    label for label in label_names
                     if label not in has_hacktober
                 ]
                 update_issue = True
