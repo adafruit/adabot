@@ -39,6 +39,7 @@ jobs:
           )
       - name: Run adabot.circuitpython_libraries
         env:
+          ADABOT_GITHUB_ACCESS_TOKEN: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
           # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
           # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
           # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script

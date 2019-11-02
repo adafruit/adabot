@@ -60,9 +60,9 @@ def _fix_kwargs(kwargs):
             kwargs["params"] = {"access_token": access_token}
     else:
         print("ADABOT_GITHUB_ACCESS_TOKEN not applied to github request. kwargs:", kwargs)
-        secrets_dir = os.listdir(os.path.join(os.environ["HOME"], "secrets"))
-        print("Secrets dir contains:", secrets_dir)
-        sys.exit(1)
+        print("Is token in environ? {}".format("ADABOT_GITHUB_ACCESS_TOKEN" in os.environ))
+        print(os.environ.keys())
+
     return kwargs
 
 def get(url, **kwargs):
