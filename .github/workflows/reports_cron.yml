@@ -47,8 +47,6 @@ jobs:
           LIB_DL_STATS_FILE: bin/adabot/library_download_stats_${{ steps.today.outputs.date }}.txt
         run: |
           python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check For File
         run: |
           ls $GITHUB_WORKSPACE/bin/adabot
