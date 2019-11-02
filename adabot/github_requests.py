@@ -52,16 +52,11 @@ def _fix_kwargs(kwargs):
     else:
         kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
     if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ and "auth" not in kwargs:
-        print("ADABOT_GITHUB_ACCESS_TOKEN applied to github request.")
         access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
         if "params" in kwargs:
             kwargs["params"]["access_token"] = access_token
         else:
             kwargs["params"] = {"access_token": access_token}
-    else:
-        print("ADABOT_GITHUB_ACCESS_TOKEN not applied to github request. kwargs:", kwargs)
-        print("Is token in environ? {}".format("ADABOT_GITHUB_ACCESS_TOKEN" in os.environ))
-        print(os.environ.keys())
 
     return kwargs
 
