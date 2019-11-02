@@ -10,7 +10,8 @@ on:
 jobs:
   run-reports:
     runs-on: ubuntu-latest
-
+    env:
+      ADABOT_GITHUB_ACCESS_TOKEN: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
     steps:
       - name: Dump GitHub context
         env:
@@ -37,18 +38,24 @@ jobs:
           echo ::set-output name=date::$(
           date +%Y%m%d
           )
-      - name: Run adabot.circuitpython_libraries
+#      - name: Run adabot.circuitpython_libraries
+#        env:
+#          # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
+#          LIB_CHECK_CP_FILE: bin/adabot/circuitpython_library_report_${{ steps.today.outputs.date }}.txt
+#        run: |
+#          python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
+      - name: Run adabot.circuitpython_library_download_stats
         env:
-          ADABOT_GITHUB_ACCESS_TOKEN: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
-          # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
-          # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
           # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
-          LIB_CHECK_CP_FILE: bin/adabot/circuitpython_library_report_${{ steps.today.outputs.date }}.txt
-          LIB_CHECK_ARD_FILE: bin/adabot/arduino_library_report_${{ steps.today.outputs.date }}.txt
           LIB_DL_STATS_FILE: bin/adabot/library_download_stats_${{ steps.today.outputs.date }}.txt
         run: |
-          echo Start report generation...
-          python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
-      - name: Check For File
+          python3 -u -m adabot.circuitpython_library_download_stats -o $LIB_DL_STATS_FILE
+      - name: Run adabot.arduino_libraries
+        env:
+          # LIB_CHECK_ARD_FILE is for arduino_libraries.py output
+          LIB_CHECK_ARD_FILE: bin/adabot/arduino_library_report_${{ steps.today.outputs.date }}.txt
+        run: |
+          python3 -u -m adabot.arduino_libraries -o $LIB_CHECK_ARD_FILE
+      - name: Check For Files
         run: |
           ls $GITHUB_WORKSPACE/bin/adabot
