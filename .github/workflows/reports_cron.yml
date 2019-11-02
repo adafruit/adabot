@@ -46,6 +46,7 @@ jobs:
           LIB_CHECK_ARD_FILE: bin/adabot/arduino_library_report_${{ steps.today.outputs.date }}.txt
           LIB_DL_STATS_FILE: bin/adabot/library_download_stats_${{ steps.today.outputs.date }}.txt
         run: |
+          echo Start report generation...
           python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
       - name: Check For File
         run: |
