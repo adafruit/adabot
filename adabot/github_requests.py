@@ -60,6 +60,8 @@ def _fix_kwargs(kwargs):
             kwargs["params"] = {"access_token": access_token}
     else:
         print("ADABOT_GITHUB_ACCESS_TOKEN not applied to github request. kwargs:", kwargs)
+        print("Is token in environ? {}".format("ADABOT_GITHUB_ACCESS_TOKEN" in os.environ))
+        print(os.environ)
 
     return kwargs
 
