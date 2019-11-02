@@ -1,9 +1,6 @@
 name: Update Bundles
 
-on:
-  push:
-    branches:
-      - action-ify
+on: [pull_request]
   #schedule:
   #  - cron: * 5 * * *
 
