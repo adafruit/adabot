@@ -38,12 +38,13 @@ jobs:
           echo ::set-output name=date::$(
           date +%Y%m%d
           )
-#      - name: Run adabot.circuitpython_libraries
-#        env:
-#          # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
-#          LIB_CHECK_CP_FILE: bin/adabot/circuitpython_library_report_${{ steps.today.outputs.date }}.txt
-#        run: |
-#          python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
+      - name: Run adabot.circuitpython_libraries
+        env:
+          # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
+          LIB_CHECK_CP_FILE: bin/adabot/circuitpython_library_report_${{ steps.today.outputs.date }}.txt
+        run: |
+          python3 -u -m adabot.circuitpython_libraries -o $LIB_CHECK_CP_FILE
+        continue-on-error: true
       - name: Run adabot.circuitpython_library_download_stats
         env:
           # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
