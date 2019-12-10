@@ -363,6 +363,8 @@ if __name__ == "__main__":
     if "GITHUB_WORKSPACE" in os.environ:
         if "ADABOT_EMAIL" in os.environ:
             print(os.environ["ADABOT_EMAIL"])
+        else:
+            print(os.environ)
         git.config("--global", "user.name", "adabot")
         git.config("--global", "user.email", os.environ["ADABOT_EMAIL"])
     for bundle in bundles:
