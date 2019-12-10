@@ -25,7 +25,6 @@ parsed = output.decode('utf8').split('\n')
 db = loadData('db.txt')
 for repo in parsed:
     if repo not in db.keys():
-        print(added)
         db[repo] = {'didnt do': 0, 'added': 0, 'processed': 0, 'pushed': 0}
 
     loc = '/home/dherrada/adafruit/travis_to_actions/repositories/{}/'.format(repo)
@@ -57,37 +56,39 @@ for repo in parsed:
     else:
         db[repo]['didnt do'] = 1
 
+    
+    if db[repo]['added'] == 0:
+        os.system('cp -r .github/ {}'.format(loc))
 
-    os.system('cp -r .github/ {}'.format(loc))
+        os.chdir(loc)
 
-    os.chdir(loc)
+        # Makes a branch if there isn't one, usually fails, but that doesn't really matter since os doesn't raise errors for that sort of thing
+        os.system('git checkout -b dherrada-patch-1')
 
-    # Makes a branch if there isn't one, usually fails, but that doesn't really matter since os doesn't raise errors for that sort of thing
-    os.system('git checkout -b dherrada-patch-1')
+        os.system('rm .travis.yml')
 
-    os.system('rm .travis.yml')
-
-    # Removes build* and the resulting blank line from the gitignore
-    os.system('sed -i -E "s/build\*//" .gitignore')
-    os.system('sed -i /^$/d .gitignore')
-
-
-    # Switches the badge links from linking to travis to linking to github actions
-    os.system("sed -i '/.. image::\|:target:/ s:travis-ci:github: ; s:.com/adafruit/{0}*$:.com/adafruit/{0}/actions/:; s:.svg?branch=master:/workflows/Build%20CI/badge.svg:' README.rst".format(repo))
+        # Removes build* and the resulting blank line from the gitignore
+        os.system('sed -i -E "s/build\*//" .gitignore')
+        os.system('sed -i /^$/d .gitignore')
 
 
-    if input("would you like to start commiting?  ").lower() != 'y':
-        break
-    os.system("git add .")
-    db[repo]['added'] = 1
-    os.system("git diff --cached")
-    good = input("Commit?  ")
-    if good.lower() == 'y':
-        os.system("git commit -m 'Switched from Travis to GitHub Actions'")
-        db[repo]['processed'] = 1
+        # Switches the badge links from linking to travis to linking to github actions
+        os.system("sed -i '/.. image::\|:target:/ s:travis-ci:github: ; s:.com/adafruit/{0}*$:.com/adafruit/{0}/actions/:; s:.svg?branch=master:/workflows/Build%20CI/badge.svg:' README.rst".format(repo))
+
+    if db[repo]['processed'] == 0:
+        if input("would you like to start commiting?  ").lower() != 'y':
+            break
+        os.system("git add .")
+        db[repo]['added'] = 1
+        os.system("git diff --cached")
+        good = input("Commit?  ")
+        if good.lower() == 'y':
+            os.system("git commit -m 'Switched from Travis to GitHub Actions'")
+            db[repo]['processed'] = 1
     # Commenting this out so I don't accidentally push everything
-    # os.system("git push --set-upstream origin dherrada-patch-1")
-    # db[repo]['pushed'] = 1
+    # if db[repo]['pushed'] == 0:
+        # os.system("git push --set-upstream origin dherrada-patch-1")
+        # db[repo]['pushed'] = 1
 
 
 storeData('db.txt', db)
