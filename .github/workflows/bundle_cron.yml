@@ -2,7 +2,7 @@ name: Update Bundles
 
 on:
   schedule:
-    - cron: * 5 * * *
+    - cron: 0 5 * * *
 
 jobs:
   check-repo-owner:
