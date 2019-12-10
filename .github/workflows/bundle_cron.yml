@@ -1,6 +1,9 @@
 name: Update Bundles
 
 on:
+  push:
+    branches:
+      - action-ify
   schedule:
     - cron: 0 5 * * *
 

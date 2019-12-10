@@ -361,6 +361,8 @@ def new_release(bundle, bundle_path):
 if __name__ == "__main__":
     directory = os.path.abspath(".bundles")
     if "GITHUB_WORKSPACE" in os.environ:
+        if "ADABOT_EMAIL" in os.environ:
+            print(os.environ["ADABOT_EMAIL"])
         git.config("--global", "user.name", "adabot")
         git.config("--global", "user.email", os.environ["ADABOT_EMAIL"])
     for bundle in bundles:
@@ -368,10 +370,11 @@ if __name__ == "__main__":
         try:
             fetch_bundle(bundle, bundle_path)
             update_info = update_bundle(bundle_path)
-            if update_info:
-                commit_updates(bundle_path, update_info)
-                push_updates(bundle_path)
-            new_release(bundle, bundle_path)
+            print(update_info)
+            #if update_info:
+            #    commit_updates(bundle_path, update_info)
+            #    push_updates(bundle_path)
+            #new_release(bundle, bundle_path)
         except RuntimeError as e:
             print("Failed to update and release:", bundle)
             print(e)
