@@ -39,7 +39,7 @@ bundles = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
 def fetch_bundle(bundle, bundle_path):
     if not os.path.isdir(bundle_path):
         os.makedirs(bundle_path, exist_ok=True)
-        if "TRAVIS" in os.environ:
+        if "GITHUB_WORKSPACE" in os.environ:
             git_url = "https://" + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"] + "@github.com/adafruit/"
             git.clone("-o", "adafruit", git_url + bundle + ".git", bundle_path)
         else:
