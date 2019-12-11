@@ -22,7 +22,11 @@ output, error = process.communicate()
 
 parsed = output.decode('utf8').split('\n')
 
-db = loadData('db.txt')
+try:
+    db = loadData('db.txt')
+except EOFError:
+    db = {}
+
 for repo in parsed:
     if repo not in db.keys():
         db[repo] = {'didnt do': 0, 'added': 0, 'processed': 0, 'pushed': 0}
@@ -67,29 +71,40 @@ for repo in parsed:
 
         os.system('rm .travis.yml')
 
+        os.system('git checkout -- .gitignore')
         # Removes build* and the resulting blank line from the gitignore
         os.system('sed -i -E "s/build\*//" .gitignore')
         os.system('sed -i /^$/d .gitignore')
 
-
+        os.system('git checkout -- README.rst')
         # Switches the badge links from linking to travis to linking to github actions
         os.system("sed -i '/.. image::\|:target:/ s:travis-ci:github: ; s:.com/adafruit/{0}*$:.com/adafruit/{0}/actions/:; s:.svg?branch=master:/workflows/Build%20CI/badge.svg:' README.rst".format(repo))
 
     if db[repo]['processed'] == 0:
-        if input("would you like to start commiting?  ").lower() != 'y':
-            break
+#        if input("would you like to start commiting?  ").lower() != 'y':
+#            break
         os.system("git add .")
         db[repo]['added'] = 1
-        os.system("git diff --cached")
-        good = input("Commit?  ")
-        if good.lower() == 'y':
-            os.system("git commit -m 'Switched from Travis to GitHub Actions'")
-            db[repo]['processed'] = 1
+#        os.system("git diff --cached")
+#        good = input("Commit?  ")
+#        if good.lower() == 'y':
+#            os.system("git commit -m 'Switched from Travis to GitHub Actions'")
+#            db[repo]['processed'] = 1
     # Commenting this out so I don't accidentally push everything
     # if db[repo]['pushed'] == 0:
         # os.system("git push --set-upstream origin dherrada-patch-1")
         # db[repo]['pushed'] = 1
 
-
 storeData('db.txt', db)
-print(loadData('db.txt'))
+db = loadData('db.txt')
+
+import csv
+
+with open('repositories.csv', 'a') as csvfile:
+    filewriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    filewriter.writerow(['Name', "Didn't do", 'Added', 'Processed', 'Pushed', 'Link'])
+
+    for k, v in db.items():
+        link = 'https://github.com/adafruit/{}'.format(k)
+        filewriter.writerow([k, v['didnt do'], v['added'], v['processed'], v['pushed'], link])
