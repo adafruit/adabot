@@ -24,6 +24,7 @@
 # different search params, and came up emtpy. Hardcoding it as a failsafe.
 
 import datetime
+import os
 import re
 import requests
 from adabot import github_requests as github
@@ -249,3 +250,15 @@ def is_new_or_updated(repo):
         return "new"
     else:
         return "updated"
+
+def whois_github_user():
+    """ Find who the user is that is running the current instance of adabot.
+        'GITHUB_ACTOR' is an environment variable available on GitHub Actions.
+    """
+    user = None
+    if "GITHUB_ACTOR" in os.environ:
+        user = os.environ["GITHUB_ACTOR"]
+    else:
+        user = github.get("/user").json()["login"]
+
+    return user

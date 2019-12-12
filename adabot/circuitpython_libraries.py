@@ -113,10 +113,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     output_handler("Found {} repos to check.".format(len(repos)))
     bundle_submodules = common_funcs.get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
-    github_user = github.get("/user").json()
-    output_handler("Running GitHub checks as " + github_user["login"])
-    travis_user = travis.get("/user").json()
-    output_handler("Running Travis checks as " + travis_user["login"])
+    github_user = common_funcs.whois_github_user()
+    output_handler("Running GitHub checks as " + github_user)
     need_work = 0
     lib_insights = {
         "merged_prs": 0,
