@@ -31,8 +31,13 @@ from datetime import date
 import sh
 from sh.contrib import git
 
-import redis
-redis = redis.StrictRedis()
+import redis as redis_py
+
+redis = None
+if "GITHUB_WORKSPACE" in os.environ:
+    redis = redis_py.StrictRedis(port=os.environ["REDIS_PORT"])
+else:
+    redis = redis_py.StrictRedis()
 
 bundles = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
 
