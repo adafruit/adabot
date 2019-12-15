@@ -110,16 +110,19 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         latest_pylint = pylint_info.json()["info"]["version"]
     output_handler("Latest pylint is: {}".format(latest_pylint))
 
-    repos = common_funcs.list_repos()
+    repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',))
     output_handler("Found {} repos to check.".format(len(repos)))
     bundle_submodules = common_funcs.get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
     github_user = common_funcs.whois_github_user()
     output_handler("Running GitHub checks as " + github_user)
     need_work = 0
+
     lib_insights = common_funcs.InsightData()
+    blinka_insights = common_funcs.InsightData()
     core_insights = common_funcs.InsightData()
     core_insights["milestones"] = dict()
+
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
@@ -155,8 +158,10 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                         "{0} ({1} days)".format(repo["html_url"], error[1])
                     )
         insights = lib_insights
-        if (repo["name"] == "circuitpython" and
-            repo["owner"]["login"] == "adafruit"):
+        if repo["owner"]["login"] == "adafruit":
+            if repo["name"] == "Adafruit_Blinka":
+                insights = blinka_insights
+            elif repo["name"] == "circuitpython":
                 insights = core_insights
         errors = validator.gather_insights(repo, insights, since)
         if errors:
@@ -245,6 +250,19 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
             output_handler("{} - {}".format(error, error_count))
             if error_count <= error_depth or error in list_repos_for_errors:
                 output_handler("\n".join(["  * " + x for x in repos_by_error[error]]))
+
+    output_handler()
+    output_handler("Blinka")
+    print_pr_overview(blinka_insights)
+    output_handler("* {} open pull requests".format(len(blinka_insights["open_prs"])))
+    sorted_prs = sorted(blinka_insights["open_prs"],
+                        key=lambda days: int(pr_sort_re.search(days).group(1)),
+                        reverse=True)
+    for pr in sorted_prs:
+        output_handler("  * {}".format(pr))
+    print_issue_overview(blinka_insights)
+    output_handler("* {} open issues".format(len(blinka_insights["open_issues"])))
+    output_handler("  * https://github.com/adafruit/Adafruit_Blinka/issues")
 
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
