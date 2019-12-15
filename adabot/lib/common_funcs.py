@@ -158,10 +158,13 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     # Failed to find the repo as a submodule of the libraries folders.
     return False
 
-def list_repos():
+def list_repos(*, include_repos=None):
     """Return a list of all Adafruit repositories that start with
     Adafruit_CircuitPython.  Each list item is a dictionary of GitHub API
     repository state.
+
+    :param: tuple,list include_repos: A tuple or list of repositories to ensure
+                                      are included.
     """
     repos = []
     result = github.get("/search/repositories",
@@ -190,10 +193,22 @@ def list_repos():
             break
         # Subsequent links have our access token already so we use requests directly.
         result = requests.get(link, timeout=30)
-    if "circuitpython" not in [repo["name"] for repo in repos]:
+
+    repo_names = [repo["name"] for repo in repos]
+
+    if "circuitpython" not in repo_names:
         core = github.get(core_repo_url)
         if core.ok:
             repos.append(core.json())
+
+    if include_repos:
+        for repo in include_repos:
+            if repo not in repo_names:
+                add_repo = github.get("/repos/adafruit/" + repo)
+                if add_repo.ok:
+                    repos.append(add_repo.json())
+                else:
+                    print("list_repos(): Failed to retrieve '{}'".format(repo))
 
     return repos
 
