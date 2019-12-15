@@ -20,6 +20,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
 import copy
 import datetime
 import re
@@ -116,30 +117,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     github_user = common_funcs.whois_github_user()
     output_handler("Running GitHub checks as " + github_user)
     need_work = 0
-    lib_insights = {
-        "merged_prs": 0,
-        "closed_prs": 0,
-        "new_prs": 0,
-        "active_prs": 0,
-        "open_prs": [],
-        "pr_authors": set(),
-        "pr_merged_authors": set(),
-        "pr_reviewers": set(),
-        "closed_issues": 0,
-        "new_issues": 0,
-        "active_issues": 0,
-        "open_issues": [],
-        "issue_authors": set(),
-        "issue_closers": set(),
-        "hacktober_assigned": 0,
-        "hacktober_removed": 0,
-    }
-    core_insights = copy.deepcopy(lib_insights)
-    for k in core_insights:
-        if isinstance(core_insights[k], set):
-            core_insights[k] = set()
-        if isinstance(core_insights[k], list):
-            core_insights[k] = []
+    lib_insights = common_funcs.InsightData()
+    core_insights = common_funcs.InsightData()
     core_insights["milestones"] = dict()
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)

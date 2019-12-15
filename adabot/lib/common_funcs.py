@@ -23,6 +23,7 @@
 # GitHub API Serch has stopped returning the core repo for some reason. Tried several
 # different search params, and came up emtpy. Hardcoding it as a failsafe.
 
+import collections
 import datetime
 import os
 import re
@@ -262,3 +263,42 @@ def whois_github_user():
         user = github.get("/user").json()["login"]
 
     return user
+
+class InsightData(collections.UserDict):
+    """ Container class for holding insight data (issues, PRs, etc).
+    """
+
+    def __init__(self):
+        self.data = {
+            "merged_prs": 0,
+            "closed_prs": 0,
+            "new_prs": 0,
+            "active_prs": 0,
+            "open_prs": [],
+            "pr_authors": set(),
+            "pr_merged_authors": set(),
+            "pr_reviewers": set(),
+            "closed_issues": 0,
+            "new_issues": 0,
+            "active_issues": 0,
+            "open_issues": [],
+            "issue_authors": set(),
+            "issue_closers": set(),
+            "hacktober_assigned": 0,
+            "hacktober_removed": 0,
+        }
+
+    def __contains__(self, key):
+        return key in self.data
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def keys(self):
+        return self.data.keys()
+
+    def copy(self):
+        return self.data.copy()
