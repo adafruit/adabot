@@ -336,6 +336,8 @@ def print_circuitpython_download_stats():
                 total[release["tag_name"]] = 0
             total[release["tag_name"]] += count
 
+    output_handler("Number of supported boards: {}".format(len(by_board)))
+    output_handler()
     output_handler("Download stats by board:")
     output_handler()
     by_board_list = [["Board", "{}".format(stable_tag.strip(" ")), "{}".format(prerelease_tag.strip(" "))],]
