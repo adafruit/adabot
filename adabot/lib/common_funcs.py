@@ -23,6 +23,7 @@
 # GitHub API Serch has stopped returning the core repo for some reason. Tried several
 # different search params, and came up emtpy. Hardcoding it as a failsafe.
 
+import collections
 import datetime
 import os
 import re
@@ -157,10 +158,13 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     # Failed to find the repo as a submodule of the libraries folders.
     return False
 
-def list_repos():
+def list_repos(*, include_repos=None):
     """Return a list of all Adafruit repositories that start with
     Adafruit_CircuitPython.  Each list item is a dictionary of GitHub API
     repository state.
+
+    :param: tuple,list include_repos: A tuple or list of repositories to ensure
+                                      are included.
     """
     repos = []
     result = github.get("/search/repositories",
@@ -189,10 +193,22 @@ def list_repos():
             break
         # Subsequent links have our access token already so we use requests directly.
         result = requests.get(link, timeout=30)
-    if "circuitpython" not in [repo["name"] for repo in repos]:
+
+    repo_names = [repo["name"] for repo in repos]
+
+    if "circuitpython" not in repo_names:
         core = github.get(core_repo_url)
         if core.ok:
             repos.append(core.json())
+
+    if include_repos:
+        for repo in include_repos:
+            if repo not in repo_names:
+                add_repo = github.get("/repos/adafruit/" + repo)
+                if add_repo.ok:
+                    repos.append(add_repo.json())
+                else:
+                    print("list_repos(): Failed to retrieve '{}'".format(repo))
 
     return repos
 
@@ -262,3 +278,42 @@ def whois_github_user():
         user = github.get("/user").json()["login"]
 
     return user
+
+class InsightData(collections.UserDict):
+    """ Container class for holding insight data (issues, PRs, etc).
+    """
+
+    def __init__(self):
+        self.data = {
+            "merged_prs": 0,
+            "closed_prs": 0,
+            "new_prs": 0,
+            "active_prs": 0,
+            "open_prs": [],
+            "pr_authors": set(),
+            "pr_merged_authors": set(),
+            "pr_reviewers": set(),
+            "closed_issues": 0,
+            "new_issues": 0,
+            "active_issues": 0,
+            "open_issues": [],
+            "issue_authors": set(),
+            "issue_closers": set(),
+            "hacktober_assigned": 0,
+            "hacktober_removed": 0,
+        }
+
+    def __contains__(self, key):
+        return key in self.data
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def keys(self):
+        return self.data.keys()
+
+    def copy(self):
+        return self.data.copy()

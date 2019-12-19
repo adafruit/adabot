@@ -20,6 +20,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
 import copy
 import datetime
 import re
@@ -36,6 +37,8 @@ from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
+from adabot.lib import blinka_funcs
+from adabot import circuitpython_library_download_stats as dl_stats
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
@@ -109,38 +112,19 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         latest_pylint = pylint_info.json()["info"]["version"]
     output_handler("Latest pylint is: {}".format(latest_pylint))
 
-    repos = common_funcs.list_repos()
+    repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',))
     output_handler("Found {} repos to check.".format(len(repos)))
     bundle_submodules = common_funcs.get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
     github_user = common_funcs.whois_github_user()
     output_handler("Running GitHub checks as " + github_user)
     need_work = 0
-    lib_insights = {
-        "merged_prs": 0,
-        "closed_prs": 0,
-        "new_prs": 0,
-        "active_prs": 0,
-        "open_prs": [],
-        "pr_authors": set(),
-        "pr_merged_authors": set(),
-        "pr_reviewers": set(),
-        "closed_issues": 0,
-        "new_issues": 0,
-        "active_issues": 0,
-        "open_issues": [],
-        "issue_authors": set(),
-        "issue_closers": set(),
-        "hacktober_assigned": 0,
-        "hacktober_removed": 0,
-    }
-    core_insights = copy.deepcopy(lib_insights)
-    for k in core_insights:
-        if isinstance(core_insights[k], set):
-            core_insights[k] = set()
-        if isinstance(core_insights[k], list):
-            core_insights[k] = []
+
+    lib_insights = common_funcs.InsightData()
+    blinka_insights = common_funcs.InsightData()
+    core_insights = common_funcs.InsightData()
     core_insights["milestones"] = dict()
+
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
@@ -176,8 +160,10 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                         "{0} ({1} days)".format(repo["html_url"], error[1])
                     )
         insights = lib_insights
-        if (repo["name"] == "circuitpython" and
-            repo["owner"]["login"] == "adafruit"):
+        if repo["owner"]["login"] == "adafruit":
+            if repo["name"] == "Adafruit_Blinka":
+                insights = blinka_insights
+            elif repo["name"] == "circuitpython":
                 insights = core_insights
         errors = validator.gather_insights(repo, insights, since)
         if errors:
@@ -267,6 +253,24 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
             if error_count <= error_depth or error in list_repos_for_errors:
                 output_handler("\n".join(["  * " + x for x in repos_by_error[error]]))
 
+    output_handler()
+    output_handler("Blinka")
+    print_pr_overview(blinka_insights)
+    output_handler("* {} open pull requests".format(len(blinka_insights["open_prs"])))
+    sorted_prs = sorted(blinka_insights["open_prs"],
+                        key=lambda days: int(pr_sort_re.search(days).group(1)),
+                        reverse=True)
+    for pr in sorted_prs:
+        output_handler("  * {}".format(pr))
+    print_issue_overview(blinka_insights)
+    output_handler("* {} open issues".format(len(blinka_insights["open_issues"])))
+    output_handler("  * https://github.com/adafruit/Adafruit_Blinka/issues")
+    blinka_dl, _ = dl_stats.pypistats_get('adafruit-blinka')
+    output_handler("* PyPI Downloads in the last week: {}".format(blinka_dl))
+    output_handler(
+        "Number of supported boards: {}".format(blinka_funcs.board_count())
+    )
+
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
     if output_filename is not None:
@@ -339,6 +343,8 @@ def print_circuitpython_download_stats():
                 total[release["tag_name"]] = 0
             total[release["tag_name"]] += count
 
+    output_handler("Number of supported boards: {}".format(len(by_board)))
+    output_handler()
     output_handler("Download stats by board:")
     output_handler()
     by_board_list = [["Board", "{}".format(stable_tag.strip(" ")), "{}".format(prerelease_tag.strip(" "))],]

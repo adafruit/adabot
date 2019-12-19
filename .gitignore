@@ -7,3 +7,4 @@ env.sh
 *.swp
 .libraries/*
 .cp_org/*
+.blinka/*
