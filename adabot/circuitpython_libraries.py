@@ -37,6 +37,7 @@ from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
+from adabot.lib import blinka_funcs
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
@@ -263,6 +264,11 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     print_issue_overview(blinka_insights)
     output_handler("* {} open issues".format(len(blinka_insights["open_issues"])))
     output_handler("  * https://github.com/adafruit/Adafruit_Blinka/issues")
+    output_handler()
+    output_handler(
+        "Number of supported boards: {}".format(blinka_funcs.board_count())
+    )
+
 
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for print_*() functions."""
