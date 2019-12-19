@@ -31,24 +31,10 @@ for repo in parsed:
     if repo not in db.keys():
         db[repo] = {'didnt do': 0, 'added': 0, 'processed': 0, 'pushed': 0}
 
-    loc = '/home/dherrada/adafruit/travis_to_actions/repositories/{}/'.format(repo)
+    loc = '/home/dherrada/travis_to_actions/repositories/{}/'.format(repo)
 
     # Tests to see if there's code in the repo
 
-    if not os.path.isfile(loc+'README.rst') and not os.path.isfile(loc+'README.md'):
-        db[repo]['didnt do'] = 1 
-        continue
-
-    try:
-        with open(loc+'README.rst', 'r') as F:
-            if  sum(1 for line in F) < 5:
-                db[repo]['didnt do'] = 1
-                continue
-    except FileNotFoundError:
-        with open(loc+'README.md', 'r') as F:
-            if sum(1 for line in F) < 5:
-                db[repo]['didnt do'] = 1
-                continue
 
     for root, dirs, files in os.walk(loc):
         for file in files:
@@ -61,6 +47,9 @@ for repo in parsed:
         db[repo]['didnt do'] = 1
 
     
+    if db[repo]['didnt do'] == 1:
+        continue
+
     if db[repo]['added'] == 0:
         os.system('cp -r .github/ {}'.format(loc))
 
@@ -100,11 +89,9 @@ db = loadData('db.txt')
 
 import csv
 
-with open('repositories.csv', 'a') as csvfile:
-    filewriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-    filewriter.writerow(['Name', "Didn't do", 'Added', 'Processed', 'Pushed', 'Link'])
-
+with open('repositories1.csv', 'w') as csvfile:
+    print('Name, Didn\'t do, Added, Processed, Pushed')
     for k, v in db.items():
         link = 'https://github.com/adafruit/{}'.format(k)
-        filewriter.writerow([k, v['didnt do'], v['added'], v['processed'], v['pushed'], link])
+        line = str(k)+','+str(v['didnt do'])+','+str(v['added'])+','+str(v['processed'])+','+str(v['pushed'])+','+link
+        print(line)
