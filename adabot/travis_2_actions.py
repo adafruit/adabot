@@ -1,40 +1,35 @@
-import subprocess
-import os
 import pickle
+from subprocess import check_output
+import os
+
 
 def storeData(F, db):
-    # initializing data to be stored in db
-
+    # Stores data in db file
     dbfile = open(F, 'wb')
-
     pickle.dump(db, dbfile)
     dbfile.close()
 
+
 def loadData(F):
-    # loading stored data
+    # Loads data from db file
     dbfile = open(F, 'rb')
     db = pickle.load(dbfile)
     return db
 
-bashCommand = "ls repositories/"
-process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-output, error = process.communicate()
 
-parsed = output.decode('utf8').split('\n')
+dirlist = check_output('ls repositories/', shell=1).decode('utf-8').split('\n')
+dirlist.pop()
 
 try:
     db = loadData('db.txt')
 except EOFError:
     db = {}
 
-for repo in parsed:
+for repo in dirlist:
     if repo not in db.keys():
         db[repo] = {'didnt do': 0, 'added': 0, 'processed': 0, 'pushed': 0}
 
     loc = '/home/dherrada/travis_to_actions/repositories/{}/'.format(repo)
-
-    # Tests to see if there's code in the repo
-
 
     for root, dirs, files in os.walk(loc):
         for file in files:
@@ -45,9 +40,10 @@ for repo in parsed:
         break
     else:
         db[repo]['didnt do'] = 1
+        print('no .py')
 
-    
     if db[repo]['didnt do'] == 1:
+        print('didnt do')
         continue
 
     if db[repo]['added'] == 0:
@@ -55,23 +51,19 @@ for repo in parsed:
 
         os.chdir(loc)
 
-        # Makes a branch if there isn't one, usually fails, but that doesn't really matter since os doesn't raise errors for that sort of thing
         os.system('git checkout -b dherrada-patch-1')
 
         os.system('rm .travis.yml')
 
         os.system('git checkout -- .gitignore')
-        # Removes build* and the resulting blank line from the gitignore
+
         os.system('sed -i -E "s/build\*//" .gitignore')
         os.system('sed -i /^$/d .gitignore')
 
-        os.system('git checkout -- README.rst')
+    if db[repo]['processed'] == 0:
         # Switches the badge links from linking to travis to linking to github actions
         os.system("sed -i '/.. image::\|:target:/ s:travis-ci:github: ; s:.com/adafruit/{0}*$:.com/adafruit/{0}/actions/:; s:.svg?branch=master:/workflows/Build%20CI/badge.svg:' README.rst".format(repo))
 
-    if db[repo]['processed'] == 0:
-#        if input("would you like to start commiting?  ").lower() != 'y':
-#            break
         os.system("git add .")
         db[repo]['added'] = 1
 #        os.system("git diff --cached")
@@ -84,14 +76,13 @@ for repo in parsed:
         # os.system("git push --set-upstream origin dherrada-patch-1")
         # db[repo]['pushed'] = 1
 
+
+os.chdir('/home/dherrada/travis_to_actions/')
 storeData('db.txt', db)
-db = loadData('db.txt')
 
-import csv
-
-with open('repositories1.csv', 'w') as csvfile:
-    print('Name, Didn\'t do, Added, Processed, Pushed')
+with open('repositories.csv', 'w') as F:
+    F.write('Name, Didn\'t do, Added, Processed, Pushed\n')
     for k, v in db.items():
         link = 'https://github.com/adafruit/{}'.format(k)
-        line = str(k)+','+str(v['didnt do'])+','+str(v['added'])+','+str(v['processed'])+','+str(v['pushed'])+','+link
-        print(line)
+        line = str(k)+','+str(v['didnt do'])+','+str(v['added'])+','+str(v['processed'])+','+str(v['pushed'])+','+link+'\n'
+        F.write(line)
