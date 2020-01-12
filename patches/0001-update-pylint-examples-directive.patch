@@ -1,0 +1,25 @@
+From e1f4301b25e7e6f120b85c316cfbaf838fc1282e Mon Sep 17 00:00:00 2001
+From: sommersoft <sommersoft@gmail.com>
+Date: Wed, 8 Jan 2020 21:09:22 -0600
+Subject: [PATCH] update pylint examples directive
+
+---
+ .github/workflows/build.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 66ce4db..11ce574 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -42,7 +42,7 @@ jobs:
+     - name: PyLint
+       run: |
+         pylint $( find . -path './adafruit*.py' )
+-        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace examples/*.py)
++        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
+     - name: Build assets
+       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
+     - name: Build docs
+-- 
+2.17.1
+

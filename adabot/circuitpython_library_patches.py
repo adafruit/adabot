@@ -171,8 +171,9 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
             run_apply = True
         except sh.ErrorReturnCode_1 as Err:
             run_apply = False
-            if b"error" not in Err.stderr:
-                skipped += 1
+            if (b"error" not in Err.stderr or
+                b"patch does not apply" in Err.stderr):
+                    skipped += 1
             else:
                 failed += 1
                 error_str = str(Err.stderr, encoding="utf-8").replace("\n", " ")
@@ -195,6 +196,8 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
                 applied += 1
             else:
                 failed += 1
+        elif run_apply and dry_run:
+            applied += 1
 
     return [applied, skipped, failed]
 
