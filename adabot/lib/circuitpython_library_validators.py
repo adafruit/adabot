@@ -67,6 +67,7 @@ ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yml"
 ERROR_MISSING_TRAVIS_CONFIG = "Missing .travis.yml"
+ERROR_MISSING_ACTIONS_CONFIG = "Missing build.yml and/or release.yml"
 ERROR_MISSING_PYPIPROVIDER = "For pypi compatibility, missing pypi provider in .travis.yml"
 ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
@@ -127,11 +128,14 @@ BUNDLE_REPO_NAME = "Adafruit_CircuitPython_Bundle"
 BUNDLE_IGNORE_LIST = [BUNDLE_REPO_NAME]
 
 LIBRARIES_DONT_NEED_BLINKA = [
+    "Adafruit_CircuitPython_BLE_Apple_Notification_Center",
     "Adafruit_CircuitPython_BusDevice",
     "Adafruit_CircuitPython_CircuitPlayground",
+    "Adafruit_CircuitPython_Display_Notification",
     "Adafruit_CircuitPython_FancyLED",
     "Adafruit_CircuitPython_IRRemote",
     "Adafruit_CircuitPython_ImageLoad",
+    "Adafruit_CircuitPython_IterTools",
     "Adafruit_CircuitPython_MCP9808",
     "Adafruit_CircuitPython_PCA9685",
     "Adafruit_CircuitPython_PCF8523",
@@ -506,6 +510,9 @@ class library_validator():
 
         if ".travis.yml" in files:
             errors.append(ERROR_NEEDS_ACTION_MIGRATION)
+
+        if "build.yml" and "release.yml" not in files:
+            errors.append(ERROR_MISSING_ACTIONS_CONFIG)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
             fn = "readthedocs.yml"
