@@ -511,7 +511,7 @@ class library_validator():
         if ".travis.yml" in files:
             errors.append(ERROR_NEEDS_ACTION_MIGRATION)
 
-        if "build.yml" and "release.yml" not in files:
+        if "build.yml" or "release.yml" not in files:
             errors.append(ERROR_MISSING_ACTIONS_CONFIG)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
