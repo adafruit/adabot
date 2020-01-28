@@ -282,7 +282,10 @@ def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
     response = github.get("/repos/adafruit/circuitpython/releases")
     if not response.ok:
-        output_handler("Core CircuitPython GitHub analytics request failed.")
+        output_handler(
+            "Core CircuitPython GitHub download statistics request failed."
+        )
+        return
     releases = response.json()
 
     found_unstable = False
