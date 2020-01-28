@@ -20,38 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import os
-import pathlib
-import re
-
-import sh
-from sh.contrib import git
-
+from adabot import github_requests as github
 
 def board_count():
     """ Retrieve the number of boards currently supported by Adafruit_Blinka,
-        via Adafruit_Python_PlatformDetect.
+        via the count of files in circuitpython-org/_blinka.
     """
-    platdetec_boards_re = re.compile(r'^[A-Z]\w+\s+\=\s[\'\"]\w+[\'\"]',
-                                     re.MULTILINE)
     board_count = 0
-    working_dir = os.getcwd()
-    blinka_dir = pathlib.Path(working_dir, '.blinka')
-    repo_url = 'https://github.com/adafruit/Adafruit_Python_PlatformDetect.git'
-
-    if not blinka_dir.exists():
-        try:
-            git.clone(repo_url, blinka_dir.resolve(), '--depth', '1')
-        except sh.ErrorReturnCode_128:
-            print("Failed to clone Adafruit_Blinka. Board count not determined.")
-            board_count = "Error"
-
-    src_board_path = blinka_dir / 'adafruit_platformdetect/board.py'
-    if src_board_path.exists():
-        board_content = ""
-        with open(src_board_path, 'r') as board_py:
-            board_content = board_py.read()
-        content_re = platdetec_boards_re.findall(board_content)
-        board_count = len(content_re)
+    cirpy_org_url = '/repos/adafruit/circuitpython-org/contents/_blinka'
+    response = github.get(cirpy_org_url)
+    if response.ok:
+        response_json = response.json()
+        board_count = len(response_json)
 
     return board_count
