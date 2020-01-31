@@ -285,7 +285,7 @@ class InsightData(collections.UserDict):
 
     def __init__(self):
         self.data = {
-            "merged_prs": 0,
+            "merged_prs": [],
             "closed_prs": 0,
             "new_prs": 0,
             "active_prs": 0,
