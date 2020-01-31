@@ -821,15 +821,20 @@ class library_validator():
                                 "%Y-%m-%dT%H:%M:%SZ"
                             )
                             merged = datetime.datetime.strptime(
-                                issue["merged_at"],
+                                issue["closed_at"],
                                 "%Y-%m-%dT%H:%M:%SZ"
                             )
+
                             days_open = merged - created
                             if days_open.days < 0: # opened earlier today
                                 days_open += datetime.timedelta(
                                     days=(days_open.days * -1)
                                 )
-                            merged_info = " (Days open: {})".format(days_open)
+                            elif days_open.days == 0:
+                                days_open += datetime.timedelta(
+                                    days=(1)
+                                )
+                            merged_info = " (Days open: {})".format(days_open.days)
 
                         pr_link = "{0}{1}".format(
                             issue["pull_request"]["html_url"],
