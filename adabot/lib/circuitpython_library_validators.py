@@ -783,7 +783,7 @@ class library_validator():
 
 
 
-    def gather_insights(self, repo, insights, since):
+    def gather_insights(self, repo, insights, since, show_closed_metric=False):
         """Gather analytics about a repository like open and merged pull requests.
         This expects a dictionary with GitHub API repository state (like from the
         list_repos function) and will fill in the provided insights dictionary
@@ -814,7 +814,29 @@ class library_validator():
                     insights["active_prs"] += 1
                 else:
                     if pr_info["merged"]:
-                        insights["merged_prs"] += 1
+                        merged_info = ""
+                        if show_closed_metric:
+                            created = datetime.datetime.strptime(
+                                issue["created_at"],
+                                "%Y-%m-%dT%H:%M:%SZ"
+                            )
+                            merged = datetime.datetime.strptime(
+                                issue["merged_at"],
+                                "%Y-%m-%dT%H:%M:%SZ"
+                            )
+                            days_open = merged - created
+                            if days_open.days < 0: # opened earlier today
+                                days_open += datetime.timedelta(
+                                    days=(days_open.days * -1)
+                                )
+                            merged_info = " (Days open: {})".format(days_open)
+
+                        pr_link = "{0}{1}".format(
+                            issue["pull_request"]["html_url"],
+                            merged_info
+                        )
+                        insights["merged_prs"].append(pr_link)
+
                         insights["pr_merged_authors"].add(pr_info["user"]["login"])
                         insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
                         pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
