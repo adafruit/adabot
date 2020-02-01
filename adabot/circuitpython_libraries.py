@@ -103,7 +103,8 @@ default_validators = [
     if vals[0].startswith("validate")
 ]
 
-pr_sort_re = re.compile("(?<=\(Open\s)(.+)(?=\sdays)")
+pr_sort_re = re.compile(r"(?<=\(Open\s)(.+)(?=\sdays)")
+close_pr_sort_re = re.compile(r"(?<=\(Days\sopen:\s)(.+)(?=\))")
 
 def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     """runs the various library checking functions"""
@@ -165,7 +166,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                 insights = blinka_insights
             elif repo["name"] == "circuitpython":
                 insights = core_insights
-        errors = validator.gather_insights(repo, insights, since)
+        closed_metric = bool(insights == lib_insights)
+        errors = validator.gather_insights(repo, insights, since, show_closed_metric=closed_metric)
         if errors:
             print("insights error")
             for error in errors:
@@ -213,15 +215,26 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     output_handler()
     output_handler("Libraries")
     print_pr_overview(lib_insights)
-    output_handler("* {} open pull requests".format(len(lib_insights["open_prs"])))
-    sorted_prs = sorted(lib_insights["open_prs"],
-                        key=lambda days: int(pr_sort_re.search(days).group(1)),
+    output_handler("  * Merged pull requests:")
+    sorted_prs = sorted(lib_insights["merged_prs"],
+                        key=lambda days: int(close_pr_sort_re.search(days).group(1)),
                         reverse=True)
     for pr in sorted_prs:
-        output_handler("  * {}".format(pr))
+        output_handler("    * {}".format(pr))
     print_issue_overview(lib_insights)
-    output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
-    output_handler("  * https://circuitpython.org/contributing")
+    output_handler("* https://circuitpython.org/contributing")
+    output_handler("  * {} open issues".format(len(lib_insights["open_issues"])))
+    open_pr_days = [
+        int(pr_sort_re.search(pr).group(1)) for pr in lib_insights["open_prs"]
+        if pr_sort_re.search(pr) is not None
+    ]
+    output_handler(
+        "  * {0} open pull requests (Oldest: {1}, Newest: {2})".format(
+            len(lib_insights["open_prs"]),
+            max(open_pr_days),
+            max((min(open_pr_days), 1)) # ensure the minumum is '1'
+        )
+    )
     output_handler("Library updates in the last seven days:")
     if len(new_libs) != 0:
         output_handler("**New Libraries**")
@@ -280,7 +293,14 @@ def output_handler(message="", quiet=False):
 
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
-    response = github.get("/repos/adafruit/circuitpython/releases")
+    try:
+        response = github.get("/repos/adafruit/circuitpython/releases")
+    except (ValueError, RuntimeError):
+        output_handler(
+            "Core CircuitPython GitHub download statistics request failed."
+        )
+        return
+
     if not response.ok:
         output_handler(
             "Core CircuitPython GitHub download statistics request failed."
@@ -419,7 +439,7 @@ def print_circuitpython_download_stats():
     output_handler()
 
 def print_pr_overview(*insights):
-    merged_prs = sum([x["merged_prs"] for x in insights])
+    merged_prs = sum([len(x["merged_prs"]) for x in insights])
     authors = set().union(*[x["pr_merged_authors"] for x in insights])
     reviewers = set().union(*[x["pr_reviewers"] for x in insights])
 
