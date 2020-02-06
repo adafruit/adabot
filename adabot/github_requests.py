@@ -35,6 +35,8 @@ import sys
 import time
 import traceback
 
+from base64 import b64encode
+
 TIMEOUT = 60
 
 def _fix_url(url):
@@ -52,11 +54,15 @@ def _fix_kwargs(kwargs):
     else:
         kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
     if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ and "auth" not in kwargs:
+        user = os.environ.get("ADABOT_GITHUB_USER", "")
         access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
+        basic_encoded = b64encode(str(user + ":" + access_token).encode()).decode()
+        auth_header = "Basic {}".format(basic_encoded)
+        
         if "params" in kwargs:
-            kwargs["params"]["access_token"] = access_token
+            kwargs["headers"]["Authorization"] = auth_header
         else:
-            kwargs["params"] = {"access_token": access_token}
+            kwargs["headers"] = {"Authorization": auth_header}
 
     return kwargs
 
