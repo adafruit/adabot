@@ -58,11 +58,8 @@ def _fix_kwargs(kwargs):
         access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
         basic_encoded = b64encode(str(user + ":" + access_token).encode()).decode()
         auth_header = "Basic {}".format(basic_encoded)
-        
-        if "params" in kwargs:
-            kwargs["headers"]["Authorization"] = auth_header
-        else:
-            kwargs["headers"] = {"Authorization": auth_header}
+
+        kwargs["headers"]["Authorization"] = auth_header
 
     return kwargs
 
