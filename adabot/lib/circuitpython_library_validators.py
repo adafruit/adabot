@@ -186,9 +186,9 @@ class library_validator():
         errors = []
         if repo["has_wiki"]:
             errors.append(ERROR_WIKI_DISABLED)
-        if not repo["license"] and not repo["name"] in BUNDLE_IGNORE_LIST:
+        if not repo.get("license") and not repo["name"] in BUNDLE_IGNORE_LIST:
             errors.append(ERROR_MISSING_LICENSE)
-        if not repo["permissions"]["push"]:
+        if not repo.get("permissions", dict()).get("push"):
             errors.append(ERROR_MISSING_LIBRARIANS)
         if (not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules)
             and not repo["name"] in BUNDLE_IGNORE_LIST):
