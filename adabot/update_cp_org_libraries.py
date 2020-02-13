@@ -31,6 +31,8 @@ from adabot.lib import common_funcs
 from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
 
+DO_NOT_VALIDATE = ['CircuitPython_Community_Bundle']
+
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
     description="Adabot utility for updating circuitpython.org libraries info.",
@@ -146,7 +148,7 @@ if __name__ == "__main__":
 
     print("\n".join(startup_message))
 
-    repos = common_funcs.list_repos()
+    repos = common_funcs.list_repos(include_repos=("CircuitPython_Community_Bundle",))
 
     new_libs = {}
     updated_libs = {}
@@ -195,6 +197,9 @@ if __name__ == "__main__":
         if get_revs:
             reviewers.extend(get_revs)
         merged_pr_count_total += get_merge_count
+
+        if repo_name in DO_NOT_VALIDATE:
+            continue
 
         # run repo validators to check for infrastructure errors
         errors = validator.run_repo_validation(repo)
