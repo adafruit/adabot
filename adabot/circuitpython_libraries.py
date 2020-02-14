@@ -113,7 +113,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         latest_pylint = pylint_info.json()["info"]["version"]
     output_handler("Latest pylint is: {}".format(latest_pylint))
 
-    repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',))
+    repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',
+                                                   'CircuitPython_Community_Bundle'))
     output_handler("Found {} repos to check.".format(len(repos)))
     bundle_submodules = common_funcs.get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
