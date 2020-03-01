@@ -211,7 +211,14 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                                                          core_insights["milestones"][milestone]))
     output_handler("  * {} issues not assigned a milestone".format(len(core_insights["open_issues"]) - ms_count))
     output_handler()
-    print_circuitpython_download_stats()
+
+    ## temporarily disabling core download stats:
+    #  - GitHub API has been broken, due to the number of release artifacts
+    #  - Release asset delivery is being moved to AWS CloudFront/S3
+    #print_circuitpython_download_stats()
+    output_handler(
+        "* Core download stats available at https://circuitpython.org/stats"
+    )
 
     output_handler()
     output_handler("Libraries")
@@ -294,6 +301,12 @@ def output_handler(message="", quiet=False):
 
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
+
+    # TODO: with the move of release assets to AWS CloudFront/S3, update
+    #       this to use AWS CloudWatch metrics to gather download stats.
+    #       AWS' Python SDK `boto3` has CloudWatch interfaces which should
+    #       enable this. https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudwatch.html
+
     try:
         response = github.get("/repos/adafruit/circuitpython/releases")
     except (ValueError, RuntimeError):
