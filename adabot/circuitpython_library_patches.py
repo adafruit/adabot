@@ -173,6 +173,11 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
             run_apply = False
             if (b"error" not in Err.stderr or
                 b"patch does not apply" in Err.stderr):
+                    parse_err = Err.stderr.decode()
+                    parse_err = parse_err[parse_err.rfind(":")+1:-1]
+                    print(
+                        "   . Skipping {}:{}".format(repo["name"], parse_err)
+                    )
                     skipped += 1
             else:
                 failed += 1
