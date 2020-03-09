@@ -185,11 +185,11 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                 updated_libs[repo["name"]] = repo["html_url"]
 
     output_handler()
-    output_handler("State of CircuitPython + Libraries")
+    output_handler("State of CircuitPython + Libraries + Blinka")
 
     output_handler("Overall")
-    print_pr_overview(lib_insights, core_insights)
-    print_issue_overview(lib_insights, core_insights)
+    print_pr_overview(lib_insights, core_insights, blinka_insights)
+    print_issue_overview(lib_insights, core_insights, blinka_insights)
 
     output_handler()
     output_handler("Core")
