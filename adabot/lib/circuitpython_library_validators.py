@@ -102,7 +102,6 @@ ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
 ERROR_PYLINT_VERSION_NOT_FIXED = "PyLint version not fixed"
-ERROR_PYLINT_VERSION_VERY_OUTDATED = "PyLint version very out of date"
 ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
@@ -156,7 +155,7 @@ class library_validator():
     def __init__(self, validators, bundle_submodules, latest_pylint, **kw_args):
         self.validators = validators
         self.bundle_submodules = bundle_submodules
-        self.latest_pylint = latest_pylint
+        self.latest_pylint = latest_pylint.replace(".", "")
         self.full_auth = None
         self.output_file_data = []
         self.github_token = kw_args.get("github_token", False)
@@ -372,41 +371,71 @@ class library_validator():
 
         return errors
 
-    def _validate_travis_yml(self, repo, travis_yml_file_info):
-        """DISABLED/NO LONGER CALLED: Check size and then check pypi compatibility.
+    def _validate_actions_build_yml(self, repo, actions_build_info):
+        """Check the following configurations in the GitHub Actions
+            build.yml file:
+                - Pylint version is the latest release
         """
-        return []
 
-        download_url = travis_yml_file_info["download_url"]
+        download_url = actions_build_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
         errors = []
 
-        lines = contents.text.split("\n")
-        pypi_providers_lines = (
-            [l for l in lines
-            if re.match(r"[\s]*-[\s]*provider:[\s]*pypi[\s]*", l)]
+        pylint_version = None
+        re_pip_pattern = r"pip\sinstall.*"
+        re_pylint_pattern = (
+            r"pylint(?P<eval>(?:[<>~=]){0,2})(?P<major>\d*)(?P<minor>(?:\.\d){0,2})"
         )
 
-        if not pypi_providers_lines:
-            errors.append(ERROR_MISSING_PYPIPROVIDER)
+        pip_line = re.search(re_pip_pattern, contents.text)
+        if not pip_line:
+            return [ERROR_PYLINT_VERSION_NOT_FIXED]
 
-        pylint_version = None
-        for line in lines:
-            if not line.strip().startswith("- pip install --force-reinstall pylint=="):
-                continue
-            pylint_version = line.split("=")[-1]
+        pip_line = pip_line[0]
+
+        pylint_info = re.search(re_pylint_pattern, pip_line)
+        if not pylint_info:
+            return [ERROR_PYLINT_VERSION_NOT_FIXED]
+
+        if pylint_info.group("eval"):
+            pylint_version = (
+                f"{pylint_info.group('major')}"
+                f"{pylint_info.group('minor').replace('.', '')}"
+            )
+            eval_func = pylint_info.group("eval")
+            eval_len = len(pylint_version)
+
+            if "<" in eval_func:
+                eval_str = (
+                    f"{self.latest_pylint[:eval_len]} "
+                    f"{eval_func} "
+                    f"{pylint_version}"
+                )
+            elif "~" not in eval_func:
+                eval_str = (
+                    f"{pylint_version} "
+                    f"{eval_func} "
+                    f"{self.latest_pylint[:eval_len]}"
+                )
+            else:
+                return [ERROR_PYLINT_VERSION_NOT_FIXED]
+
+        else:
+            pylint_version = self.latest_pylint
+            eval_str = "True"
+
+        #print(
+        #    f"{repo['name']}: pylint_version: {pylint_version} latest: {self.latest_pylint}\n"
+        #    f"{pylint_info.groups()} eval_str: {eval_str}"
+        #)
 
         if not pylint_version:
             errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
-        # disabling below for now, since we know all pylint versions are old
-        # will re-enable once efforts are underway to update pylint
-        #elif pylint_version.startswith("1."):
-        #    errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
-        #elif pylint_version != self.latest_pylint:
-        #    errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
+        elif not eval(eval_str):
+            errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
 
         return errors
 
@@ -506,6 +535,28 @@ class library_validator():
 
         if ".travis.yml" in files:
             errors.append(ERROR_NEEDS_ACTION_MIGRATION)
+        elif ".github" in files:
+            # grab '.github' entry, extract URL, build new URL to build.yml, retrieve and pass
+            build_yml_url = ""
+            actions_build_info = None
+
+            for item in content_list:
+                if item.get("name") == ".github" and item.get("type") == "dir":
+                    build_yml_url = item["url"].split("?")[0]
+                    break
+
+            if build_yml_url:
+                build_yml_url = build_yml_url + "/workflows/build.yml"
+                response = github.get(build_yml_url)
+                if response.ok:
+                    actions_build_info = response.json()
+
+            if actions_build_info:
+                errors.extend(
+                    self._validate_actions_build_yml(repo, actions_build_info)
+                )
+            else:
+                errors.append(ERROR_UNABLE_PULL_REPO_CONTENTS)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
             fn = "readthedocs.yml"
