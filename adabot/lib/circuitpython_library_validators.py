@@ -30,6 +30,9 @@ from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
+from packaging.version import parse as pkg_version_parse
+from packaging.requirements import Requirement as pkg_Requirement
+
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
@@ -155,7 +158,7 @@ class library_validator():
     def __init__(self, validators, bundle_submodules, latest_pylint, **kw_args):
         self.validators = validators
         self.bundle_submodules = bundle_submodules
-        self.latest_pylint = latest_pylint.replace(".", "")
+        self.latest_pylint = pkg_version_parse(latest_pylint)
         self.full_auth = None
         self.output_file_data = []
         self.github_token = kw_args.get("github_token", False)
@@ -386,9 +389,7 @@ class library_validator():
 
         pylint_version = None
         re_pip_pattern = r"pip\sinstall.*"
-        re_pylint_pattern = (
-            r"pylint(?P<eval>(?:[<>~=]){0,2})(?P<major>\d*)(?P<minor>(?:\.\d){0,2})"
-        )
+        re_pylint_pattern = r"(?P<pylint>pylint(?:[<>~=]){0,2}\d*(?:\.\d){0,2})"
 
         pip_line = re.search(re_pip_pattern, contents.text)
         if not pip_line:
@@ -397,44 +398,17 @@ class library_validator():
         pip_line = pip_line[0]
 
         pylint_info = re.search(re_pylint_pattern, pip_line)
-        if not pylint_info:
+        if not pylint_info or not pylint_info.group("pylint"):
             return [ERROR_PYLINT_VERSION_NOT_FIXED]
 
-        if pylint_info.group("eval"):
-            pylint_version = (
-                f"{pylint_info.group('major')}"
-                f"{pylint_info.group('minor').replace('.', '')}"
-            )
-            eval_func = pylint_info.group("eval")
-            eval_len = len(pylint_version)
-
-            if "<" in eval_func:
-                eval_str = (
-                    f"{self.latest_pylint[:eval_len]} "
-                    f"{eval_func} "
-                    f"{pylint_version}"
-                )
-            elif "~" not in eval_func:
-                eval_str = (
-                    f"{pylint_version} "
-                    f"{eval_func} "
-                    f"{self.latest_pylint[:eval_len]}"
-                )
-            else:
-                return [ERROR_PYLINT_VERSION_NOT_FIXED]
-
-        else:
-            pylint_version = self.latest_pylint
-            eval_str = "True"
-
-        #print(
-        #    f"{repo['name']}: pylint_version: {pylint_version} latest: {self.latest_pylint}\n"
-        #    f"{pylint_info.groups()} eval_str: {eval_str}"
-        #)
+        try:
+            pylint_version = pkg_Requirement(pylint_info.group("pylint"))
+        except Exception:
+            pass
 
         if not pylint_version:
             errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
-        elif not eval(eval_str):
+        elif self.latest_pylint not in pylint_version.specifier:
             errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
 
         return errors
