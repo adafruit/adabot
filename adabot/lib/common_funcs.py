@@ -168,7 +168,7 @@ def list_repos(*, include_repos=None):
     """
     repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Adafruit_CircuitPython user:adafruit archived:false",
+                        params={"q":"Adafruit_CircuitPython user:adafruit archived:false fork:true",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"}
