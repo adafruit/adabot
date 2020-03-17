@@ -1,0 +1,31 @@
+From b9de652ea9505eda809808f51fde922201b8077b Mon Sep 17 00:00:00 2001
+From: sommersoft <sommersoft@gmail.com>
+Date: Mon, 16 Mar 2020 21:12:48 -0500
+Subject: [PATCH] update build.yml to pip install pylint black sphinx
+
+---
+ .github/workflows/build.yml | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 11ce574..fff3aa9 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -34,9 +34,13 @@ jobs:
+       with:
+         repository: adafruit/actions-ci-circuitpython-libs
+         path: actions-ci
+-    - name: Install deps
++    - name: Install dependencies
++      # (e.g. - apt-get: gettext, etc; pip: circuitpython-build-tools, requirements.txt; etc.)
+       run: |
+         source actions-ci/install.sh
++    - name: Pip install pylint, black, & Sphinx
++      run: |
++        pip install --force-reinstall pylint==1.9.2 black==19.10b0 Sphinx sphinx-rtd-theme
+     - name: Library version
+       run: git describe --dirty --always --tags
+     - name: PyLint
+-- 
+2.17.1
+
