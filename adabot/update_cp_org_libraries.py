@@ -30,6 +30,7 @@ import re
 from adabot.lib import common_funcs
 from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
+from adabot import pypi_requests as pypi
 
 DO_NOT_VALIDATE = ['CircuitPython_Community_Bundle']
 
@@ -164,10 +165,16 @@ if __name__ == "__main__":
         if vals[0].startswith("validate")
     ]
     bundle_submodules = common_funcs.get_bundle_submodules()
+
+    latest_pylint = ""
+    pylint_info = pypi.get("/pypi/pylint/json")
+    if pylint_info and pylint_info.ok:
+        latest_pylint = pylint_info.json()["info"]["version"]
+
     validator = cpy_vals.library_validator(
         default_validators,
         bundle_submodules,
-        0.0
+        latest_pylint
     )
 
     for repo in repos:
