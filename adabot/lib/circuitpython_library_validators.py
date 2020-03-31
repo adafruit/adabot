@@ -142,7 +142,20 @@ LIBRARIES_DONT_NEED_BLINKA = [
     "Adafruit_CircuitPython_miniQR",
 ]
 
-STD_REPO_LABELS = ("bug", "documentation", "enhancement", "good first issue")
+STD_REPO_LABELS = {
+    "bug": {
+        "color": "ee0701"
+    },
+    "documentation": {
+        "color": "d4c5f9"
+    },
+    "enhancement": {
+        "color": "84b6eb"
+    },
+    "good first issue": {
+        "color": "7057ff"
+    }
+}
 
 # Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
 rtd_subprojects = None
@@ -982,13 +995,27 @@ class library_validator():
             self.output_file_data.append("Labels request failed: {}".format(repo["full_name"]))
             return [ERROR_OUTPUT_HANDLER]
 
+        errors = []
+
         repo_labels = [label["name"] for label in response.json()]
+
         has_all_labels = True
-        for label in STD_REPO_LABELS:
+        for label, info in STD_REPO_LABELS.items():
             if not label in repo_labels:
-                has_all_labels = False
+                response = github.post(
+                    "/repos/" + repo["full_name"] + "/labels",
+                    json={"name": label, "color": info["color"]}
+                )
+                if not response.ok:
+                    has_all_labels = False
+                    self.output_file_data.append(
+                        "Request to add '{}' label failed: {}".format(label,
+                                                                      repo["full_name"])
+                    )
+                    if ERROR_OUTPUT_HANDLER not in errors:
+                        errors.append(ERROR_OUTPUT_HANDLER)
 
         if not has_all_labels:
-            return [ERROR_MISSING_STANDARD_LABELS]
-        else:
-            return []
+            errors.append(ERROR_MISSING_STANDARD_LABELS)
+
+        return errors
