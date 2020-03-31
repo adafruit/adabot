@@ -25,7 +25,6 @@ import re
 import requests
 
 from adabot import github_requests as github
-from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
@@ -35,7 +34,6 @@ from packaging.requirements import Requirement as pkg_Requirement
 
 
 # Define constants for error strings to make checking against them more robust:
-ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
 ERROR_README_DOWNLOAD_FAILED = "Failed to download README"
 ERROR_README_IMAGE_MISSING_ALT = "README image missing alt text"
 ERROR_README_DUPLICATE_ALT_TEXT = "README has duplicate alt text"
@@ -69,16 +67,10 @@ ERROR_MISSING_LINT = "Missing lint config"
 ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yml"
-ERROR_MISSING_TRAVIS_CONFIG = "Missing .travis.yml"
-ERROR_MISSING_PYPIPROVIDER = "For pypi compatibility, missing pypi provider in .travis.yml"
 ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 ERROR_NOT_IN_BUNDLE = "Not in bundle."
-ERROR_TRAVIS_DOESNT_KNOW_REPO = "Travis doesn't know of repo"
-ERROR_TRAVIS_ENV = "Unable to read Travis env variables"
-ERROR_TRAVIS_GITHUB_TOKEN = "Unable to find or create (no auth) GITHUB_TOKEN env variable"
-ERROR_TRAVIS_TOKEN_CREATE = "Token creation failed"
 ERROR_UNABLE_PULL_REPO_CONTENTS = "Unable to pull repo contents"
 ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
@@ -172,9 +164,7 @@ class library_validator():
         self.validators = validators
         self.bundle_submodules = bundle_submodules
         self.latest_pylint = pkg_version_parse(latest_pylint)
-        self.full_auth = None
         self.output_file_data = []
-        self.github_token = kw_args.get("github_token", False)
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
 
     def run_repo_validation(self, repo):
@@ -490,7 +480,7 @@ class library_validator():
             files = [x["name"] for x in content_list]
 
         # ignore new/in-work repos, which should have less than 8 files:
-        # ___.py or folder, CoC, .travis.yml, .readthedocs.yml, docs/,
+        # ___.py or folder, CoC, .github/, .readthedocs.yml, docs/,
         # examples/, README, LICENSE
         if len(files) < 8:
             BUNDLE_IGNORE_LIST.append(repo["name"])
@@ -637,77 +627,6 @@ class library_validator():
                     errors.extend(self._validate_py_for_u_modules(repo, dir_file))
 
         return errors
-
-    def _validate_travis(self, repo):
-        """ DISABLED: Validate and configure a repository has the expected state in Travis
-        CI.  This will both check Travis state and attempt to enable Travis CI
-        and setup the expected state in Travis if not enabled.  Expects a
-        dictionary with a GitHub API repository state (like from the list_repos
-        function).  Returns a list of string error messages for the repository.
-        """
-        return []
-
-        if not (repo["owner"]["login"] == "adafruit" and
-                repo["name"].startswith("Adafruit_CircuitPython")):
-            return []
-        repo_url = "/repo/" + repo["owner"]["login"] + "%2F" + repo["name"]
-        result = travis.get(repo_url)
-        if not result.ok:
-            #print(result, result.request.url, result.request.headers)
-            #print(result.text)
-            return [ERROR_TRAVIS_DOESNT_KNOW_REPO]
-        result = result.json()
-        if not result["active"]:
-            activate = travis.post(repo_url + "/activate")
-            if not activate.ok:
-                #print(activate.request.url)
-                #print("{} {}".format(activate, activate.text))
-                return [ERROR_ENABLE_TRAVIS]
-
-        env_variables = travis.get(repo_url + "/env_vars")
-        if not env_variables.ok:
-            #print(env_variables, env_variables.text)
-            #print(env_variables.request.headers)
-            return [ERROR_TRAVIS_ENV]
-        env_variables = env_variables.json()
-        found_token = False
-        for var in env_variables["env_vars"]:
-            found_token = found_token or var["name"] == "GITHUB_TOKEN"
-        ok = True
-        if not found_token:
-            if not self.github_token:
-                return [ERROR_TRAVIS_GITHUB_TOKEN]
-            else:
-                if not self.full_auth:
-                    #github_user = github_token
-                    github_user = github.get("/user").json()
-                    password = input("Password for " + github_user["login"] + ": ")
-                    self.full_auth = (github_user["login"], password.strip())
-                if not self.full_auth:
-                    return [ERROR_TRAVIS_GITHUB_TOKEN]
-
-                new_access_token = {"scopes": ["public_repo"],
-                                    "note": "TravisCI release token for " + repo["full_name"],
-                                    "note_url": "https://travis-ci.com/" + repo["full_name"]}
-                token = github.post("/authorizations", json=new_access_token, auth=self.full_auth)
-                if not token.ok:
-                    print(token.text)
-                    return [ERROR_TRAVIS_TOKEN_CREATE]
-
-                token = token.json()
-                grant_id = token["id"]
-                token = token["token"]
-
-                new_var = {"env_var.name": "GITHUB_TOKEN",
-                           "env_var.value": token,
-                           "env_var.public": False}
-                new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
-                if not new_var_result.ok:
-                    #print(new_var_result.headers, new_var_result.text)
-                    github.delete("/authorizations/{}".format(grant_id), auth=self.full_auth)
-                    return [ERROR_TRAVIS_GITHUB_TOKEN]
-
-        return []
 
     def validate_readthedocs(self, repo):
         if not (repo["owner"]["login"] == "adafruit" and
