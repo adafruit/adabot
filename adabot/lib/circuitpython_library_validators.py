@@ -193,8 +193,12 @@ class library_validator():
             errors.append(ERROR_WIKI_DISABLED)
         if not repo.get("license") and not repo["name"] in BUNDLE_IGNORE_LIST:
             errors.append(ERROR_MISSING_LICENSE)
-        if not repo.get("permissions", {}).get("push"):
-            errors.append(ERROR_MISSING_LIBRARIANS)
+
+        ## Temporarily disabling the CircuitPython Librarians permission check.
+        ## See Issue #146: https://github.com/adafruit/adabot/issues/146
+        #if not repo.get("permissions", {}).get("push"):
+        #    errors.append(ERROR_MISSING_LIBRARIANS)
+
         if (not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules)
             and not repo["name"] in BUNDLE_IGNORE_LIST):
                 # Don't assume the bundle will bundle itself and possibly
