@@ -32,7 +32,6 @@ import inspect
 import requests
 
 from adabot import github_requests as github
-from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
@@ -67,12 +66,6 @@ cmd_line_parser.add_argument(
     type=int,
     default=5,
     metavar="n"
-)
-cmd_line_parser.add_argument(
-    "-t", "--travis-github-token",
-    help="Prompt for the GitHub user's password in order to make a GitHub token to use on Travis.",
-    dest="gh_token",
-    action="store_true"
 )
 cmd_line_parser.add_argument(
     "-v", "--validator",
@@ -503,10 +496,6 @@ if __name__ == "__main__":
     if cmd_line_args.validator:
         error_depth = cmd_line_args.error_depth
         startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
-
-        github_token = cmd_line_args.gh_token
-        validator_kwarg_list["github_token"] = github_token
-        startup_message.append(" - Prompts for the GitHub Token are {}.".format(("enabled" if github_token else "disabled")))
 
         if cmd_line_args.validator != "all":
             validators = []
