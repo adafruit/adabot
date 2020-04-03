@@ -184,25 +184,49 @@ class library_validator():
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
-        full_repo = github.get("/repos/" + repo["full_name"])
-        if not full_repo.ok:
-            return [ERROR_UNABLE_PULL_REPO_DETAILS]
-        full_repo = full_repo.json()
+
+        search_keys = {
+            "has_wiki",
+            "license",
+            "permissions",
+            "allow_squash_merge",
+            "allow_rebase_merge",
+        }
+
+        repo_fields = repo.copy()
+
+        repo_fields_keys = set(repo_fields.keys())
+        repo_missing_some_keys = search_keys.difference(repo_fields_keys)
+
+        if repo_missing_some_keys:
+            # only call the API if the passed in `repo` doesn't have what
+            # we need.
+            response = github.get("/repos/" + repo["full_name"])
+            if not response.ok:
+                return [ERROR_UNABLE_PULL_REPO_DETAILS]
+            repo_fields = response.json()
+
         errors = []
-        if repo["has_wiki"]:
+
+        if repo_fields.get("has_wiki"):
             errors.append(ERROR_WIKI_DISABLED)
-        if not repo.get("license") and not repo["name"] in BUNDLE_IGNORE_LIST:
-            errors.append(ERROR_MISSING_LICENSE)
-        if not repo.get("permissions", {}).get("push"):
+
+        if (not repo_fields.get("license") and
+            not repo["name"] in BUNDLE_IGNORE_LIST):
+                errors.append(ERROR_MISSING_LICENSE)
+
+        if not repo_fields.get("permissions", {}).get("push"):
             errors.append(ERROR_MISSING_LIBRARIANS)
-        if (not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules)
-            and not repo["name"] in BUNDLE_IGNORE_LIST):
+
+        repo_in_bundle = common_funcs.is_repo_in_bundle(repo_fields["clone_url"],
+                                                        self.bundle_submodules)
+        if not repo_in_bundle and not repo["name"] in BUNDLE_IGNORE_LIST:
                 # Don't assume the bundle will bundle itself and possibly
                 # other repos.
                 errors.append(ERROR_NOT_IN_BUNDLE)
-        if ("allow_squash_merge" not in full_repo
-            or full_repo["allow_squash_merge"]
-            or full_repo["allow_rebase_merge"]):
+
+        if (repo_fields.get("allow_squash_merge") or
+            repo_fields.get("allow_rebase_merge")):
                 errors.append(ERROR_ONLY_ALLOW_MERGES)
         return errors
 
