@@ -225,9 +225,6 @@ class library_validator():
                 # other repos.
                 errors.append(ERROR_NOT_IN_BUNDLE)
 
-        #if ("allow_squash_merge" not in repo_fields
-        #    or repo_fields["allow_squash_merge"]
-        #    or repo_fields["allow_rebase_merge"]):
         if (repo_fields.get("allow_squash_merge") or
             repo_fields.get("allow_squash_merge")):
                 errors.append(ERROR_ONLY_ALLOW_MERGES)
