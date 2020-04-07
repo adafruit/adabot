@@ -232,11 +232,28 @@ class library_validator():
 
     def validate_release_state(self, repo):
         """Validate if a repo 1) has a release, and 2) if there have been commits
-        since the last release.
+        since the last release. Only files that drive user-facing changes
+        will be considered when flagging a repo as needing a release.
 
         If 2), categorize by length of time passed since oldest commit after the release,
         and return the number of days that have passed since the oldest commit.
         """
+
+        def _filter_file_diffs(filenames):
+            _ignored_files = {
+                "CODE_OF_CONDUCT.md",
+                "LICENSE",
+                "setup.py.disabled",
+            }
+            compare_files = [
+                name for name in filenames if not name.startswith(".")
+            ]
+            non_ignored_files = list(
+                set(compare_files).difference(_ignored_files)
+            )
+
+            return non_ignored_files
+
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
@@ -281,28 +298,37 @@ class library_validator():
             return [ERROR_OUTPUT_HANDLER]
         compare_tags_json = compare_tags.json()
         if "status" in compare_tags_json:
-            if compare_tags.json()["status"] != "identical":
-                oldest_commit_date = datetime.datetime.today()
-                for commit in compare_tags_json["commits"]:
-                    commit_date = datetime.datetime.strptime(commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
-                    if commit_date < oldest_commit_date:
-                        oldest_commit_date = commit_date
+            if compare_tags_json["status"] != "identical":
 
-                date_diff = datetime.datetime.today() - oldest_commit_date
-                #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, oldest_commit_date, datetime.datetime.today(), date_diff.days))
-                #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
-                #      compare_tags_json["status"], compare_tags_json["ahead_by"],
-                #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
-                if date_diff.days > datetime.date.today().max.day:
-                    return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM,
-                            date_diff.days)]
-                elif date_diff.days <= datetime.date.today().max.day:
-                    if date_diff.days > 7:
-                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M,
+                comp_filenames = [
+                    file["filename"] for file in compare_tags_json.get("files")
+                ]
+                filtered_files = _filter_file_diffs(comp_filenames)
+
+                if filtered_files:
+                    oldest_commit_date = datetime.datetime.today()
+                    for commit in compare_tags_json["commits"]:
+                        commit_date_val = commit["commit"]["committer"]["date"]
+                        commit_date = datetime.datetime.strptime(commit_date_val,
+                                                                 "%Y-%m-%dT%H:%M:%SZ")
+                        if commit_date < oldest_commit_date:
+                            oldest_commit_date = commit_date
+
+                    date_diff = datetime.datetime.today() - oldest_commit_date
+                    #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, oldest_commit_date, datetime.datetime.today(), date_diff.days))
+                    #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
+                    #      compare_tags_json["status"], compare_tags_json["ahead_by"],
+                    #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
+                    if date_diff.days > datetime.date.today().max.day:
+                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM,
                                 date_diff.days)]
-                    else:
-                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
-                                date_diff.days)]
+                    elif date_diff.days <= datetime.date.today().max.day:
+                        if date_diff.days > 7:
+                            return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M,
+                                    date_diff.days)]
+                        else:
+                            return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
+                                    date_diff.days)]
         elif "errors" in compare_tags_json:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
