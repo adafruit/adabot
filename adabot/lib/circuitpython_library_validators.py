@@ -166,6 +166,7 @@ class library_validator():
         self.latest_pylint = pkg_version_parse(latest_pylint)
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
+        self.has_setup_py_disabled = set()
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
@@ -537,8 +538,12 @@ class library_validator():
             if not self.validate_contents_quiet:
                 return [ERROR_NEW_REPO_IN_WORK]
 
+        if "setup.py.disabled" in files:
+            self.has_setup_py_disabled.add(repo["name"])
+
         # if we're only running due to -v, ignore the rest. we only care about
-        # adding in-work repos to the BUNDLE_IGNORE_LIST
+        # adding in-work repos to the BUNDLE_IGNORE_LIST and if setup.py is
+        # disabled
         if self.validate_contents_quiet:
             return []
 
@@ -599,14 +604,15 @@ class library_validator():
         if "setup.py" in files:
             file_info = content_list[files.index("setup.py")]
             errors.extend(self._validate_setup_py(repo, file_info))
-        else:
+        elif "setup.py.disabled" not in files:
             errors.append(ERROR_MISSING_SETUP_PY)
 
-        if "requirements.txt" in files:
-            file_info = content_list[files.index("requirements.txt")]
-            errors.extend(self._validate_requirements_txt(repo, file_info))
-        else:
-            errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
+        if repo["name"] not in self.has_setup_py_disabled:
+            if "requirements.txt" in files:
+                file_info = content_list[files.index("requirements.txt")]
+                errors.extend(self._validate_requirements_txt(repo, file_info))
+            else:
+                errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
 
 
         #Check for an examples folder.
@@ -947,8 +953,9 @@ class library_validator():
 
     def validate_in_pypi(self, repo):
         """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
-        if repo["name"] in BUNDLE_IGNORE_LIST:
-            return []
+        if (repo["name"] in BUNDLE_IGNORE_LIST or
+            repo["name"] in self.has_setup_py_disabled):
+                return []
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
