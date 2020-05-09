@@ -636,14 +636,73 @@ class library_validator():
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
-                lib_name = (repo["name"][repo["name"].rfind("CircuitPython_")
-                            + 14:].lower())
+                def __check_lib_name(repo_name, file_name):
+                    """ Nested function to test example file names.
+                        Allows examples to either match the repo name,
+                        or have underscores separating the repo name.
+                    """
+                    file_names = set()
+                    file_names.add(file_name)
+
+                    name_split = file_name.split("_")
+                    name_rebuilt = ''.join(
+                        (part for part in name_split if ".py" not in part)
+                    )
+
+                    if name_rebuilt: # avoid adding things like 'simpletest.py' -> ''
+                        file_names.add(name_rebuilt)
+
+                    found = False
+
+""" Option 1:
+    Strips underscores from repo name and example name, and makes comparison
+
+                    repo_name_stripped = repo_name.replace("_", "")
+                    match = name_rebuilt.startswith(repo_name_stripped)
+                    print(
+                        f"Checking {repo_name} against {file_name}\n"
+                        f"\tRepo name stripped of '_': {repo_name_stripped}\n"
+                        f"\tRebuilt example name: {name_rebuilt}\n"
+                        f"\tMatch: {match}"
+                    )
+                    return match
+"""
+
+""" Option 2:
+    Strips underscores from example file name only, adds to set with original
+    file name, and compares repo name to both example file name versions
+
+                    #return any(
+                    #    name.startswith(repo_name) for name in file_names
+                    #)
+
+                    ## long form only for showing results; 'any' above is the preferred version
+                    print(f"Checking {repo_name} against {file_name} versions:")
+                    for name in file_names:
+                        if name.startswith(repo_name):
+                            found = True
+
+                        print(
+                            f"\tExample file name: {name}\tMatch: {found}"
+                        )
+
+                    return found
+                    ##
+"""
+
+                lib_name_start = repo["name"].rfind("CircuitPython_") + 14
+                lib_name = repo["name"][lib_name_start:].lower()
+
                 all_have_name = True
                 simpletest_exists = False
                 for example in examples_list:
-                    if (not example["name"].lower().startswith(lib_name)
-                        and example["name"].endswith(".py")):
-                            all_have_name = False
+                    if example["name"].endswith(".py"):
+                        check_lib_name = __check_lib_name(
+                            lib_name,
+                            example["name"].lower()
+                        )
+                        if not check_lib_name:
+                                all_have_name = False
                     if "simpletest" in example["name"].lower():
                         simpletest_exists = True
                 if not all_have_name:
