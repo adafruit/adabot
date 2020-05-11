@@ -639,7 +639,7 @@ class library_validator():
                 def __check_lib_name(repo_name, file_name):
                     """ Nested function to test example file names.
                         Allows examples to either match the repo name,
-                        or have underscores separating the repo name.
+                        or have additional underscores separating the repo name.
                     """
                     file_names = set()
                     file_names.add(file_name)
@@ -654,41 +654,9 @@ class library_validator():
 
                     found = False
 
-""" Option 1:
-    Strips underscores from repo name and example name, and makes comparison
-
-                    repo_name_stripped = repo_name.replace("_", "")
-                    match = name_rebuilt.startswith(repo_name_stripped)
-                    print(
-                        f"Checking {repo_name} against {file_name}\n"
-                        f"\tRepo name stripped of '_': {repo_name_stripped}\n"
-                        f"\tRebuilt example name: {name_rebuilt}\n"
-                        f"\tMatch: {match}"
+                    return any(
+                        name.startswith(repo_name) for name in file_names
                     )
-                    return match
-"""
-
-""" Option 2:
-    Strips underscores from example file name only, adds to set with original
-    file name, and compares repo name to both example file name versions
-
-                    #return any(
-                    #    name.startswith(repo_name) for name in file_names
-                    #)
-
-                    ## long form only for showing results; 'any' above is the preferred version
-                    print(f"Checking {repo_name} against {file_name} versions:")
-                    for name in file_names:
-                        if name.startswith(repo_name):
-                            found = True
-
-                        print(
-                            f"\tExample file name: {name}\tMatch: {found}"
-                        )
-
-                    return found
-                    ##
-"""
 
                 lib_name_start = repo["name"].rfind("CircuitPython_") + 14
                 lib_name = repo["name"][lib_name_start:].lower()
