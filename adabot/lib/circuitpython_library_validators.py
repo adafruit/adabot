@@ -636,14 +636,41 @@ class library_validator():
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
-                lib_name = (repo["name"][repo["name"].rfind("CircuitPython_")
-                            + 14:].lower())
+                def __check_lib_name(repo_name, file_name):
+                    """ Nested function to test example file names.
+                        Allows examples to either match the repo name,
+                        or have additional underscores separating the repo name.
+                    """
+                    file_names = set()
+                    file_names.add(file_name)
+
+                    name_split = file_name.split("_")
+                    name_rebuilt = ''.join(
+                        (part for part in name_split if ".py" not in part)
+                    )
+
+                    if name_rebuilt: # avoid adding things like 'simpletest.py' -> ''
+                        file_names.add(name_rebuilt)
+
+                    found = False
+
+                    return any(
+                        name.startswith(repo_name) for name in file_names
+                    )
+
+                lib_name_start = repo["name"].rfind("CircuitPython_") + 14
+                lib_name = repo["name"][lib_name_start:].lower()
+
                 all_have_name = True
                 simpletest_exists = False
                 for example in examples_list:
-                    if (not example["name"].lower().startswith(lib_name)
-                        and example["name"].endswith(".py")):
-                            all_have_name = False
+                    if example["name"].endswith(".py"):
+                        check_lib_name = __check_lib_name(
+                            lib_name,
+                            example["name"].lower()
+                        )
+                        if not check_lib_name:
+                                all_have_name = False
                     if "simpletest" in example["name"].lower():
                         simpletest_exists = True
                 if not all_have_name:
