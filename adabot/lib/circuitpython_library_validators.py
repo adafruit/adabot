@@ -855,7 +855,17 @@ class library_validator():
                         )
                         insights["merged_prs"].append(pr_link)
 
-                        insights["pr_merged_authors"].add(pr_info["user"]["login"])
+                        pr_author = pr_info["user"]["login"]
+                        if pr_author == "weblate":
+                            pr_commits = github.get(str(pr_info["url"]) + "/commits")
+                            if pr_commits.ok:
+                                for commit in pr_commits.json():
+                                    author = commit.get("author")
+                                    if author:
+                                        insights["pr_merged_authors"].add(author["login"])
+                        else:
+                            insights["pr_merged_authors"].add(pr_info["user"]["login"])
+
                         insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
                         pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
