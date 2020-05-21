@@ -49,7 +49,7 @@ def list_repos():
     """
     repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Arduino in:name in:description in:readme fork:true user:adafruit archived:false AND NOT PCB in:name AND NOT CircuitPython in:name",
+                        params={"q":"Arduino in:name in:description in:readme fork:true user:adafruit archived:false OR Library in:name in:description in:readme fork:true user:adafruit archived:false AND NOT PCB in:name AND NOT CircuitPython in:name",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"})
