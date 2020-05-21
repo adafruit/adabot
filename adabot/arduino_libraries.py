@@ -160,11 +160,11 @@ def validate_release_state(repo):
 
     return
 
-def validate_travis(repo):
-    """Validate if a repo has .travis.yml.
+def validate_actions(repo):
+    """Validate if a repo has workflows/githubci.yml
     """
-    repo_has_travis = requests.get("https://raw.githubusercontent.com/adafruit/" + repo["name"] + "/master/.travis.yml")
-    return repo_has_travis.ok
+    repo_has_actions = requests.get("https://raw.githubusercontent.com/adafruit/" + repo["name"] + "/master/.github/workflows/githubci.yml")
+    return repo_has_actions.ok
 
 def validate_example(repo):
     """Validate if a repo has any files in examples directory
@@ -181,7 +181,7 @@ def run_arduino_lib_checks():
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
     needs_registration_list = [["  Repo"], ["  ----"]]
-    missing_travis_list = [["  Repo"], ["  ----"]]
+    missing_actions_list = [["  Repo"], ["  ----"]]
     missing_library_properties_list = [["  Repo"], ["  ----"]]
 
     for repo in repo_list:
@@ -217,10 +217,10 @@ def run_arduino_lib_checks():
         if needs_release:
             needs_release_list.append(["  " + str(repo["name"]), needs_release[0], needs_release[1]])
 
-        missing_travis = not validate_travis(repo)
-        entry['needs_travis'] = missing_travis
-        if missing_travis:
-            missing_travis_list.append(["  " + str(repo["name"])])
+        missing_actions = not validate_actions(repo)
+        entry['needs_actions'] = missing_actions
+        if missing_actions:
+            missing_actions_list.append(["  " + str(repo["name"])])
 
         all_libraries.append(entry)
 
@@ -236,8 +236,8 @@ def run_arduino_lib_checks():
     if len(needs_release_list) > 2:
         print_list_output("Libraries have commits since last release: ({})", needs_release_list);
 
-    if len(missing_travis_list) > 2:
-        print_list_output("Libraries that is not configured with Travis: ({})", missing_travis_list)
+    if len(missing_actions_list) > 2:
+        print_list_output("Libraries that is not configured with Actions: ({})", missing_actions_list)
 
     if len(missing_library_properties_list) > 2:
         print_list_output("Libraries that is missing library.properties file: ({})", missing_library_properties_list)
