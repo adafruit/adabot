@@ -32,7 +32,6 @@ import inspect
 import requests
 
 from adabot import github_requests as github
-from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
@@ -69,12 +68,6 @@ cmd_line_parser.add_argument(
     metavar="n"
 )
 cmd_line_parser.add_argument(
-    "-t", "--travis-github-token",
-    help="Prompt for the GitHub user's password in order to make a GitHub token to use on Travis.",
-    dest="gh_token",
-    action="store_true"
-)
-cmd_line_parser.add_argument(
     "-v", "--validator",
     help="Run validators with 'all', or only the validator(s) supplied in a string.",
     dest="validator",
@@ -103,7 +96,8 @@ default_validators = [
     if vals[0].startswith("validate")
 ]
 
-pr_sort_re = re.compile("(?<=\(Open\s)(.+)(?=\sdays)")
+pr_sort_re = re.compile(r"(?<=\(Open\s)(.+)(?=\sdays)")
+close_pr_sort_re = re.compile(r"(?<=\(Days\sopen:\s)(.+)(?=\))")
 
 def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     """runs the various library checking functions"""
@@ -112,7 +106,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         latest_pylint = pylint_info.json()["info"]["version"]
     output_handler("Latest pylint is: {}".format(latest_pylint))
 
-    repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',))
+    repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',
+                                                   'CircuitPython_Community_Bundle'))
     output_handler("Found {} repos to check.".format(len(repos)))
     bundle_submodules = common_funcs.get_bundle_submodules()
     output_handler("Found {} submodules in the bundle.".format(len(bundle_submodules)))
@@ -165,7 +160,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                 insights = blinka_insights
             elif repo["name"] == "circuitpython":
                 insights = core_insights
-        errors = validator.gather_insights(repo, insights, since)
+        closed_metric = bool(insights == lib_insights)
+        errors = validator.gather_insights(repo, insights, since, show_closed_metric=closed_metric)
         if errors:
             print("insights error")
             for error in errors:
@@ -182,11 +178,11 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                 updated_libs[repo["name"]] = repo["html_url"]
 
     output_handler()
-    output_handler("State of CircuitPython + Libraries")
+    output_handler("State of CircuitPython + Libraries + Blinka")
 
     output_handler("Overall")
-    print_pr_overview(lib_insights, core_insights)
-    print_issue_overview(lib_insights, core_insights)
+    print_pr_overview(lib_insights, core_insights, blinka_insights)
+    print_issue_overview(lib_insights, core_insights, blinka_insights)
 
     output_handler()
     output_handler("Core")
@@ -208,20 +204,38 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                                                          core_insights["milestones"][milestone]))
     output_handler("  * {} issues not assigned a milestone".format(len(core_insights["open_issues"]) - ms_count))
     output_handler()
-    print_circuitpython_download_stats()
+
+    ## temporarily disabling core download stats:
+    #  - GitHub API has been broken, due to the number of release artifacts
+    #  - Release asset delivery is being moved to AWS CloudFront/S3
+    #print_circuitpython_download_stats()
+    output_handler(
+        "* Core download stats available at https://circuitpython.org/stats"
+    )
 
     output_handler()
     output_handler("Libraries")
     print_pr_overview(lib_insights)
-    output_handler("* {} open pull requests".format(len(lib_insights["open_prs"])))
-    sorted_prs = sorted(lib_insights["open_prs"],
-                        key=lambda days: int(pr_sort_re.search(days).group(1)),
+    output_handler("  * Merged pull requests:")
+    sorted_prs = sorted(lib_insights["merged_prs"],
+                        key=lambda days: int(close_pr_sort_re.search(days).group(1)),
                         reverse=True)
     for pr in sorted_prs:
-        output_handler("  * {}".format(pr))
+        output_handler("    * {}".format(pr))
     print_issue_overview(lib_insights)
-    output_handler("* {} open issues".format(len(lib_insights["open_issues"])))
-    output_handler("  * https://circuitpython.org/contributing")
+    output_handler("* https://circuitpython.org/contributing")
+    output_handler("  * {} open issues".format(len(lib_insights["open_issues"])))
+    open_pr_days = [
+        int(pr_sort_re.search(pr).group(1)) for pr in lib_insights["open_prs"]
+        if pr_sort_re.search(pr) is not None
+    ]
+    output_handler(
+        "  * {0} open pull requests (Oldest: {1}, Newest: {2})".format(
+            len(lib_insights["open_prs"]),
+            max(open_pr_days),
+            max((min(open_pr_days), 1)) # ensure the minumum is '1'
+        )
+    )
     output_handler("Library updates in the last seven days:")
     if len(new_libs) != 0:
         output_handler("**New Libraries**")
@@ -280,9 +294,25 @@ def output_handler(message="", quiet=False):
 
 def print_circuitpython_download_stats():
     """Gather and report analytics on the main CircuitPython repository."""
-    response = github.get("/repos/adafruit/circuitpython/releases")
+
+    # TODO: with the move of release assets to AWS CloudFront/S3, update
+    #       this to use AWS CloudWatch metrics to gather download stats.
+    #       AWS' Python SDK `boto3` has CloudWatch interfaces which should
+    #       enable this. https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudwatch.html
+
+    try:
+        response = github.get("/repos/adafruit/circuitpython/releases")
+    except (ValueError, RuntimeError):
+        output_handler(
+            "Core CircuitPython GitHub download statistics request failed."
+        )
+        return
+
     if not response.ok:
-        output_handler("Core CircuitPython GitHub analytics request failed.")
+        output_handler(
+            "Core CircuitPython GitHub download statistics request failed."
+        )
+        return
     releases = response.json()
 
     found_unstable = False
@@ -416,7 +446,7 @@ def print_circuitpython_download_stats():
     output_handler()
 
 def print_pr_overview(*insights):
-    merged_prs = sum([x["merged_prs"] for x in insights])
+    merged_prs = sum([len(x["merged_prs"]) for x in insights])
     authors = set().union(*[x["pr_merged_authors"] for x in insights])
     reviewers = set().union(*[x["pr_reviewers"] for x in insights])
 
@@ -466,10 +496,6 @@ if __name__ == "__main__":
     if cmd_line_args.validator:
         error_depth = cmd_line_args.error_depth
         startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
-
-        github_token = cmd_line_args.gh_token
-        validator_kwarg_list["github_token"] = github_token
-        startup_message.append(" - Prompts for the GitHub Token are {}.".format(("enabled" if github_token else "disabled")))
 
         if cmd_line_args.validator != "all":
             validators = []

@@ -1,6 +1,7 @@
 certifi==2017.11.5
 chardet==3.0.4
 idna==2.6
+packaging==20.3
 redis==2.10.6
 requests==2.20.0
 sh==1.12.14

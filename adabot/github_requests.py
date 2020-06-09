@@ -35,6 +35,8 @@ import sys
 import time
 import traceback
 
+from base64 import b64encode
+
 TIMEOUT = 60
 
 def _fix_url(url):
@@ -52,11 +54,12 @@ def _fix_kwargs(kwargs):
     else:
         kwargs["headers"] = {"Accept": "application/vnd.github.hellcat-preview+json"}
     if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ and "auth" not in kwargs:
+        user = os.environ.get("ADABOT_GITHUB_USER", "")
         access_token = os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
-        if "params" in kwargs:
-            kwargs["params"]["access_token"] = access_token
-        else:
-            kwargs["params"] = {"access_token": access_token}
+        basic_encoded = b64encode(str(user + ":" + access_token).encode()).decode()
+        auth_header = "Basic {}".format(basic_encoded)
+
+        kwargs["headers"]["Authorization"] = auth_header
 
     return kwargs
 
@@ -79,15 +82,11 @@ def get(url, **kwargs):
             print("GitHub API Rate Limit reached. Pausing until Rate Limit reset.")
             while datetime.datetime.now() < rate_limit_reset:
                 print("Rate Limit will reset at: {}".format(rate_limit_reset))
-                if "TRAVIS" in os.environ:
-                    # only pause for 5 minutes so that Travis doesn't timeout
-                    # due to idle console output.
-                    time.sleep(300)
-                else:
-                    reset_diff = rate_limit_reset - datetime.datetime.now()
+                reset_diff = rate_limit_reset - datetime.datetime.now()
 
-                    print("Sleeping {} seconds".format(reset_diff.seconds))
-                    time.sleep(reset_diff.seconds + 1)
+                print("Sleeping {} seconds".format(reset_diff.seconds))
+                time.sleep(reset_diff.seconds + 1)
+
         if remaining % 100 == 0:
             print(remaining, "requests remaining this hour")
     return response

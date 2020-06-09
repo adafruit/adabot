@@ -30,6 +30,9 @@ import re
 from adabot.lib import common_funcs
 from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
+from adabot import pypi_requests as pypi
+
+DO_NOT_VALIDATE = ['CircuitPython_Community_Bundle']
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
@@ -146,7 +149,7 @@ if __name__ == "__main__":
 
     print("\n".join(startup_message))
 
-    repos = common_funcs.list_repos()
+    repos = common_funcs.list_repos(include_repos=("CircuitPython_Community_Bundle",))
 
     new_libs = {}
     updated_libs = {}
@@ -162,10 +165,16 @@ if __name__ == "__main__":
         if vals[0].startswith("validate")
     ]
     bundle_submodules = common_funcs.get_bundle_submodules()
+
+    latest_pylint = ""
+    pylint_info = pypi.get("/pypi/pylint/json")
+    if pylint_info and pylint_info.ok:
+        latest_pylint = pylint_info.json()["info"]["version"]
+
     validator = cpy_vals.library_validator(
         default_validators,
         bundle_submodules,
-        0.0
+        latest_pylint
     )
 
     for repo in repos:
@@ -195,6 +204,9 @@ if __name__ == "__main__":
         if get_revs:
             reviewers.extend(get_revs)
         merged_pr_count_total += get_merge_count
+
+        if repo_name in DO_NOT_VALIDATE:
+            continue
 
         # run repo validators to check for infrastructure errors
         errors = validator.run_repo_validation(repo)

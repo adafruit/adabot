@@ -115,7 +115,7 @@ Applying Patches To All CircuitPython Libraries
 ================================================
 To apply a patch to all CircuitPython libraries (only guaranteed for files shared
 among all libraries, such as those included in the cookiecutter (e.g. README.rst,
-.travis.yml, etc), do the following:
+ etc), do the following:
 
 1. Apply your update(s) to any library as normal, using ``git commit``. It is recommended to
 give a short, detailed description of the patch. This description will be used by the next

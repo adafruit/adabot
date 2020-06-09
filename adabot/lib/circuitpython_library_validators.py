@@ -25,14 +25,15 @@ import re
 import requests
 
 from adabot import github_requests as github
-from adabot import travis_requests as travis
 from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
+from packaging.version import parse as pkg_version_parse
+from packaging.requirements import Requirement as pkg_Requirement
+
 
 # Define constants for error strings to make checking against them more robust:
-ERROR_ENABLE_TRAVIS = "Unable to enable Travis build"
 ERROR_README_DOWNLOAD_FAILED = "Failed to download README"
 ERROR_README_IMAGE_MISSING_ALT = "README image missing alt text"
 ERROR_README_DUPLICATE_ALT_TEXT = "README has duplicate alt text"
@@ -66,16 +67,10 @@ ERROR_MISSING_LINT = "Missing lint config"
 ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yml"
-ERROR_MISSING_TRAVIS_CONFIG = "Missing .travis.yml"
-ERROR_MISSING_PYPIPROVIDER = "For pypi compatibility, missing pypi provider in .travis.yml"
 ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 ERROR_NOT_IN_BUNDLE = "Not in bundle."
-ERROR_TRAVIS_DOESNT_KNOW_REPO = "Travis doesn't know of repo"
-ERROR_TRAVIS_ENV = "Unable to read Travis env variables"
-ERROR_TRAVIS_GITHUB_TOKEN = "Unable to find or create (no auth) GITHUB_TOKEN env variable"
-ERROR_TRAVIS_TOKEN_CREATE = "Token creation failed"
 ERROR_UNABLE_PULL_REPO_CONTENTS = "Unable to pull repo contents"
 ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
@@ -102,7 +97,6 @@ ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
 ERROR_PYLINT_VERSION_NOT_FIXED = "PyLint version not fixed"
-ERROR_PYLINT_VERSION_VERY_OUTDATED = "PyLint version very out of date"
 ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
@@ -140,7 +134,20 @@ LIBRARIES_DONT_NEED_BLINKA = [
     "Adafruit_CircuitPython_miniQR",
 ]
 
-STD_REPO_LABELS = ("bug", "documentation", "enhancement", "good first issue")
+STD_REPO_LABELS = {
+    "bug": {
+        "color": "ee0701"
+    },
+    "documentation": {
+        "color": "d4c5f9"
+    },
+    "enhancement": {
+        "color": "84b6eb"
+    },
+    "good first issue": {
+        "color": "7057ff"
+    }
+}
 
 # Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
 rtd_subprojects = None
@@ -156,11 +163,10 @@ class library_validator():
     def __init__(self, validators, bundle_submodules, latest_pylint, **kw_args):
         self.validators = validators
         self.bundle_submodules = bundle_submodules
-        self.latest_pylint = latest_pylint
-        self.full_auth = None
+        self.latest_pylint = pkg_version_parse(latest_pylint)
         self.output_file_data = []
-        self.github_token = kw_args.get("github_token", False)
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
+        self.has_setup_py_disabled = set()
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
@@ -179,35 +185,76 @@ class library_validator():
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
-        full_repo = github.get("/repos/" + repo["full_name"])
-        if not full_repo.ok:
-            return [ERROR_UNABLE_PULL_REPO_DETAILS]
-        full_repo = full_repo.json()
+
+        search_keys = {
+            "has_wiki",
+            "license",
+            "permissions",
+            "allow_squash_merge",
+            "allow_rebase_merge",
+        }
+
+        repo_fields = repo.copy()
+
+        repo_fields_keys = set(repo_fields.keys())
+        repo_missing_some_keys = search_keys.difference(repo_fields_keys)
+
+        if repo_missing_some_keys:
+            # only call the API if the passed in `repo` doesn't have what
+            # we need.
+            response = github.get("/repos/" + repo["full_name"])
+            if not response.ok:
+                return [ERROR_UNABLE_PULL_REPO_DETAILS]
+            repo_fields = response.json()
+
         errors = []
-        if repo["has_wiki"]:
+
+        if repo_fields.get("has_wiki"):
             errors.append(ERROR_WIKI_DISABLED)
-        if not repo["license"] and not repo["name"] in BUNDLE_IGNORE_LIST:
-            errors.append(ERROR_MISSING_LICENSE)
-        if not repo["permissions"]["push"]:
+
+        if (not repo_fields.get("license") and
+            not repo["name"] in BUNDLE_IGNORE_LIST):
+                errors.append(ERROR_MISSING_LICENSE)
+
+        if not repo_fields.get("permissions", {}).get("push"):
             errors.append(ERROR_MISSING_LIBRARIANS)
-        if (not common_funcs.is_repo_in_bundle(full_repo["clone_url"], self.bundle_submodules)
-            and not repo["name"] in BUNDLE_IGNORE_LIST):
+
+        repo_in_bundle = common_funcs.is_repo_in_bundle(repo_fields["clone_url"],
+                                                        self.bundle_submodules)
+        if not repo_in_bundle and not repo["name"] in BUNDLE_IGNORE_LIST:
                 # Don't assume the bundle will bundle itself and possibly
                 # other repos.
                 errors.append(ERROR_NOT_IN_BUNDLE)
-        if ("allow_squash_merge" not in full_repo
-            or full_repo["allow_squash_merge"]
-            or full_repo["allow_rebase_merge"]):
+
+        if (repo_fields.get("allow_squash_merge") or
+            repo_fields.get("allow_rebase_merge")):
                 errors.append(ERROR_ONLY_ALLOW_MERGES)
         return errors
 
     def validate_release_state(self, repo):
         """Validate if a repo 1) has a release, and 2) if there have been commits
-        since the last release.
+        since the last release. Only files that drive user-facing changes
+        will be considered when flagging a repo as needing a release.
 
         If 2), categorize by length of time passed since oldest commit after the release,
         and return the number of days that have passed since the oldest commit.
         """
+
+        def _filter_file_diffs(filenames):
+            _ignored_files = {
+                "CODE_OF_CONDUCT.md",
+                "LICENSE",
+                "setup.py.disabled",
+            }
+            compare_files = [
+                name for name in filenames if not name.startswith(".")
+            ]
+            non_ignored_files = list(
+                set(compare_files).difference(_ignored_files)
+            )
+
+            return non_ignored_files
+
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
@@ -252,28 +299,37 @@ class library_validator():
             return [ERROR_OUTPUT_HANDLER]
         compare_tags_json = compare_tags.json()
         if "status" in compare_tags_json:
-            if compare_tags.json()["status"] != "identical":
-                oldest_commit_date = datetime.datetime.today()
-                for commit in compare_tags_json["commits"]:
-                    commit_date = datetime.datetime.strptime(commit["commit"]["committer"]["date"], "%Y-%m-%dT%H:%M:%SZ")
-                    if commit_date < oldest_commit_date:
-                        oldest_commit_date = commit_date
+            if compare_tags_json["status"] != "identical":
 
-                date_diff = datetime.datetime.today() - oldest_commit_date
-                #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, oldest_commit_date, datetime.datetime.today(), date_diff.days))
-                #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
-                #      compare_tags_json["status"], compare_tags_json["ahead_by"],
-                #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
-                if date_diff.days > datetime.date.today().max.day:
-                    return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM,
-                            date_diff.days)]
-                elif date_diff.days <= datetime.date.today().max.day:
-                    if date_diff.days > 7:
-                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M,
+                comp_filenames = [
+                    file["filename"] for file in compare_tags_json.get("files")
+                ]
+                filtered_files = _filter_file_diffs(comp_filenames)
+
+                if filtered_files:
+                    oldest_commit_date = datetime.datetime.today()
+                    for commit in compare_tags_json["commits"]:
+                        commit_date_val = commit["commit"]["committer"]["date"]
+                        commit_date = datetime.datetime.strptime(commit_date_val,
+                                                                 "%Y-%m-%dT%H:%M:%SZ")
+                        if commit_date < oldest_commit_date:
+                            oldest_commit_date = commit_date
+
+                    date_diff = datetime.datetime.today() - oldest_commit_date
+                    #print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, oldest_commit_date, datetime.datetime.today(), date_diff.days))
+                    #print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
+                    #      compare_tags_json["status"], compare_tags_json["ahead_by"],
+                    #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
+                    if date_diff.days > datetime.date.today().max.day:
+                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM,
                                 date_diff.days)]
-                    else:
-                        return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
-                                date_diff.days)]
+                    elif date_diff.days <= datetime.date.today().max.day:
+                        if date_diff.days > 7:
+                            return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M,
+                                    date_diff.days)]
+                        else:
+                            return [(ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
+                                    date_diff.days)]
         elif "errors" in compare_tags_json:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
@@ -372,41 +428,42 @@ class library_validator():
 
         return errors
 
-    def _validate_travis_yml(self, repo, travis_yml_file_info):
-        """DISABLED/NO LONGER CALLED: Check size and then check pypi compatibility.
+    def _validate_actions_build_yml(self, repo, actions_build_info):
+        """Check the following configurations in the GitHub Actions
+            build.yml file:
+                - Pylint version is the latest release
         """
-        return []
 
-        download_url = travis_yml_file_info["download_url"]
+        download_url = actions_build_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
         errors = []
 
-        lines = contents.text.split("\n")
-        pypi_providers_lines = (
-            [l for l in lines
-            if re.match(r"[\s]*-[\s]*provider:[\s]*pypi[\s]*", l)]
-        )
-
-        if not pypi_providers_lines:
-            errors.append(ERROR_MISSING_PYPIPROVIDER)
-
         pylint_version = None
-        for line in lines:
-            if not line.strip().startswith("- pip install --force-reinstall pylint=="):
-                continue
-            pylint_version = line.split("=")[-1]
+        re_pip_pattern = r"pip\sinstall.*"
+        re_pylint_pattern = r"(?P<pylint>pylint(?:[<>~=]){0,2}\d*(?:\.\d){0,2})"
+
+        pip_line = re.search(re_pip_pattern, contents.text)
+        if not pip_line:
+            return [ERROR_PYLINT_VERSION_NOT_FIXED]
+
+        pip_line = pip_line[0]
+
+        pylint_info = re.search(re_pylint_pattern, pip_line)
+        if not pylint_info or not pylint_info.group("pylint"):
+            return [ERROR_PYLINT_VERSION_NOT_FIXED]
+
+        try:
+            pylint_version = pkg_Requirement(pylint_info.group("pylint"))
+        except Exception:
+            pass
 
         if not pylint_version:
             errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
-        # disabling below for now, since we know all pylint versions are old
-        # will re-enable once efforts are underway to update pylint
-        #elif pylint_version.startswith("1."):
-        #    errors.append(ERROR_PYLINT_VERSION_VERY_OUTDATED)
-        #elif pylint_version != self.latest_pylint:
-        #    errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
+        elif self.latest_pylint not in pylint_version.specifier:
+            errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
 
         return errors
 
@@ -474,15 +531,19 @@ class library_validator():
             files = [x["name"] for x in content_list]
 
         # ignore new/in-work repos, which should have less than 8 files:
-        # ___.py or folder, CoC, .travis.yml, .readthedocs.yml, docs/,
+        # ___.py or folder, CoC, .github/, .readthedocs.yml, docs/,
         # examples/, README, LICENSE
         if len(files) < 8:
             BUNDLE_IGNORE_LIST.append(repo["name"])
             if not self.validate_contents_quiet:
                 return [ERROR_NEW_REPO_IN_WORK]
 
+        if "setup.py.disabled" in files:
+            self.has_setup_py_disabled.add(repo["name"])
+
         # if we're only running due to -v, ignore the rest. we only care about
-        # adding in-work repos to the BUNDLE_IGNORE_LIST
+        # adding in-work repos to the BUNDLE_IGNORE_LIST and if setup.py is
+        # disabled
         if self.validate_contents_quiet:
             return []
 
@@ -506,6 +567,28 @@ class library_validator():
 
         if ".travis.yml" in files:
             errors.append(ERROR_NEEDS_ACTION_MIGRATION)
+        elif ".github" in files:
+            # grab '.github' entry, extract URL, build new URL to build.yml, retrieve and pass
+            build_yml_url = ""
+            actions_build_info = None
+
+            for item in content_list:
+                if item.get("name") == ".github" and item.get("type") == "dir":
+                    build_yml_url = item["url"].split("?")[0]
+                    break
+
+            if build_yml_url:
+                build_yml_url = build_yml_url + "/workflows/build.yml"
+                response = github.get(build_yml_url)
+                if response.ok:
+                    actions_build_info = response.json()
+
+            if actions_build_info:
+                errors.extend(
+                    self._validate_actions_build_yml(repo, actions_build_info)
+                )
+            else:
+                errors.append(ERROR_UNABLE_PULL_REPO_CONTENTS)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
             fn = "readthedocs.yml"
@@ -521,14 +604,15 @@ class library_validator():
         if "setup.py" in files:
             file_info = content_list[files.index("setup.py")]
             errors.extend(self._validate_setup_py(repo, file_info))
-        else:
+        elif "setup.py.disabled" not in files:
             errors.append(ERROR_MISSING_SETUP_PY)
 
-        if "requirements.txt" in files:
-            file_info = content_list[files.index("requirements.txt")]
-            errors.extend(self._validate_requirements_txt(repo, file_info))
-        else:
-            errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
+        if repo["name"] not in self.has_setup_py_disabled:
+            if "requirements.txt" in files:
+                file_info = content_list[files.index("requirements.txt")]
+                errors.extend(self._validate_requirements_txt(repo, file_info))
+            else:
+                errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
 
 
         #Check for an examples folder.
@@ -552,14 +636,41 @@ class library_validator():
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
-                lib_name = (repo["name"][repo["name"].rfind("CircuitPython_")
-                            + 14:].lower())
+                def __check_lib_name(repo_name, file_name):
+                    """ Nested function to test example file names.
+                        Allows examples to either match the repo name,
+                        or have additional underscores separating the repo name.
+                    """
+                    file_names = set()
+                    file_names.add(file_name)
+
+                    name_split = file_name.split("_")
+                    name_rebuilt = ''.join(
+                        (part for part in name_split if ".py" not in part)
+                    )
+
+                    if name_rebuilt: # avoid adding things like 'simpletest.py' -> ''
+                        file_names.add(name_rebuilt)
+
+                    found = False
+
+                    return any(
+                        name.startswith(repo_name) for name in file_names
+                    )
+
+                lib_name_start = repo["name"].rfind("CircuitPython_") + 14
+                lib_name = repo["name"][lib_name_start:].lower()
+
                 all_have_name = True
                 simpletest_exists = False
                 for example in examples_list:
-                    if (not example["name"].lower().startswith(lib_name)
-                        and example["name"].endswith(".py")):
-                            all_have_name = False
+                    if example["name"].endswith(".py"):
+                        check_lib_name = __check_lib_name(
+                            lib_name,
+                            example["name"].lower()
+                        )
+                        if not check_lib_name:
+                                all_have_name = False
                     if "simpletest" in example["name"].lower():
                         simpletest_exists = True
                 if not all_have_name:
@@ -599,77 +710,6 @@ class library_validator():
                     errors.extend(self._validate_py_for_u_modules(repo, dir_file))
 
         return errors
-
-    def _validate_travis(self, repo):
-        """ DISABLED: Validate and configure a repository has the expected state in Travis
-        CI.  This will both check Travis state and attempt to enable Travis CI
-        and setup the expected state in Travis if not enabled.  Expects a
-        dictionary with a GitHub API repository state (like from the list_repos
-        function).  Returns a list of string error messages for the repository.
-        """
-        return []
-
-        if not (repo["owner"]["login"] == "adafruit" and
-                repo["name"].startswith("Adafruit_CircuitPython")):
-            return []
-        repo_url = "/repo/" + repo["owner"]["login"] + "%2F" + repo["name"]
-        result = travis.get(repo_url)
-        if not result.ok:
-            #print(result, result.request.url, result.request.headers)
-            #print(result.text)
-            return [ERROR_TRAVIS_DOESNT_KNOW_REPO]
-        result = result.json()
-        if not result["active"]:
-            activate = travis.post(repo_url + "/activate")
-            if not activate.ok:
-                #print(activate.request.url)
-                #print("{} {}".format(activate, activate.text))
-                return [ERROR_ENABLE_TRAVIS]
-
-        env_variables = travis.get(repo_url + "/env_vars")
-        if not env_variables.ok:
-            #print(env_variables, env_variables.text)
-            #print(env_variables.request.headers)
-            return [ERROR_TRAVIS_ENV]
-        env_variables = env_variables.json()
-        found_token = False
-        for var in env_variables["env_vars"]:
-            found_token = found_token or var["name"] == "GITHUB_TOKEN"
-        ok = True
-        if not found_token:
-            if not self.github_token:
-                return [ERROR_TRAVIS_GITHUB_TOKEN]
-            else:
-                if not self.full_auth:
-                    #github_user = github_token
-                    github_user = github.get("/user").json()
-                    password = input("Password for " + github_user["login"] + ": ")
-                    self.full_auth = (github_user["login"], password.strip())
-                if not self.full_auth:
-                    return [ERROR_TRAVIS_GITHUB_TOKEN]
-
-                new_access_token = {"scopes": ["public_repo"],
-                                    "note": "TravisCI release token for " + repo["full_name"],
-                                    "note_url": "https://travis-ci.com/" + repo["full_name"]}
-                token = github.post("/authorizations", json=new_access_token, auth=self.full_auth)
-                if not token.ok:
-                    print(token.text)
-                    return [ERROR_TRAVIS_TOKEN_CREATE]
-
-                token = token.json()
-                grant_id = token["id"]
-                token = token["token"]
-
-                new_var = {"env_var.name": "GITHUB_TOKEN",
-                           "env_var.value": token,
-                           "env_var.public": False}
-                new_var_result = travis.post(repo_url + "/env_vars", json=new_var)
-                if not new_var_result.ok:
-                    #print(new_var_result.headers, new_var_result.text)
-                    github.delete("/authorizations/{}".format(grant_id), auth=self.full_auth)
-                    return [ERROR_TRAVIS_GITHUB_TOKEN]
-
-        return []
 
     def validate_readthedocs(self, repo):
         if not (repo["owner"]["login"] == "adafruit" and
@@ -783,7 +823,7 @@ class library_validator():
 
 
 
-    def gather_insights(self, repo, insights, since):
+    def gather_insights(self, repo, insights, since, show_closed_metric=False):
         """Gather analytics about a repository like open and merged pull requests.
         This expects a dictionary with GitHub API repository state (like from the
         list_repos function) and will fill in the provided insights dictionary
@@ -814,8 +854,45 @@ class library_validator():
                     insights["active_prs"] += 1
                 else:
                     if pr_info["merged"]:
-                        insights["merged_prs"] += 1
-                        insights["pr_merged_authors"].add(pr_info["user"]["login"])
+                        merged_info = ""
+                        if show_closed_metric:
+                            created = datetime.datetime.strptime(
+                                issue["created_at"],
+                                "%Y-%m-%dT%H:%M:%SZ"
+                            )
+                            merged = datetime.datetime.strptime(
+                                issue["closed_at"],
+                                "%Y-%m-%dT%H:%M:%SZ"
+                            )
+
+                            days_open = merged - created
+                            if days_open.days < 0: # opened earlier today
+                                days_open += datetime.timedelta(
+                                    days=(days_open.days * -1)
+                                )
+                            elif days_open.days == 0:
+                                days_open += datetime.timedelta(
+                                    days=(1)
+                                )
+                            merged_info = " (Days open: {})".format(days_open.days)
+
+                        pr_link = "{0}{1}".format(
+                            issue["pull_request"]["html_url"],
+                            merged_info
+                        )
+                        insights["merged_prs"].append(pr_link)
+
+                        pr_author = pr_info["user"]["login"]
+                        if pr_author == "weblate":
+                            pr_commits = github.get(str(pr_info["url"]) + "/commits")
+                            if pr_commits.ok:
+                                for commit in pr_commits.json():
+                                    author = commit.get("author")
+                                    if author:
+                                        insights["pr_merged_authors"].add(author["login"])
+                        else:
+                            insights["pr_merged_authors"].add(pr_info["user"]["login"])
+
                         insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
                         pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
@@ -913,8 +990,9 @@ class library_validator():
 
     def validate_in_pypi(self, repo):
         """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
-        if repo["name"] in BUNDLE_IGNORE_LIST:
-            return []
+        if (repo["name"] in BUNDLE_IGNORE_LIST or
+            repo["name"] in self.has_setup_py_disabled):
+                return []
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
@@ -930,13 +1008,27 @@ class library_validator():
             self.output_file_data.append("Labels request failed: {}".format(repo["full_name"]))
             return [ERROR_OUTPUT_HANDLER]
 
+        errors = []
+
         repo_labels = [label["name"] for label in response.json()]
+
         has_all_labels = True
-        for label in STD_REPO_LABELS:
+        for label, info in STD_REPO_LABELS.items():
             if not label in repo_labels:
-                has_all_labels = False
+                response = github.post(
+                    "/repos/" + repo["full_name"] + "/labels",
+                    json={"name": label, "color": info["color"]}
+                )
+                if not response.ok:
+                    has_all_labels = False
+                    self.output_file_data.append(
+                        "Request to add '{}' label failed: {}".format(label,
+                                                                      repo["full_name"])
+                    )
+                    if ERROR_OUTPUT_HANDLER not in errors:
+                        errors.append(ERROR_OUTPUT_HANDLER)
 
         if not has_all_labels:
-            return [ERROR_MISSING_STANDARD_LABELS]
-        else:
-            return []
+            errors.append(ERROR_MISSING_STANDARD_LABELS)
+
+        return errors

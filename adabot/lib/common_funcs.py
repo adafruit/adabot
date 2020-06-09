@@ -168,7 +168,7 @@ def list_repos(*, include_repos=None):
     """
     repos = []
     result = github.get("/search/repositories",
-                        params={"q":"Adafruit_CircuitPython user:adafruit archived:false",
+                        params={"q":"Adafruit_CircuitPython user:adafruit archived:false fork:true",
                                 "per_page": 100,
                                 "sort": "updated",
                                 "order": "asc"}
@@ -285,7 +285,7 @@ class InsightData(collections.UserDict):
 
     def __init__(self):
         self.data = {
-            "merged_prs": 0,
+            "merged_prs": [],
             "closed_prs": 0,
             "new_prs": 0,
             "active_prs": 0,
