@@ -35,13 +35,28 @@ from adabot.lib.pypi_bigquery_stats import PyPIBigQuery
 from google.auth.exceptions import DefaultCredentialsError
 
 # Setup ArgumentParser
-cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Library download stats." \
-                                          " Provides stats for the Adafruit CircuitPython Bundle, and PyPi if available.",
-                                          prog="Adabot CircuitPython Libraries Download Stats")
-cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the filename provided.",
-                             metavar="<OUTPUT FILENAME>", dest="output_file")
-cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
-                             " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
+cmd_line_parser = argparse.ArgumentParser(
+    prog="Adabot CircuitPython Libraries Download Stats",
+    description=(
+        "Adabot utility for CircuitPython Library download stats. Provides "
+        "stats for the Adafruit CircuitPython Bundle, and PyPi if available."
+    )
+)
+cmd_line_parser.add_argument(
+    "-o",
+    "--output_file",
+    help="Output log to the filename provided.",
+    metavar="<OUTPUT FILENAME>", dest="output_file"
+)
+cmd_line_parser.add_argument(
+    "-v",
+    "--verbose",
+    help="Set the level of verbosity printed to the command prompt.",
+    type=int,
+    default=1,
+    dest="verbose",
+    choices=[0, 1]
+)
 
 # Global variables
 output_filename = None
@@ -50,7 +65,9 @@ file_data = []
 
 # List containing libraries on PyPi that are not returned by the 'list_repos()' function,
 # i.e. are not named 'Adafruit_CircuitPython_'.
-PYPI_FORCE_NON_CIRCUITPYTHON = ["Adafruit-Blinka"]
+PYPI_FORCE_NON_CIRCUITPYTHON = [
+    "Adafruit-Blinka"
+]
 
 
 def get_pypi_stats():
@@ -85,9 +102,9 @@ def get_pypi_stats():
     return successful_stats, failed_stats
 
 def get_bundle_stats(bundle):
-    """ Returns the download stats for 'bundle'. Uses release tag names to compile download
-        stats for the last 7 days. This assumes an Adabot release within that time frame, and
-        that tag name(s) will be the date (YYYYMMDD).
+    """ The download stats for 'bundle'. Uses release tag names to compile
+        download stats for the last 7 days. This assumes an Adabot release
+        within that time frame, and that tag name(s) will be the date (YYYYMMDD).
     """
     stats_dict = {}
     bundle_stats = github.get("/repos/adafruit/" + bundle + "/releases")
@@ -100,8 +117,10 @@ def get_bundle_stats(bundle):
             release_date = datetime.date(int(release["tag_name"][:4]),
                                          int(release["tag_name"][4:6]),
                                          int(release["tag_name"][6:]))
-        except:
-            output_handler("Skipping release. Tag name invalid: {}".format(release["tag_name"]))
+        except Exception:
+            output_handler(
+                f"Skipping release. Tag name invalid: {release['tag_name']}"
+            )
             continue
         if (start_date - release_date).days > 7:
             break
@@ -125,9 +144,14 @@ def output_handler(message="", quiet=False):
 
 def run_stat_check():
     output_handler("Adafruit CircuitPython Library Download Stats")
-    output_handler("Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p")))
+    output_handler(
+        "Report Date: {}".format(
+            datetime.datetime.now().strftime("%d %B %Y, %I:%M%p")
+        )
+    )
     output_handler()
     output_handler("Adafruit_CircuitPython_Bundle downloads for the past week:")
+
     for stat in sorted(get_bundle_stats("Adafruit_CircuitPython_Bundle").items(),
                        key=operator.itemgetter(1), reverse=True):
         output_handler(" {0}: {1}".format(stat[0], stat[1]))
