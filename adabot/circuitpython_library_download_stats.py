@@ -30,6 +30,9 @@ import requests
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
+from adabot.lib.pypi_bigquery_stats import PyPIBigQuery
+
+from google.auth.exceptions import DefaultCredentialsError
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for CircuitPython Library download stats." \
@@ -50,44 +53,34 @@ file_data = []
 PYPI_FORCE_NON_CIRCUITPYTHON = ["Adafruit-Blinka"]
 
 
-def pypistats_get(repo_name):
-    # get download stats for the last week
-    api_url = "https://pypistats.org/api/packages/" + repo_name + "/recent"
-    pypi_stats_last_week = requests.get(api_url, timeout=30)
-    if not pypi_stats_last_week.ok:
-        # return "Failed to retrieve data ({})".format(pypi_stats.text)
-        return None, None
-    pypi_dl_last_week = pypi_stats_last_week.json()["data"]["last_week"]
-
-    # get total download stats
-    pypi_dl_total = 0
-    api_url = "https://pypistats.org/api/packages/" + repo_name + "/overall?mirrors=false"
-    pypi_stats_total = requests.get(api_url, timeout=30)
-    if pypi_stats_total.ok:
-        for data in pypi_stats_total.json()["data"]:
-            pypi_dl_total += data["downloads"]
-
-    return pypi_dl_last_week, pypi_dl_total
-
 def get_pypi_stats():
+    """ PyPI download stats for CircuitPython libraries via
+        `adabot.lib.pypi_bigquery_stats.PyPIBigQuery`
+    """
     successful_stats = {}
     failed_stats = []
-    repos = common_funcs.list_repos()
-    for repo in repos:
-        if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
-            if common_funcs.repo_is_on_pypi(repo):
-                pypi_dl_last_week, pypi_dl_total = pypistats_get(repo["name"].replace("_", "-").lower())
-                if pypi_dl_last_week is None:
-                    failed_stats.append(repo["name"])
-                    continue
-                successful_stats[repo["name"]] = (pypi_dl_last_week, pypi_dl_total)
 
-    for lib in PYPI_FORCE_NON_CIRCUITPYTHON:
-        pypi_dl_last_week, pypi_dl_total = pypistats_get(lib.lower())
-        if pypi_dl_last_week is None:
-            failed_stats.append(lib)
-            continue
-        successful_stats[lib] = (pypi_dl_last_week, pypi_dl_total)
+    try:
+        stats_query = PyPIBigQuery()
+        stats_result = stats_query.query()
+
+    except DefaultCredentialsError:
+        failed_stats.append(
+            "Failed to authenticate with Google BigQuery. Please verify "
+            "credentials."
+        )
+
+    if stats_result:
+        successful_stats.update(
+            {
+                lib: value for lib, value in stats_query.results.items()
+                if lib.startswith("adafruit-circuitpython")
+            }
+        )
+
+        for lib in PYPI_FORCE_NON_CIRCUITPYTHON:
+            pypi_dl_last_week = stats_query.results.get(lib.lower())
+            successful_stats[lib] = pypi_dl_last_week
 
     return successful_stats, failed_stats
 
@@ -142,23 +135,30 @@ def run_stat_check():
 
     pypi_downloads = {}
     pypi_failures = []
-    downloads_list = [["| Library", "| Last Week", "| Total |"],
-                      ["|:-------", "|:--------:", "|:-----:|"]]
-    output_handler("Adafruit CircuitPython Library PyPi downloads:")
-    output_handler()
+    downloads_list = [
+        ["| Library", "| Last Week |"],
+        ["|:-------", "|:--------: |"]
+    ]
     pypi_downloads, pypi_failures = get_pypi_stats()
-    for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1,1), reverse=True):
-        downloads_list.append(["| " + str(stat[0]), "| " + str(stat[1][0]), "| " + str(stat[1][1]) +" |"])
+    if not pypi_failures:
+        output_handler("Adafruit CircuitPython Library PyPi downloads:")
+        for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1, 1),
+                           reverse=True):
+            downloads_list.append([
+                "| " + str(stat[0]),
+                "| " + str(stat[1]) +" |"
+            ])
 
-    long_col = [(max([len(str(row[i])) for row in downloads_list]) + 3)
-                for i in range(len(downloads_list[0]))]
-    row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
-    for lib in downloads_list:
-        output_handler(row_format.format(*lib))
+        long_col = [(max([len(str(row[i])) for row in downloads_list]) + 3)
+                    for i in range(len(downloads_list[0]))]
+        row_format = "".join([
+            "{:<" + str(this_col) + "}" for this_col in long_col
+        ])
+        for lib in downloads_list:
+            output_handler(row_format.format(*lib))
 
-    if len(pypi_failures) > 0:
-        output_handler()
-        output_handler(" * Failed to retrieve stats for the following libraries:")
+    else:
+        output_handler(" * Failed to retrieve stats:")
         for fail in pypi_failures:
             output_handler("   * {}".format(fail))
 
