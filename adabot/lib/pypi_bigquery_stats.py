@@ -25,6 +25,7 @@ import os
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
+from google.auth.exceptions import DefaultCredentialsError
 
 BIGQ_QUERY_STRING = """SELECT
   COUNT(*) AS num_downloads,
@@ -52,8 +53,11 @@ class PyPIBigQuery:
 
     def __init__(self):
         creds_info = json.loads(
-            os.environ.get("ADABOT_GOOGLE_AUTH_STRING", "")
+            os.environ.get("ADABOT_GOOGLE_AUTH_STRING", "{}")
         )
+        if not creds_info:
+            raise DefaultCredentialsError("Credentials not found.")
+
         credentials = service_account.Credentials.from_service_account_info(
             creds_info
         )

@@ -76,6 +76,7 @@ def get_pypi_stats():
     """
     successful_stats = {}
     failed_stats = []
+    stats_result = None
 
     try:
         stats_query = PyPIBigQuery()
@@ -182,9 +183,9 @@ def run_stat_check():
             output_handler(row_format.format(*lib))
 
     else:
-        output_handler(" * Failed to retrieve stats:")
+        output_handler("Failed to retrieve PyPI download stats:")
         for fail in pypi_failures:
-            output_handler("   * {}".format(fail))
+            output_handler(" - {}".format(fail))
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
