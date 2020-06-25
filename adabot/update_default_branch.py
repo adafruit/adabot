@@ -71,7 +71,7 @@ def update_branch(repo):
         return {"repo": repo["name"], "error": err.stderr}
 
     patch_result = github.patch(
-        "/repos/sommersoft/" + repo["name"],
+        "/repos/adafruit/" + repo["name"],
         json={"default_branch": "main"}
     )
     if not patch_result.ok:
