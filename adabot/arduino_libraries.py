@@ -86,7 +86,7 @@ def is_arduino_library(repo):
 def print_list_output(title, coll):
     ""
     output_handler()
-    output_handler(title.format(len(coll)))
+    output_handler(title.format(len(coll)-2))
     long_col = [(max([len(str(row[i])) for row in coll]) + 3)
                 for i in range(len(coll[0]))]
     row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
