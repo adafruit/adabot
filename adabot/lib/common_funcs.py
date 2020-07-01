@@ -297,6 +297,7 @@ class InsightData(collections.UserDict):
             "new_issues": 0,
             "active_issues": 0,
             "open_issues": [],
+            "good_first_issues": 0,
             "issue_authors": set(),
             "issue_closers": set(),
             "hacktober_assigned": 0,
