@@ -180,12 +180,12 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     output_handler()
     output_handler("State of CircuitPython + Libraries + Blinka")
 
-    output_handler("Overall")
+    output_handler("### Overall")
     print_pr_overview(lib_insights, core_insights, blinka_insights)
     print_issue_overview(lib_insights, core_insights, blinka_insights)
 
     output_handler()
-    output_handler("Core")
+    output_handler("### Core")
     print_pr_overview(core_insights)
     output_handler("* {} open pull requests".format(len(core_insights["open_prs"])))
     sorted_prs = sorted(core_insights["open_prs"],
@@ -214,7 +214,7 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     )
 
     output_handler()
-    output_handler("Libraries")
+    output_handler("### Libraries")
     print_pr_overview(lib_insights)
     output_handler("  * Merged pull requests:")
     sorted_prs = sorted(lib_insights["merged_prs"],
@@ -268,7 +268,7 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
                 output_handler("\n".join(["  * " + x for x in repos_by_error[error]]))
 
     output_handler()
-    output_handler("Blinka")
+    output_handler("### Blinka")
     print_pr_overview(blinka_insights)
     output_handler("* {} open pull requests".format(len(blinka_insights["open_prs"])))
     sorted_prs = sorted(blinka_insights["open_prs"],
