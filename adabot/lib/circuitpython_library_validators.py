@@ -909,10 +909,7 @@ class library_validator():
                         insights["new_issues"] += 1
                         insights["issue_authors"].add(issue_info["user"]["login"])
                     insights["active_issues"] += 1
-                    if issue["labels"]:
-                        for i in issue["labels"]:
-                            if i["name"] == 'good first issue':
-                                insights["good_first_issues"] += 1
+
                 else:
                     insights["closed_issues"] += 1
                     insights["issue_closers"].add(issue_info["closed_by"]["login"])
@@ -958,6 +955,10 @@ class library_validator():
                 issue_link = "{0} (Open {1} days)".format(issue["html_url"],
                                                           days_open.days)
                 insights["open_issues"].append(issue_link)
+                if "labels" in issue:
+                    for i in issue["labels"]:
+                        if i["name"] == 'good first issue':
+                            insights["good_first_issues"] += 1
 
         # process Hacktoberfest labels if it is Hacktoberfest season
         in_season, season_action = hacktober.is_hacktober_season()
