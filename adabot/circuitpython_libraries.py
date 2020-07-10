@@ -225,6 +225,7 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     print_issue_overview(lib_insights)
     output_handler("* https://circuitpython.org/contributing")
     output_handler("  * {} open issues".format(len(lib_insights["open_issues"])))
+    output_handler("  * {} good first issues".format(lib_insights["good_first_issues"]))
     open_pr_days = [
         int(pr_sort_re.search(pr).group(1)) for pr in lib_insights["open_prs"]
         if pr_sort_re.search(pr) is not None
