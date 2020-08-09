@@ -173,26 +173,16 @@ def list_repos(*, include_repos=None):
                                 "sort": "updated",
                                 "order": "asc"}
                         )
+
     while result.ok:
         #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
         repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
                      (repo["name"].startswith("Adafruit_CircuitPython") or repo["name"] == "circuitpython")))
-        try:
-            links = result.headers["Link"]
-        except KeyError:
+
+        if result.links.get("next"):
+            result = github.get(result.links["next"]["url"])
+        else:
             break
-        next_url = None
-        for link in links.split(","):
-            link, rel = link.split(";")
-            link = link.strip(" <>")
-            rel = rel.strip()
-            if rel == "rel=\"next\"":
-                next_url = link
-                break
-        if not next_url:
-            break
-        # Subsequent links have our access token already so we use requests directly.
-        result = requests.get(link, timeout=30)
 
     repo_names = [repo["name"] for repo in repos]
 

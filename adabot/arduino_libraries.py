@@ -56,24 +56,11 @@ def list_repos():
     while result.ok:
         repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
 
-        try:
-            links = result.headers["Link"]
-        except KeyError:
+        if result.links.get("next"):
+            result = github.get(result.links["next"]["url"])
+        else:
             break
 
-        if links:
-            next_url = None
-            for link in links.split(","):
-                link, rel = link.split(";")
-                link = link.strip(" <>")
-                rel = rel.strip()
-                if rel == "rel=\"next\"":
-                    next_url = link
-                    break
-            if not next_url:
-                break
-            # Subsequent links have our access token already so we use requests directly.
-            result = requests.get(link, timeout=30)
     return repos
 
 def is_arduino_library(repo):
@@ -112,7 +99,7 @@ def validate_library_properties(repo):
     if not lib_prop_file.ok:
         #print("{} skipped".format(repo["name"]))
         return None # no library properties file!
-    
+
     lines = lib_prop_file.text.split("\n")
     for line in lines:
         if "version" in line:
@@ -208,7 +195,7 @@ def run_arduino_lib_checks():
         for lib in adafruit_library_index:
             if (repo['clone_url'] == lib['repository']) or (repo['html_url'] == lib['website']):
                 entry['arduino_version'] = lib['version'] # found it!
-                break            
+                break
         else:
             needs_registration = True
         if needs_registration:
@@ -231,7 +218,7 @@ def run_arduino_lib_checks():
         all_libraries.append(entry)
 
     for entry in all_libraries:
-        print(entry)            
+        print(entry)
 
     if len(failed_lib_prop) > 2:
         print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop)
