@@ -230,13 +230,14 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
         int(pr_sort_re.search(pr).group(1)) for pr in lib_insights["open_prs"]
         if pr_sort_re.search(pr) is not None
     ]
-    output_handler(
-        "  * {0} open pull requests (Oldest: {1}, Newest: {2})".format(
-            len(lib_insights["open_prs"]),
-            max(open_pr_days),
-            max((min(open_pr_days), 1)) # ensure the minumum is '1'
+    if len(lib_insights["open_prs"]) != 0:
+        output_handler(
+            "  * {0} open pull requests (Oldest: {1}, Newest: {2})".format(
+                len(lib_insights["open_prs"]),
+                max(open_pr_days),
+                max((min(open_pr_days), 1)) # ensure the minumum is '1'
+            )
         )
-    )
     output_handler("Library updates in the last seven days:")
     if len(new_libs) != 0:
         output_handler("**New Libraries**")
