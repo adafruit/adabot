@@ -149,7 +149,8 @@ if __name__ == "__main__":
 
     print("\n".join(startup_message))
 
-    repos = common_funcs.list_repos(include_repos=("CircuitPython_Community_Bundle",))
+    repos = common_funcs.list_repos(include_repos=("CircuitPython_Community_Bundle",
+                                                   'cookiecutter-adafruit-circuitpython',))
 
     new_libs = {}
     updated_libs = {}
