@@ -56,6 +56,7 @@ ERROR_PYFILE_MISSING_ERRNO = ".py file contains reference to import uerrno" \
 " without reference to import errno.  See issue " \
 "https://github.com/adafruit/circuitpython/issues/1582"
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yml"
+ERROR_MISSING_DESCRIPTION = "Missing repository description"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
 ERROR_EXAMPLE_MISSING_SENSORNAME = "Example file(s) missing sensor/library name"
@@ -208,6 +209,9 @@ class library_validator():
             repo_fields = response.json()
 
         errors = []
+
+        if not repo_fields.get("description"):
+            errors.append(ERROR_MISSING_DESCRIPTION)
 
         if repo_fields.get("has_wiki"):
             errors.append(ERROR_WIKI_DISABLED)
