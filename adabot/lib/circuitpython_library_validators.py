@@ -20,9 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import datetime
+import json
+import pathlib
 import re
+from tempfile import TemporaryDirectory
+
+from pylint import epylint as linter
 
 import requests
+
+import sh
+from sh.contrib import git
 
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
@@ -99,6 +107,7 @@ ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
 ERROR_PYLINT_VERSION_NOT_FIXED = "PyLint version not fixed"
 ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
+ERROR_PYLINT_FAILED_LINTING = "Failed PyLint checks"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
 # Temp category for GitHub Actions migration.
@@ -1041,3 +1050,51 @@ class library_validator():
             errors.append(ERROR_MISSING_STANDARD_LABELS)
 
         return errors
+
+    def validate_passes_linting(self, repo):
+        """ Clones the repo and runs pylint on the Python files"""
+        if not repo["name"].startswith("Adafruit_CircuitPython"):
+            return []
+
+        ignored_py_files = ["setup.py", "conf.py"]
+
+        with TemporaryDirectory() as tempdir:
+            repo_dir = pathlib.Path(tempdir) / repo["name"]
+            try:
+                git.clone("--depth=1", repo["git_url"], repo_dir)
+            except sh.ErrorReturnCode as err:
+                self.output_file_data.append(
+                    f"Failed to clone repo for linting: {repo['full_name']}\n {err.stderr}"
+                )
+                return [ERROR_OUTPUT_HANDLER]
+
+            for file in repo_dir.rglob("*.py"):
+                if not file.name in ignored_py_files and not str(file.parent).endswith("examples"):
+                    py_run_args = f"{file} --output-format=json"
+                    if (repo_dir / '.pylintrc').exists():
+                        py_run_args += (
+                            f" --rcfile={str(repo_dir / '.pylintrc')}"
+                        )
+
+                    pylint_stdout, pylint_stderr = linter.py_run(
+                        py_run_args,
+                        return_std=True
+                    )
+
+                    if pylint_stderr.getvalue():
+                        self.output_file_data.append(
+                            f"PyLint error ({repo['name']}): '{pylint_stderr.getvalue()}'"
+                        )
+                        return [ERROR_OUTPUT_HANDLER]
+
+                    try:
+                        pylint_result = json.loads(pylint_stdout.getvalue())
+                    except json.JSONDecodeError as json_err:
+                        self.output_file_data.append(
+                            f"PyLint output JSONDecodeError: {json_err.msg}"
+                        )
+                        return [ERROR_OUTPUT_HANDLER]
+
+                    if pylint_result:
+                        return [ERROR_PYLINT_FAILED_LINTING]
+        return []
