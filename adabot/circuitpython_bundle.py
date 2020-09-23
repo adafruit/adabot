@@ -80,8 +80,12 @@ def check_lib_links_md(bundle_path):
         pypi_name = ""
         if common_funcs.repo_is_on_pypi({"name" : url_name}):
             pypi_name = " ([PyPi](https://pypi.org/project/{}))".format(url_name.replace("_", "-").lower())
+        slug = url_name.split("_", 2)[-1].lower()
+        doc_link = ""
+        if url_name.startswith("Adafruit_CircuitPython"):
+            doc_link = " ([Docs](https://circuitpython.readthedocs.io/projects/{}/))".format(slug)
         title = url_name.replace("_", " ")
-        list_line = "* [{0}]({1}){2}".format(title, url, pypi_name)
+        list_line = "* [{0}]({1}){2}{3}".format(title, url, pypi_name, doc_link)
         if list_line not in read_lines:
             updates_made.append(url_name)
         if "drivers" in submodule[1]["path"]:
@@ -373,10 +377,10 @@ if __name__ == "__main__":
         try:
             fetch_bundle(bundle, bundle_path)
             update_info = update_bundle(bundle_path)
-            if update_info:
-                commit_updates(bundle_path, update_info)
-                push_updates(bundle_path)
-            new_release(bundle, bundle_path)
+            # if update_info:
+            #     commit_updates(bundle_path, update_info)
+            #     push_updates(bundle_path)
+            # new_release(bundle, bundle_path)
         except RuntimeError as e:
             print("Failed to update and release:", bundle)
             print(e)
