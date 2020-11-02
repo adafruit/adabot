@@ -107,6 +107,12 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     output_handler("Latest pylint is: {}".format(latest_pylint))
 
     repos = common_funcs.list_repos(include_repos=('Adafruit_Blinka',
+                                                   'Adafruit_Blinka_bleio',
+                                                   'Adafruit_Blinka_Displayio',
+                                                   'Adafruit_Python_PlatformDetect',
+                                                   'Adafruit_Python_PureIO',
+                                                   'Adafruit_Blinka_PyPortal',
+                                                   'Adafruit_Python_Extended_Bus',
                                                    'CircuitPython_Community_Bundle',
                                                    'cookiecutter-adafruit-circuitpython'))
     output_handler("Found {} repos to check.".format(len(repos)))
