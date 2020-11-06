@@ -375,12 +375,12 @@ if __name__ == "__main__":
     for bundle in bundles:
         bundle_path = os.path.join(directory, bundle)
         try:
-            #fetch_bundle(bundle, bundle_path)
+            fetch_bundle(bundle, bundle_path)
             update_info = update_bundle(bundle_path)
-            #if update_info:
-            #    commit_updates(bundle_path, update_info)
-            #    push_updates(bundle_path)
-            #new_release(bundle, bundle_path)
+            if update_info:
+                commit_updates(bundle_path, update_info)
+                push_updates(bundle_path)
+            new_release(bundle, bundle_path)
         except RuntimeError as e:
             print("Failed to update and release:", bundle)
             print(e)
