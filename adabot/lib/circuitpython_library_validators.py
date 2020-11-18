@@ -299,15 +299,17 @@ class library_validator():
                 self.output_file_data.append("".join(err_msg))
                 return [ERROR_OUTPUT_HANDLER]
 
+        main_branch = repo['default_branch']
         compare_tags = github.get("/repos/"
                                   + repo["full_name"]
                                   + "/compare/"
                                   + tag_name
-                                  + "...master")
+                                  + "..."
+                                  + main_branch)
         if not compare_tags.ok:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
-                "Error: failed to compare {} 'master' ".format(repo["name"]),
+                "Error: failed to compare {} '{}' ".format(repo["name"], main_branch),
                 "to tag '{}'".format(tag_name)
             ]
             self.output_file_data.append("".join(err_msg))
@@ -348,8 +350,8 @@ class library_validator():
         elif "errors" in compare_tags_json:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
-                "Error: comparing latest release to 'master' failed on ",
-                "'{}'. ".format(repo["name"]),
+                "Error: comparing latest release to '{}' failed on ",
+                "'{}'. ".format(main_branch, repo["name"]),
                 "Error Message: {}".format(compare_tags_json["message"])
             ]
             self.output_file_data.append("".join(err_msg))
@@ -1088,7 +1090,7 @@ class library_validator():
                         f" --rcfile={str(repo_dir / '.pylintrc')}"
                     )
 
-                logging.debug("Running pylint on %s/%s", repo['name'], file[len(repo_dir):])
+                logging.debug("Running pylint on %s", file)
 
                 pylint_stdout, pylint_stderr = linter.py_run(
                     py_run_args,
@@ -1111,6 +1113,7 @@ class library_validator():
 
                 if pylint_result:
                     return [ERROR_PYLINT_FAILED_LINTING]
+
             if self.keep_repos:
                 with open(repo_dir / '.pylint-ok', 'w') as f:
                     f.write(pylint_result)
