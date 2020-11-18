@@ -24,6 +24,7 @@ import argparse
 import datetime
 import inspect
 import json
+import logging
 import os
 import re
 
@@ -45,8 +46,32 @@ cmd_line_parser.add_argument(
     metavar="<OUTPUT FILENAME>",
     dest="output_file"
 )
+cmd_line_parser.add_argument(
+    "--cache-http",
+    help="Cache HTTP requests using requests_cache",
+    action='store_true',
+    default=False
+)
+cmd_line_parser.add_argument(
+    "--cache-ttl",
+    help="HTTP cache TTL",
+    type=int,
+    default=7200
+)
+cmd_line_parser.add_argument(
+    "--keep-repos",
+    help="Keep repos between runs",
+    action='store_true',
+    default=False
+)
+cmd_line_parser.add_argument(
+    "--loglevel",
+    help="Adjust the log level (default ERROR)",
+    type=str,
+    default='ERROR'
+)
 
-sort_re = re.compile("(?<=\(Open\s)(.+)(?=\sdays)")
+sort_re = re.compile(r'(?<=\(Open\s)(.+)(?=\sdays)')
 
 
 def get_open_issues_and_prs(repo):
@@ -130,24 +155,27 @@ def get_contributors(repo):
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
 
-    print("Running circuitpython.org/libraries updater...")
+    logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
+                        datefmt='%Y-%m-%d %T',
+                        level=getattr(logging, cmd_line_args.loglevel))
+
+    logging.info("Running circuitpython.org/libraries updater...")
 
     run_time = datetime.datetime.now()
 
     working_directory = os.path.abspath(os.getcwd())
 
-    startup_message = [
-        "Run Date: {}".format(run_time.strftime("%d %B %Y, %I:%M%p"))
-    ]
+    logging.info("Run Date: %s", run_time.strftime("%d %B %Y, %I:%M%p"))
 
     output_filename = ""
     local_file_output = False
     if cmd_line_args.output_file:
         output_filename = os.path.abspath(cmd_line_args.output_file)
         local_file_output = True
-        startup_message.append(" - Output will be saved to: {}".format(output_filename))
+        logging.info(" - Output will be saved to: %s", output_filename)
 
-    print("\n".join(startup_message))
+    if cmd_line_args.cache_http:
+        cpy_vals.github.setup_cache(cmd_line_args.cache_ttl)
 
     repos = common_funcs.list_repos(include_repos=("CircuitPython_Community_Bundle",
                                                    'cookiecutter-adafruit-circuitpython',))
@@ -175,7 +203,8 @@ if __name__ == "__main__":
     validator = cpy_vals.library_validator(
         default_validators,
         bundle_submodules,
-        latest_pylint
+        latest_pylint,
+        keep_repos=cmd_line_args.keep_repos
     )
 
     for repo in repos:
@@ -210,13 +239,17 @@ if __name__ == "__main__":
             continue
 
         # run repo validators to check for infrastructure errors
-        errors = validator.run_repo_validation(repo)
+        errors = []
+        try:
+            errors = validator.run_repo_validation(repo)
+        except Exception as e:
+            errors.extend(cpy_vals.ERROR_OUTPUT_HANDLER)
         for error in errors:
             if not isinstance(error, tuple):
-                # check for an error occurring in the valiator module
+                # check for an error occurring in the validator module
                 if error == cpy_vals.ERROR_OUTPUT_HANDLER:
                     #print(errors, "repo output handler error:", validator.output_file_data)
-                    print(", ".join(validator.output_file_data))
+                    logging.error(", ".join(validator.output_file_data))
                     validator.output_file_data.clear()
                 if error not in repos_by_error:
                     repos_by_error[error] = []
