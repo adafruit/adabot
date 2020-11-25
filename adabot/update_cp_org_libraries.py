@@ -244,7 +244,7 @@ if __name__ == "__main__":
             errors = validator.run_repo_validation(repo)
         except Exception as e:
             logging.exception("Unhandled exception %s", str(e))
-            errors.extend(cpy_vals.ERROR_OUTPUT_HANDLER)
+            errors.extend([cpy_vals.ERROR_OUTPUT_HANDLER])
         for error in errors:
             if not isinstance(error, tuple):
                 # check for an error occurring in the validator module

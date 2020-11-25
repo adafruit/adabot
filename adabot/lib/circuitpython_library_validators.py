@@ -24,13 +24,14 @@ import json
 import logging
 import pathlib
 import re
+from io import StringIO
 from tempfile import TemporaryDirectory
-
-from pylint import epylint as linter
 
 import requests
 
 import sh
+from pylint import lint
+from pylint.reporters import JSONReporter
 from sh.contrib import git
 
 from adabot import github_requests as github
@@ -41,6 +42,15 @@ from adabot.lib import assign_hacktober_label as hacktober
 from packaging.version import parse as pkg_version_parse
 from packaging.requirements import Requirement as pkg_Requirement
 
+
+class CapturedJsonReporter(JSONReporter):
+
+    def __init__(self):
+        self._stringio = StringIO()
+        super().__init__(self._stringio)
+
+    def get_result(self):
+        return self._stringio.getvalue()
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_README_DOWNLOAD_FAILED = "Failed to download README"
@@ -165,6 +175,7 @@ rtd_subprojects = None
 
 # Cache the CircuitPython driver page so we can make sure every driver is linked to.
 core_driver_page = None
+
 
 class library_validator():
     """ Class to hold instance variables needed to traverse the calling
@@ -1084,27 +1095,26 @@ class library_validator():
                 if file.name in ignored_py_files or str(file.parent).endswith("examples"):
                     continue
 
-                py_run_args = f"{file} --output-format=json"
+                pylint_args = [str(file)]
                 if (repo_dir / '.pylintrc').exists():
-                    py_run_args += (
-                        f" --rcfile={str(repo_dir / '.pylintrc')}"
-                    )
+                    pylint_args += [f"--rcfile={str(repo_dir / '.pylintrc')}"]
+
+                reporter = CapturedJsonReporter()
 
                 logging.debug("Running pylint on %s", file)
 
-                pylint_stdout, pylint_stderr = linter.py_run(
-                    py_run_args,
-                    return_std=True
-                )
+                linted = lint.Run(pylint_args, reporter=reporter, exit=False)
+                pylint_stderr = ''
+                pylint_stdout = reporter.get_result()
 
-                if pylint_stderr.getvalue():
+                if pylint_stderr:
                     self.output_file_data.append(
-                        f"PyLint error ({repo['name']}): '{pylint_stderr.getvalue()}'"
+                        f"PyLint error ({repo['name']}): '{pylint_stderr}'"
                     )
                     return [ERROR_OUTPUT_HANDLER]
 
                 try:
-                    pylint_result = json.loads(pylint_stdout.getvalue())
+                    pylint_result = json.loads(pylint_stdout)
                 except json.JSONDecodeError as json_err:
                     self.output_file_data.append(
                         f"PyLint output JSONDecodeError: {json_err.msg}"
@@ -1116,6 +1126,6 @@ class library_validator():
 
             if self.keep_repos:
                 with open(repo_dir / '.pylint-ok', 'w') as f:
-                    f.write(pylint_result)
+                    f.write(''.join(pylint_result))
 
         return []
