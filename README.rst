@@ -3,7 +3,7 @@ Adafruit Adabot
 ============
 
 .. image :: https://img.shields.io/discord/327254708534116352.svg
-    :target: https://discord.gg/nBQh6qu
+    :target: https://adafru.it/discord
     :alt: Discord
 
 AdaBot is a friendly helper bot that works across the web to make people's
