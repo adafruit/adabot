@@ -21,15 +21,17 @@
 # THE SOFTWARE.
 import datetime
 import json
+import logging
 import pathlib
 import re
+from io import StringIO
 from tempfile import TemporaryDirectory
-
-from pylint import epylint as linter
 
 import requests
 
 import sh
+from pylint import lint
+from pylint.reporters import JSONReporter
 from sh.contrib import git
 
 from adabot import github_requests as github
@@ -40,6 +42,15 @@ from adabot.lib import assign_hacktober_label as hacktober
 from packaging.version import parse as pkg_version_parse
 from packaging.requirements import Requirement as pkg_Requirement
 
+
+class CapturedJsonReporter(JSONReporter):
+
+    def __init__(self):
+        self._stringio = StringIO()
+        super().__init__(self._stringio)
+
+    def get_result(self):
+        return self._stringio.getvalue()
 
 # Define constants for error strings to make checking against them more robust:
 ERROR_README_DOWNLOAD_FAILED = "Failed to download README"
@@ -165,18 +176,20 @@ rtd_subprojects = None
 # Cache the CircuitPython driver page so we can make sure every driver is linked to.
 core_driver_page = None
 
+
 class library_validator():
     """ Class to hold instance variables needed to traverse the calling
         code, and the validator functions.
     """
 
-    def __init__(self, validators, bundle_submodules, latest_pylint, **kw_args):
+    def __init__(self, validators, bundle_submodules, latest_pylint, keep_repos=False, **kw_args):
         self.validators = validators
         self.bundle_submodules = bundle_submodules
         self.latest_pylint = pkg_version_parse(latest_pylint)
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
         self.has_setup_py_disabled = set()
+        self.keep_repos = keep_repos
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
@@ -297,15 +310,17 @@ class library_validator():
                 self.output_file_data.append("".join(err_msg))
                 return [ERROR_OUTPUT_HANDLER]
 
+        main_branch = repo['default_branch']
         compare_tags = github.get("/repos/"
                                   + repo["full_name"]
                                   + "/compare/"
                                   + tag_name
-                                  + "...master")
+                                  + "..."
+                                  + main_branch)
         if not compare_tags.ok:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
-                "Error: failed to compare {} 'master' ".format(repo["name"]),
+                "Error: failed to compare {} '{}' ".format(repo["name"], main_branch),
                 "to tag '{}'".format(tag_name)
             ]
             self.output_file_data.append("".join(err_msg))
@@ -346,8 +361,8 @@ class library_validator():
         elif "errors" in compare_tags_json:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
-                "Error: comparing latest release to 'master' failed on ",
-                "'{}'. ".format(repo["name"]),
+                "Error: comparing latest release to '{}' failed on ",
+                "'{}'. ".format(main_branch, repo["name"]),
                 "Error Message: {}".format(compare_tags_json["message"])
             ]
             self.output_file_data.append("".join(err_msg))
@@ -1058,43 +1073,59 @@ class library_validator():
 
         ignored_py_files = ["setup.py", "conf.py"]
 
-        with TemporaryDirectory() as tempdir:
+        desination_type = TemporaryDirectory
+        if self.keep_repos:
+            desination_type = pathlib.Path("repos").absolute
+
+        with desination_type() as tempdir:
             repo_dir = pathlib.Path(tempdir) / repo["name"]
             try:
-                git.clone("--depth=1", repo["git_url"], repo_dir)
+                if not repo_dir.exists():
+                    git.clone("--depth=1", repo["git_url"], repo_dir)
             except sh.ErrorReturnCode as err:
                 self.output_file_data.append(
                     f"Failed to clone repo for linting: {repo['full_name']}\n {err.stderr}"
                 )
                 return [ERROR_OUTPUT_HANDLER]
 
+            if self.keep_repos and (repo_dir / '.pylint-ok').exists():
+                return []
+
             for file in repo_dir.rglob("*.py"):
-                if not file.name in ignored_py_files and not str(file.parent).endswith("examples"):
-                    py_run_args = f"{file} --output-format=json"
-                    if (repo_dir / '.pylintrc').exists():
-                        py_run_args += (
-                            f" --rcfile={str(repo_dir / '.pylintrc')}"
-                        )
+                if file.name in ignored_py_files or str(file.parent).endswith("examples"):
+                    continue
 
-                    pylint_stdout, pylint_stderr = linter.py_run(
-                        py_run_args,
-                        return_std=True
+                pylint_args = [str(file)]
+                if (repo_dir / '.pylintrc').exists():
+                    pylint_args += [f"--rcfile={str(repo_dir / '.pylintrc')}"]
+
+                reporter = CapturedJsonReporter()
+
+                logging.debug("Running pylint on %s", file)
+
+                linted = lint.Run(pylint_args, reporter=reporter, exit=False)
+                pylint_stderr = ''
+                pylint_stdout = reporter.get_result()
+
+                if pylint_stderr:
+                    self.output_file_data.append(
+                        f"PyLint error ({repo['name']}): '{pylint_stderr}'"
                     )
+                    return [ERROR_OUTPUT_HANDLER]
 
-                    if pylint_stderr.getvalue():
-                        self.output_file_data.append(
-                            f"PyLint error ({repo['name']}): '{pylint_stderr.getvalue()}'"
-                        )
-                        return [ERROR_OUTPUT_HANDLER]
+                try:
+                    pylint_result = json.loads(pylint_stdout)
+                except json.JSONDecodeError as json_err:
+                    self.output_file_data.append(
+                        f"PyLint output JSONDecodeError: {json_err.msg}"
+                    )
+                    return [ERROR_OUTPUT_HANDLER]
 
-                    try:
-                        pylint_result = json.loads(pylint_stdout.getvalue())
-                    except json.JSONDecodeError as json_err:
-                        self.output_file_data.append(
-                            f"PyLint output JSONDecodeError: {json_err.msg}"
-                        )
-                        return [ERROR_OUTPUT_HANDLER]
+                if pylint_result:
+                    return [ERROR_PYLINT_FAILED_LINTING]
 
-                    if pylint_result:
-                        return [ERROR_PYLINT_FAILED_LINTING]
+            if self.keep_repos:
+                with open(repo_dir / '.pylint-ok', 'w') as f:
+                    f.write(''.join(pylint_result))
+
         return []

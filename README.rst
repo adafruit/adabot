@@ -3,7 +3,7 @@ Adafruit Adabot
 ============
 
 .. image :: https://img.shields.io/discord/327254708534116352.svg
-    :target: https://discord.gg/nBQh6qu
+    :target: https://adafru.it/discord
     :alt: Discord
 
 AdaBot is a friendly helper bot that works across the web to make people's
@@ -114,8 +114,8 @@ variables beforehand--see the template-env.sh for the name and where to get toke
 Applying Patches To All CircuitPython Libraries
 ================================================
 To apply a patch to all CircuitPython libraries (only guaranteed for files shared
-among all libraries, such as those included in the cookiecutter (e.g. README.rst,
- etc), do the following:
+among all libraries, such as those included in the cookiecutter (e.g. README.rst, etc),
+do the following:
 
 1. Apply your update(s) to any library as normal, using ``git commit``. It is recommended to
 give a short, detailed description of the patch. This description will be used by the next

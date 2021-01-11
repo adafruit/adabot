@@ -202,6 +202,19 @@ def list_repos(*, include_repos=None):
 
     return repos
 
+def get_docs_link(bundle_path, submodule):
+    try:
+        f = open(f"{bundle_path}/{submodule[1]['path']}/README.rst", 'r')
+        lines = f.read().split("\n")
+        f.close()
+        for i in range(10):
+            if "target" in lines[i] and "readthedocs" in lines[i]:
+                return lines[i].replace("    :target: ", "")
+        return None
+    except FileNotFoundError:
+        # didn't find readme
+        return None
+
 def repo_is_on_pypi(repo):
     """returns True when the provided repository is in pypi"""
     is_on = False
