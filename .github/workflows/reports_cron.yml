@@ -60,6 +60,7 @@ jobs:
         continue-on-error: true
       - name: Run adabot.circuitpython_library_download_stats
         env:
+          ADABOT_GOOGLE_AUTH_STRING: ${{ secrets.ADABOT_GOOGLE_AUTH_STRING }}
           # LIB_DL_STATS_FILE is for future Bundle and PyPi download stats script
           LIB_DL_STATS_FILE: bin/adabot/library_download_stats_${{ steps.today.outputs.date }}.txt
         run: |
