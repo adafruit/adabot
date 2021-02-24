@@ -1,0 +1,51 @@
+From d0768eb933d121af0f440c999107a5b371e252cc Mon Sep 17 00:00:00 2001
+From: dherrada <dylan.herrada@adafruit.com>
+Date: Wed, 24 Feb 2021 15:02:28 -0500
+Subject: [PATCH] Removed pylint process from github workflow
+
+---
+ .github/workflows/build.yml |  4 ----
+ .pre-commit-config.yaml     | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 17b6e2f..0434bc5 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -50,10 +50,6 @@ jobs:
+     - name: Pre-commit hooks
+       run: |
+         pre-commit run --all-files
+-    - name: PyLint
+-      run: |
+-        pylint $( find . -path './adafruit*.py' )
+-        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
+     - name: Build assets
+       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
+     - name: Build docs
+diff --git a/.pre-commit-config.yaml b/.pre-commit-config.yaml
+index 6cd77e3..d017d7b 100644
+--- a/.pre-commit-config.yaml
++++ b/.pre-commit-config.yaml
+@@ -17,3 +17,18 @@ repos:
+     -   id: check-yaml
+     -   id: end-of-file-fixer
+     -   id: trailing-whitespace
++-   repo: https://github.com/pycqa/pylint
++    rev: pylint-2.7.1
++    hooks:
++    -   id: pylint
++        name: pylint (library code)
++        types: [python]
++        exclude: "^(docs/|examples/|setup.py$)"
++-   repo: local
++    hooks:
++    -   id: pylint_examples
++        name: pylint (examples code)
++        description: Run pylint rules on "examples/*.py" files
++        entry: /usr/bin/env bash -c
++        args: ['([[ ! -d "examples" ]] || for example in $(find . -path "./examples/*.py"); do pylint --disable=missing-docstring,invalid-name $example; done)']
++        language: system
+-- 
+2.25.1
+
