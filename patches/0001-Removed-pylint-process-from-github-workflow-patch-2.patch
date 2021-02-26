@@ -12,25 +12,16 @@ diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
 index 59baa53..3baf502 100644
 --- a/.github/workflows/build.yml
 +++ b/.github/workflows/build.yml
-@@ -50,10 +50,6 @@ jobs:
-     - name: Pre-commit hooks
-       run: |
-         pre-commit run --all-files
+@@ -53,4 +52,0 @@ jobs:
 -    - name: PyLint
 -      run: |
 -        pylint $( find . -path './adafruit*.py' )
 -        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
-     - name: Build assets
-       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
-     - name: Archive bundles
 diff --git a/.pre-commit-config.yaml b/.pre-commit-config.yaml
 index 07f886c..354c761 100644
 --- a/.pre-commit-config.yaml
 +++ b/.pre-commit-config.yaml
-@@ -17,3 +17,18 @@ repos:
-     -   id: check-yaml
-     -   id: end-of-file-fixer
-     -   id: trailing-whitespace
+@@ -19,0 +20,15 @@ repos:
 +-   repo: https://github.com/pycqa/pylint
 +    rev: pylint-2.7.1
 +    hooks:
