@@ -13,22 +13,35 @@ diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
 index 59baa53..621d5ef 100644
 --- a/.github/workflows/build.yml
 +++ b/.github/workflows/build.yml
-@@ -45 +45 @@ jobs:
+@@ -42,18 +42,14 @@ jobs:
+       # (e.g. - apt-get: gettext, etc; pip: circuitpython-build-tools, requirements.txt; etc.)
+       run: |
+         source actions-ci/install.sh
 -    - name: Pip install pylint, Sphinx, pre-commit
 +    - name: Pip install Sphinx, pre-commit
-@@ -47 +47 @@ jobs:
+       run: |
 -        pip install --force-reinstall pylint Sphinx sphinx-rtd-theme pre-commit
 +        pip install --force-reinstall Sphinx sphinx-rtd-theme pre-commit
-@@ -53,4 +52,0 @@ jobs:
+     - name: Library version
+       run: git describe --dirty --always --tags
+     - name: Pre-commit hooks
+       run: |
+         pre-commit run --all-files
 -    - name: PyLint
 -      run: |
 -        pylint $( find . -path './adafruit*.py' )
 -        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
+     - name: Build assets
+       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
+     - name: Archive bundles
 diff --git a/.pre-commit-config.yaml b/.pre-commit-config.yaml
 index 07f886c..354c761 100644
 --- a/.pre-commit-config.yaml
 +++ b/.pre-commit-config.yaml
-@@ -19,0 +20,15 @@ repos:
+@@ -17,3 +17,18 @@ repos:
+     -   id: check-yaml
+     -   id: end-of-file-fixer
+     -   id: trailing-whitespace
 +-   repo: https://github.com/pycqa/pylint
 +    rev: pylint-2.7.1
 +    hooks:
@@ -48,9 +61,15 @@ diff --git a/.pylintrc b/.pylintrc
 index 5c31f66..9ed669e 100644
 --- a/.pylintrc
 +++ b/.pylintrc
-@@ -253 +253 @@ ignore-docstrings=yes
+@@ -250,7 +250,7 @@ ignore-comments=yes
+ ignore-docstrings=yes
+ 
+ # Ignore imports when computing similarities.
 -ignore-imports=no
 +ignore-imports=yes
+ 
+ # Minimum lines number of a similarity.
+ min-similarity-lines=4
 -- 
 2.24.3 (Apple Git-128)
 
