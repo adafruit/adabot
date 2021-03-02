@@ -1,12 +1,13 @@
-From 683ce84b590b07cf30ef673b9042e1d0d4571f4c Mon Sep 17 00:00:00 2001
+From 223f4eea34853e043ab9e00cbcf8fb0fd6451aff Mon Sep 17 00:00:00 2001
 From: dherrada <dylan.herrada@adafruit.com>
-Date: Tue, 2 Mar 2021 16:30:28 -0500
+Date: Tue, 2 Mar 2021 16:46:17 -0500
 Subject: [PATCH] Removed pylint process from github workflow
 
 ---
  .github/workflows/build.yml |  8 ++------
  .pre-commit-config.yaml     | 15 +++++++++++++++
- 2 files changed, 17 insertions(+), 6 deletions(-)
+ .pylintrc                   |  2 +-
+ 3 files changed, 18 insertions(+), 7 deletions(-)
 
 diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
 index 59baa53..621d5ef 100644
@@ -43,6 +44,13 @@ index 07f886c..354c761 100644
 +        entry: /usr/bin/env bash -c
 +        args: ['([[ ! -d "examples" ]] || for example in $(find . -path "./examples/*.py"); do pylint --disable=missing-docstring,invalid-name $example; done)']
 +        language: system
+diff --git a/.pylintrc b/.pylintrc
+index 5c31f66..9ed669e 100644
+--- a/.pylintrc
++++ b/.pylintrc
+@@ -253 +253 @@ ignore-docstrings=yes
+-ignore-imports=no
++ignore-imports=yes
 -- 
 2.24.3 (Apple Git-128)
 
