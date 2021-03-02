@@ -1,36 +1,33 @@
-From d0768eb933d121af0f440c999107a5b371e252cc Mon Sep 17 00:00:00 2001
+From 683ce84b590b07cf30ef673b9042e1d0d4571f4c Mon Sep 17 00:00:00 2001
 From: dherrada <dylan.herrada@adafruit.com>
-Date: Wed, 24 Feb 2021 15:02:28 -0500
+Date: Tue, 2 Mar 2021 16:30:28 -0500
 Subject: [PATCH] Removed pylint process from github workflow
 
 ---
- .github/workflows/build.yml |  4 ----
+ .github/workflows/build.yml |  8 ++------
  .pre-commit-config.yaml     | 15 +++++++++++++++
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ 2 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
-index 17b6e2f..0434bc5 100644
+index 59baa53..621d5ef 100644
 --- a/.github/workflows/build.yml
 +++ b/.github/workflows/build.yml
-@@ -50,10 +50,6 @@ jobs:
-     - name: Pre-commit hooks
-       run: |
-         pre-commit run --all-files
+@@ -45 +45 @@ jobs:
+-    - name: Pip install pylint, Sphinx, pre-commit
++    - name: Pip install Sphinx, pre-commit
+@@ -47 +47 @@ jobs:
+-        pip install --force-reinstall pylint Sphinx sphinx-rtd-theme pre-commit
++        pip install --force-reinstall Sphinx sphinx-rtd-theme pre-commit
+@@ -53,4 +52,0 @@ jobs:
 -    - name: PyLint
 -      run: |
 -        pylint $( find . -path './adafruit*.py' )
 -        ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
-     - name: Build assets
-       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
-     - name: Build docs
 diff --git a/.pre-commit-config.yaml b/.pre-commit-config.yaml
-index 6cd77e3..d017d7b 100644
+index 07f886c..354c761 100644
 --- a/.pre-commit-config.yaml
 +++ b/.pre-commit-config.yaml
-@@ -17,3 +17,18 @@ repos:
-     -   id: check-yaml
-     -   id: end-of-file-fixer
-     -   id: trailing-whitespace
+@@ -19,0 +20,15 @@ repos:
 +-   repo: https://github.com/pycqa/pylint
 +    rev: pylint-2.7.1
 +    hooks:
@@ -47,5 +44,5 @@ index 6cd77e3..d017d7b 100644
 +        args: ['([[ ! -d "examples" ]] || for example in $(find . -path "./examples/*.py"); do pylint --disable=missing-docstring,invalid-name $example; done)']
 +        language: system
 -- 
-2.25.1
+2.24.3 (Apple Git-128)
 
