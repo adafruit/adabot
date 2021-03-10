@@ -270,7 +270,17 @@ class library_validator():
             _ignored_files = {
                 "CODE_OF_CONDUCT.md",
                 "LICENSE",
+                "LICENSES/*",
+                "*.license",
                 "setup.py.disabled",
+                ".github/workflows/build.yml",
+                ".github/workflows/release.yml",
+                ".pre-commit-config.yaml",
+                ".pylintrc",
+                ".gitignore",
+                "CODE_OF_CONDUCT.md",
+                "README.rst",
+                "pyproject.toml",
             }
             compare_files = [
                 name for name in filenames if not name.startswith(".")
@@ -333,7 +343,6 @@ class library_validator():
                     file["filename"] for file in compare_tags_json.get("files")
                 ]
                 filtered_files = _filter_file_diffs(comp_filenames)
-
                 if filtered_files:
                     oldest_commit_date = datetime.datetime.today()
                     for commit in compare_tags_json["commits"]:
