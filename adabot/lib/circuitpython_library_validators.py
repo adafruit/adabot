@@ -228,7 +228,7 @@ class library_validator():
             # we need.
             response = github.get("/repos/" + repo["full_name"])
             if not response.ok:
-                return [error_unable_pull_repo_details]
+                return [ERROR_UNABLE_PULL_REPO_DETAILS]
             repo_fields = response.json()
 
         errors = []
