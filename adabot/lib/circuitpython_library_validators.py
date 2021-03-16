@@ -266,18 +266,18 @@ class library_validator():
         if not (repo["owner"]["login"] == "adafruit" and
                 repo["name"].startswith("Adafruit_CircuitPython")):
             return []
-        
-        main_branch = repo["default_branch"]
-        response = github.get("/repos/" + repo["full_name"] + "/actions/runs")
+
+        actions_params = {"branch": repo["default_branch"]}
+        response = github.get(
+                "/repos/" + repo["full_name"] + "/actions/runs",
+                params=actions_params)
+
         if not response.ok:
-            return [error_unable_pull_repo_details]
-        
+            return [ERROR_UNABLE_PULL_REPO_DETAILS]
+
         workflow_runs = response.json()["workflow_runs"]
-        for workflow in workflow_runs:
-            if workflow["head_branch"] == main_branch:
-                if workflow["conclusion"] == "failure":
-                    return [ERROR_GITHUB_FAILING_ACTIONS]
-                break
+        if workflow_runs and workflow_runs[0]["conclusion"] == "failure":
+            return [ERROR_GITHUB_FAILING_ACTIONS]
         return []
 
 
