@@ -110,6 +110,7 @@ ERROR_GITHUB_NO_RELEASE = "Library repository has no releases"
 ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM = "Library has new commits since last release over a month ago"
 ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1M = "Library has new commits since last release within the last month"
 ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W = "Library has new commits since last release within the last week"
+ERROR_GITHUB_FAILING_ACTIONS = "The most recent GitHub Actions run has failed"
 ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is released. Only on pushes.)"
 ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = "Failed to download drivers page from CircuitPython docs"
 ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing driver"
@@ -256,6 +257,29 @@ class library_validator():
             repo_fields.get("allow_rebase_merge")):
                 errors.append(ERROR_ONLY_ALLOW_MERGES)
         return errors
+
+    def validate_actions_state(self, repo):
+        """Validate if the most recent GitHub Actions run on the default branch
+        has passed.
+        Just returns a message stating that the most recent run failed.
+        """
+        if not (repo["owner"]["login"] == "adafruit" and
+                repo["name"].startswith("Adafruit_CircuitPython")):
+            return []
+
+        actions_params = {"branch": repo["default_branch"]}
+        response = github.get(
+                "/repos/" + repo["full_name"] + "/actions/runs",
+                params=actions_params)
+
+        if not response.ok:
+            return [ERROR_UNABLE_PULL_REPO_DETAILS]
+
+        workflow_runs = response.json()["workflow_runs"]
+        if workflow_runs and workflow_runs[0]["conclusion"] == "failure":
+            return [ERROR_GITHUB_FAILING_ACTIONS]
+        return []
+
 
     def validate_release_state(self, repo):
         """Validate if a repo 1) has a release, and 2) if there have been commits
