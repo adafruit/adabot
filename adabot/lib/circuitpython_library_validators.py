@@ -33,6 +33,7 @@ import sh
 from pylint import lint
 from pylint.reporters import JSONReporter
 from sh.contrib import git
+import yaml
 
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
@@ -187,10 +188,44 @@ class library_validator():
         self.validators = validators
         self.bundle_submodules = bundle_submodules
         self.latest_pylint = pkg_version_parse(latest_pylint)
+        self._rtd_yaml_base = None
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
         self.has_setup_py_disabled = set()
         self.keep_repos = keep_repos
+
+
+    @property
+    def rtd_yml_base(self):
+        """ The parsed YAML from `.readthedocs.yml` in the cookiecutter-adafruit-circuitpython repo.
+            Used to verify that a library's `.readthedocs.yml` matches this version.
+        """
+        if self._rtd_yaml_base is None:
+            rtd_yml_dl_url = (
+                "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
+                "circuitpython/master/%7B%25%20if%20cookiecutter.library_prefix"
+                "%20%25%7D%7B%7B%20cookiecutter.library_prefix%20%7C%20capitalize"
+                "%20%7D%7D_%7B%25%20endif%20%25%7DCircuitPython_%7B%7B%20cookiecutter"
+                ".library_name%7D%7D/%7B%25%20if%20cookiecutter.sphinx_docs%20in"
+                "%20%5B'y'%2C%20'yes'%5D%20%25%7D.readthedocs.yml%7B%25%20endif"
+                "%20%25%7D"
+            )
+            rtd_yml = requests.get(rtd_yml_dl_url)
+            if rtd_yml.ok:
+                try:
+                    self._rtd_yaml_base = yaml.safe_load(rtd_yml.text)
+                except yaml.YAMLError:
+                    print(
+                        "Error parsing cookiecutter .readthedocs.yml."
+                    )
+                    self._rtd_yaml_base = ""
+            else:
+                print(
+                    "Error retrieving cookiecutter .readthedocs.yml"
+                )
+                self._rtd_yaml_base = ""
+        
+        return self._rtd_yaml_base
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
@@ -652,13 +687,22 @@ class library_validator():
                 errors.append(ERROR_UNABLE_PULL_REPO_CONTENTS)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
-            fn = "readthedocs.yml"
-            if ".readthedocs.yml" in files:
-                fn = ".readthedocs.yml"
-            file_info = content_list[files.index(fn)]
-            if (file_info["sha"] != "f4243ad548bc5e4431f2d3c5d486f6c9c863888b" and
-               file_info["sha"] != "78a4671650248f4382e6eb72dab71c2d86824ca2"):
-                errors.append(ERROR_MISMATCHED_READTHEDOCS)
+            if self.rtd_yml_base != "":
+                fn = "readthedocs.yml"
+                if ".readthedocs.yml" in files:
+                    fn = ".readthedocs.yml"
+                file_info = content_list[files.index(fn)]
+                rtd_contents = requests.get(file_info["download_url"])
+                if rtd_contents.ok:
+                    try:
+                        rtd_yml = yaml.safe_load(rtd_contents.text)
+                        if rtd_yml != self.rtd_yml_base:
+                            errors.append(ERROR_MISMATCHED_READTHEDOCS)
+                    except yaml.YAMLError:
+                        self.output_file_data.append(
+                            "Error parsing {} .readthedocs.yml.".format(repo["name"])
+                        )
+                        errors.append(ERROR_OUTPUT_HANDLER)
         else:
             errors.append(ERROR_MISSING_READTHEDOCS)
 

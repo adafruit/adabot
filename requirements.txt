@@ -3,6 +3,7 @@ chardet==3.0.4
 idna==2.6
 packaging==20.3
 pylint
+pyyaml==5.4.1
 redis==2.10.6
 requests==2.20.0
 sh==1.12.14
