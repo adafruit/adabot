@@ -757,8 +757,6 @@ class library_validator():
                     if name_rebuilt: # avoid adding things like 'simpletest.py' -> ''
                         file_names.add(name_rebuilt)
 
-                    found = False
-
                     return any(
                         name.startswith(repo_name) for name in file_names
                     )
@@ -786,7 +784,7 @@ class library_validator():
             errors.append(ERROR_MISSING_EXAMPLE_FOLDER)
 
         # first location .py files whose names begin with "adafruit_"
-        re_str = re.compile('adafruit\_[\w]*\.py')
+        re_str = re.compile(r'adafruit\_[\w]*\.py')
         pyfiles = ([x["download_url"] for x in content_list
                    if re_str.fullmatch(x["name"])])
         for pyfile in pyfiles:
@@ -794,7 +792,7 @@ class library_validator():
             errors.extend(self._validate_py_for_u_modules(repo, pyfile))
 
         # now location any directories whose names begin with "adafruit_"
-        re_str = re.compile('adafruit\_[\w]*')
+        re_str = re.compile(r'adafruit\_[\w]*')
         for adir in dirs:
             if re_str.fullmatch(adir):
                 # retrieve the files in that directory
