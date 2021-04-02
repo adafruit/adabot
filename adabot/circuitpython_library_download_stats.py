@@ -49,6 +49,9 @@ file_data = []
 # i.e. are not named 'Adafruit_CircuitPython_'.
 PYPI_FORCE_NON_CIRCUITPYTHON = ["Adafruit-Blinka"]
 
+# https://www.piwheels.org/json.html
+PIWHEELS_PACKAGES_URL = "https://www.piwheels.org/packages.json"
+
 
 def pypistats_get(repo_name):
     # get download stats for the last week
@@ -90,6 +93,14 @@ def get_pypi_stats():
         successful_stats[lib] = (pypi_dl_last_week, pypi_dl_total)
 
     return successful_stats, failed_stats
+
+def get_piwheels_stats():
+    r = requests.get(PIWHEELS_PACKAGES_URL)
+    if r.ok:
+        packages = r.json()
+        for pkg, d_month, d_all, *_ in packages:
+            if pkg.startswith('adafruit'):
+                yield (pkg, d_month, d_all)
 
 def get_bundle_stats(bundle):
     """ Returns the download stats for 'bundle'. Uses release tag names to compile download
@@ -161,6 +172,12 @@ def run_stat_check():
         output_handler(" * Failed to retrieve stats for the following libraries:")
         for fail in pypi_failures:
             output_handler("   * {}".format(fail))
+    
+    output_handler("Piwheels downloads:")
+    output_handler()
+    piwheels_stats = reversed(sorted(list(get_piwheels_stats()), key=operator.itemgetter(2)))
+    for pkg, d_month, d_all in piwheels_stats:
+        output_handler("{}: {:,} downloads (last month) {:,} downloads (total)".format(pkg, d_month, d_all))
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
