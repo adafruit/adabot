@@ -39,7 +39,7 @@ if "GITHUB_WORKSPACE" in os.environ:
 else:
     redis = redis_py.StrictRedis()
 
-bundles = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
+bundles = ["CircuitPython_Community_Bundle", "Adafruit_CircuitPython_Bundle"]
 
 def fetch_bundle(bundle, bundle_path):
     if not os.path.isdir(bundle_path):
@@ -56,16 +56,24 @@ def fetch_bundle(bundle, bundle_path):
     git.submodule("update")
     os.chdir(working_directory)
 
-def check_lib_links_md(bundle_path):
-    if not "Adafruit_CircuitPython_Bundle" in bundle_path:
+
+def check_lib_links_md(bundle, bundle_path):
+    if not "Adafruit_CircuitPython_Bundle" or not "CircuitPython_Community_Bundle" in bundle_path:
         return []
-    submodules_list = sorted(common_funcs.get_bundle_submodules(),
+    submodules_list = sorted(common_funcs.get_bundle_submodules(bundle),
                              key=lambda module: module[1]["path"])
 
     lib_count = len(submodules_list)
     # used to generate commit message by comparing new libs to current list
+    if bundle == "CircuitPython_Community_Bundle":
+        file_name = "circuitpython_community_library_list.md"
+        title = "Adafruit CircuitPython Community Libraries"
+    else:
+        file_name = "circuitpython_library_list.md"
+        title = "Adafruit CircuitPython Libraries"
+
     try:
-        with open(os.path.join(bundle_path, "circuitpython_library_list.md"), 'r') as f:
+        with open(os.path.join(bundle_path, file_name), 'r') as f:
             read_lines = f.read().splitlines()
     except:
         read_lines = []
@@ -93,10 +101,10 @@ def check_lib_links_md(bundle_path):
         elif "helpers" in submodule[1]["path"]:
             write_helpers.append(list_line)
 
-    with open(os.path.join(bundle_path, "circuitpython_library_list.md"), 'w') as f:
-        f.write("# Adafruit CircuitPython Libraries\n")
+    with open(os.path.join(bundle_path, file_name), 'w') as f:
+        f.write("#" + title + "\n")
         f.write("![Blinka Reading](https://raw.githubusercontent.com/adafruit/circuitpython-weekly-newsletter/gh-pages/assets/archives/22_1023blinka.png)\n\n")
-        f.write("Here is a listing of current Adafruit CircuitPython Libraries. There are {} libraries available.\n\n".format(lib_count))
+        f.write("Here is a listing of current " + title + ". There are {} libraries available.\n\n".format(lib_count))
         f.write("## Drivers:\n")
         for line in sorted(write_drivers):
             f.write(line + "\n")
@@ -150,7 +158,7 @@ def repo_remote_url(repo_path):
         git.remote("get-url", "origin", _out=output)
         return output.getvalue().strip()
 
-def update_bundle(bundle_path):
+def update_bundle(bundle, bundle_path):
     working_directory = os.path.abspath(os.getcwd())
     os.chdir(bundle_path)
     git.submodule("foreach", "git", "fetch")
@@ -183,12 +191,18 @@ def update_bundle(bundle_path):
             summary = "\n".join(diff_lines[1:-1])
             updates.append((url[:-4], old_commit, new_commit, summary))
     os.chdir(working_directory)
-    lib_list_updates = check_lib_links_md(bundle_path)
+    lib_list_updates = check_lib_links_md(bundle, bundle_path)
     if lib_list_updates:
-        updates.append(("https://github.com/adafruit/Adafruit_CircuitPython_Bundle/circuitpython_library_list.md",
-                        "NA",
-                        "NA",
-                        "  > Added the following libraries: {}".format(", ".join(lib_list_updates))))
+        if bundle == "CircuitPython_Community_Bundle":
+            updates.append(("https://github.com/adafruit/Adafruit_CircuitPython_Bundle/circuitpython_community_library_list.md",
+                            "NA",
+                            "NA",
+                            "  > Added the following libraries: {}".format(", ".join(lib_list_updates))))
+        else:
+            updates.append(("https://github.com/adafruit/Adafruit_CircuitPython_Bundle/circuitpython_library_list.md",
+                            "NA",
+                            "NA",
+                            "  > Added the following libraries: {}".format(", ".join(lib_list_updates))))
 
     return updates
 
@@ -272,7 +286,6 @@ def add_contributors(master_list, additions):
 def new_release(bundle, bundle_path):
     working_directory = os.path.abspath(os.getcwd())
     os.chdir(bundle_path)
-    print(bundle)
     current_release = github.get(
         "/repos/adafruit/{}/releases/latest".format(bundle))
     last_tag = current_release.json()["tag_name"]
@@ -376,7 +389,7 @@ if __name__ == "__main__":
         bundle_path = os.path.join(directory, bundle)
         try:
             fetch_bundle(bundle, bundle_path)
-            update_info = update_bundle(bundle_path)
+            update_info = update_bundle(bundle, bundle_path)
             if update_info:
                 commit_updates(bundle_path, update_info)
                 push_updates(bundle_path)

@@ -91,9 +91,10 @@ def parse_gitmodules(input_text):
         results.append((submodule_name, submodule_variables))
     return results
 
-def get_bundle_submodules():
-    """Query Adafruit_CircuitPython_Bundle repository for all the submodules
-    (i.e. modules included inside) and return a list of the found submodules.
+def get_bundle_submodules(bundle):
+    """Query Adafruit_CircuitPython_Bundle or CircuitPython_Community_Bundle
+    repository for all the submodules (i.e. modules included inside) and
+    return a list of the found submodules.
     Each list item is a 2-tuple of submodule name and a dict of submodule
     variables including 'path' (location of submodule in bundle) and
     'url' (URL to git repository with submodule contents).
@@ -101,12 +102,20 @@ def get_bundle_submodules():
     # Assume the bundle repository is public and get the .gitmodules file
     # without any authentication or Github API usage.  Also assumes the
     # master branch of the bundle is the canonical source of the bundle release.
-    result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules',
-                          timeout=15)
-    if result.status_code != 200:
-        #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
-        raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
-    return parse_gitmodules(result.text)
+    if bundle == "Adafruit_CircuitPython_Bundle":
+        result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules',
+                              timeout=15)
+        if result.status_code != 200:
+            #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
+            raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
+        return parse_gitmodules(result.text)
+    elif bundle == "CircuitPython_Community_Bundle":
+        result = requests.get('https://raw.githubusercontent.com/adafruit/CircuitPython_Community_Bundle/master/.gitmodules',
+                              timeout=15)
+        if result.status_code != 200:
+            #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
+            raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
+        return parse_gitmodules(result.text)
 
 def sanitize_url(url):
     """Convert a Github repository URL into a format which can be compared for
