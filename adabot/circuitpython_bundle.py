@@ -41,6 +41,7 @@ else:
 
 bundles = ["CircuitPython_Community_Bundle", "Adafruit_CircuitPython_Bundle"]
 
+
 def fetch_bundle(bundle, bundle_path):
     if not os.path.isdir(bundle_path):
         os.makedirs(bundle_path, exist_ok=True)
@@ -114,6 +115,7 @@ def check_lib_links_md(bundle, bundle_path):
 
     return updates_made
 
+
 class Submodule:
     def __init__(self, directory):
         self.directory = directory
@@ -136,6 +138,7 @@ def commit_to_tag(repo_path, commit):
             pass
     return commit
 
+
 def repo_version():
     version = StringIO()
     try:
@@ -157,6 +160,7 @@ def repo_remote_url(repo_path):
         output = StringIO()
         git.remote("get-url", "origin", _out=output)
         return output.getvalue().strip()
+
 
 def update_bundle(bundle, bundle_path):
     working_directory = os.path.abspath(os.getcwd())
@@ -206,6 +210,7 @@ def update_bundle(bundle, bundle_path):
 
     return updates
 
+
 def commit_updates(bundle_path, update_info):
     working_directory = os.path.abspath(os.getcwd())
     message = ["Automated update by Adabot (adafruit/adabot@{})"
@@ -224,11 +229,13 @@ def commit_updates(bundle_path, update_info):
     git.commit(message=message)
     os.chdir(working_directory)
 
+
 def push_updates(bundle_path):
     working_directory = os.path.abspath(os.getcwd())
     os.chdir(bundle_path)
     git.push()
     os.chdir(working_directory)
+
 
 def get_contributors(repo, commit_range):
     output = StringIO()
@@ -270,6 +277,7 @@ def get_contributors(repo, commit_range):
             contributors[committer] += 1
     return contributors
 
+
 def repo_name(url):
     # Strips off .git and splits on /
     if url.endswith(".git"):
@@ -277,11 +285,13 @@ def repo_name(url):
     url = url.split("/")
     return url[-2] + "/" + url[-1]
 
+
 def add_contributors(master_list, additions):
     for contributor in additions:
         if contributor not in master_list:
             master_list[contributor] = 0
         master_list[contributor] += additions[contributor]
+
 
 def new_release(bundle, bundle_path):
     working_directory = os.path.abspath(os.getcwd())
@@ -379,6 +389,7 @@ def new_release(bundle, bundle_path):
         print(response.text)
 
     os.chdir(working_directory)
+
 
 if __name__ == "__main__":
     directory = os.path.abspath(".bundles")

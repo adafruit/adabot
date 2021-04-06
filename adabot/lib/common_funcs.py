@@ -33,6 +33,7 @@ from adabot import pypi_requests as pypi
 
 core_repo_url = "/repos/adafruit/circuitpython"
 
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -91,10 +92,10 @@ def parse_gitmodules(input_text):
         results.append((submodule_name, submodule_variables))
     return results
 
+
 def get_bundle_submodules(bundle):
-    """Query Adafruit_CircuitPython_Bundle or CircuitPython_Community_Bundle
-    repository for all the submodules (i.e. modules included inside) and
-    return a list of the found submodules.
+    """Query bundle repository for all the submodules (i.e. modules included
+    inside) and return a list of the found submodules.
     Each list item is a 2-tuple of submodule name and a dict of submodule
     variables including 'path' (location of submodule in bundle) and
     'url' (URL to git repository with submodule contents).
@@ -102,27 +103,21 @@ def get_bundle_submodules(bundle):
     # Assume the bundle repository is public and get the .gitmodules file
     # without any authentication or Github API usage.  Also assumes the
     # master branch of the bundle is the canonical source of the bundle release.
-    if bundle == "Adafruit_CircuitPython_Bundle":
-        result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules',
-                              timeout=15)
-        if result.status_code != 200:
-            #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
-            raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
-        return parse_gitmodules(result.text)
-    elif bundle == "CircuitPython_Community_Bundle":
-        result = requests.get('https://raw.githubusercontent.com/adafruit/CircuitPython_Community_Bundle/master/.gitmodules',
-                              timeout=15)
-        if result.status_code != 200:
-            #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
-            raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
-        return parse_gitmodules(result.text)
+    lookup_string_address = 'https://raw.githubusercontent.com/adafruit/' + bundle + '/master/.gitmodules'
+
+    result = requests.get(lookup_string_address, timeout=15)
+    if result.status_code != 200:
+        # output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
+        raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
+    return parse_gitmodules(result.text)
+
 
 def sanitize_url(url):
     """Convert a Github repository URL into a format which can be compared for
     equality with simple string comparison.  Will strip out any leading URL
     scheme, set consistent casing, and remove any optional .git suffix.  The
     attempt is to turn a URL from Github (which can be one of many different
-    schemes with and without suffxes) into canonical values for easy comparison.
+    schemes with and without suffixes) into canonical values for easy comparison.
     """
     # Make the url lower case to perform case-insensitive comparisons.
     # This might not actually be correct if Github cares about case (assumption
@@ -138,6 +133,7 @@ def sanitize_url(url):
     if url.endswith('.git'):
         url = url[:-4]
     return url
+
 
 def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     """Return a boolean indicating if the specified repository (the clone URL
@@ -167,6 +163,7 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     # Failed to find the repo as a submodule of the libraries folders.
     return False
 
+
 def list_repos(*, include_repos=None):
     """Return a list of all Adafruit repositories that start with
     Adafruit_CircuitPython.  Each list item is a dictionary of GitHub API
@@ -184,7 +181,7 @@ def list_repos(*, include_repos=None):
                         )
 
     while result.ok:
-        #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
+        # repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
         repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
                      (repo["name"].startswith("Adafruit_CircuitPython") or repo["name"] == "circuitpython")))
 
@@ -211,6 +208,7 @@ def list_repos(*, include_repos=None):
 
     return repos
 
+
 def get_docs_link(bundle_path, submodule):
     try:
         f = open(f"{bundle_path}/{submodule[1]['path']}/README.rst", 'r')
@@ -224,6 +222,7 @@ def get_docs_link(bundle_path, submodule):
         # didn't find readme
         return None
 
+
 def repo_is_on_pypi(repo):
     """returns True when the provided repository is in pypi"""
     is_on = False
@@ -232,6 +231,7 @@ def repo_is_on_pypi(repo):
         is_on = True
 
     return is_on
+
 
 def is_new_or_updated(repo):
     """ Check the repo for new release(s) within the last week. Then determine
@@ -279,6 +279,7 @@ def is_new_or_updated(repo):
     else:
         return "updated"
 
+
 def whois_github_user():
     """ Find who the user is that is running the current instance of adabot.
         'GITHUB_ACTOR' is an environment variable available on GitHub Actions.
@@ -290,6 +291,7 @@ def whois_github_user():
         user = github.get("/user").json()["login"]
 
     return user
+
 
 class InsightData(collections.UserDict):
     """ Container class for holding insight data (issues, PRs, etc).
