@@ -925,6 +925,37 @@ class library_validator():
         return []
 
 
+    def github_get_all_pages(self, url, params):
+        results = []
+        response = github.get(url, params=params)
+
+        if not response.ok:
+            # set error message and return ERROR_OUTPUT_HANDLER
+            # the caller must test and forward to the outside
+            self.output_file_data.append("Github request failed: {}, {}".format(repo["full_name"], link))
+            return ERROR_OUTPUT_HANDLER
+
+        while response.ok:
+            results.extend(response.json())
+            try:
+                links = response.headers["Link"]
+            except KeyError:
+                break
+
+            if links:
+                next_url = None
+                for link in links.split(","):
+                    link, rel = link.split(";")
+                    link = link.strip(" <>")
+                    rel = rel.strip()
+                    if rel == "rel=\"next\"":
+                        next_url = link
+                        break
+                if not next_url:
+                    break
+                response = github.get(link)
+        return results
+
 
     def gather_insights(self, repo, insights, since, show_closed_metric=False):
         """Gather analytics about a repository like open and merged pull requests.
@@ -937,14 +968,12 @@ class library_validator():
             return []
         params = {"sort": "updated",
                   "state": "all",
+                  "per_page": 100,
                   "since": since.strftime("%Y-%m-%dT%H:%M:%SZ")}
-        response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
-        if not response.ok:
-            # replace 'output_handler' with ERROR_OUTPUT_HANDLER
-            self.output_file_data.append("Insights request failed: {}".format(repo["full_name"]))
+        issues = self.github_get_all_pages("/repos/" + repo["full_name"] + "/issues", params=params)
+        if issues == ERROR_OUTPUT_HANDLER:
             return [ERROR_OUTPUT_HANDLER]
 
-        issues = response.json()
         for issue in issues:
             created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
             if "pull_request" in issue:
@@ -1017,33 +1046,10 @@ class library_validator():
                     insights["closed_issues"] += 1
                     insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
-        issues = []
         params = {"state": "open", "per_page": 100}
-        response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
-        if not response.ok:
-            # replace 'output_handler' with ERROR_OUTPUT_HANDLER
-            self.output_file_data.append("Issues request failed: {}".format(repo["full_name"]))
+        issues = self.github_get_all_pages("/repos/" + repo["full_name"] + "/issues", params=params)
+        if issues == ERROR_OUTPUT_HANDLER:
             return [ERROR_OUTPUT_HANDLER]
-
-        while response.ok:
-            issues.extend(response.json())
-            try:
-                links = response.headers["Link"]
-            except KeyError:
-                break
-
-            if links:
-                next_url = None
-                for link in links.split(","):
-                    link, rel = link.split(";")
-                    link = link.strip(" <>")
-                    rel = rel.strip()
-                    if rel == "rel=\"next\"":
-                        next_url = link
-                        break
-                if not next_url:
-                    break
-                response = requests.get(link, timeout=30)
 
         for issue in issues:
             created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
