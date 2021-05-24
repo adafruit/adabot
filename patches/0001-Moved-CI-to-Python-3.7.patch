@@ -1,6 +1,6 @@
-From 8aae58251db367121928397025fcd7a487e1ba9c Mon Sep 17 00:00:00 2001
-From: Dylan Herrada <33632497+dherrada@users.noreply.github.com>
-Date: Thu, 20 May 2021 16:13:41 -0400
+From f2d8d960f1713c8e161b78826a52ef79816c7a19 Mon Sep 17 00:00:00 2001
+From: dherrada <dylan.herrada@adafruit.com>
+Date: Mon, 24 May 2021 09:54:31 -0400
 Subject: [PATCH] Moved CI to Python 3.7
 
 ---
@@ -8,15 +8,22 @@ Subject: [PATCH] Moved CI to Python 3.7
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
-index 0a44310..a9516b8 100644
+index 0ab7182..c4c975d 100644
 --- a/.github/workflows/build.yml
 +++ b/.github/workflows/build.yml
-@@ -25 +25 @@ jobs:
+@@ -22,10 +22,10 @@ jobs:
+         awk -F '\/' '{ print tolower($2) }' |
+         tr '_' '-'
+         )
 -    - name: Set up Python 3.6
 +    - name: Set up Python 3.7
-@@ -28 +28 @@ jobs:
+       uses: actions/setup-python@v1
+       with:
 -        python-version: 3.6
 +        python-version: 3.7
+     - name: Versions
+       run: |
+         python3 --version
 -- 
 2.25.1
 
