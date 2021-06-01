@@ -92,6 +92,7 @@ ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 ERROR_NOT_IN_BUNDLE = "Not in bundle."
+ERROR_INCORRECT_DEFAULT_BRANCH = "Default branch is not main"
 ERROR_UNABLE_PULL_REPO_CONTENTS = "Unable to pull repo contents"
 ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
@@ -1208,5 +1209,15 @@ class library_validator():
             if self.keep_repos:
                 with open(repo_dir / '.pylint-ok', 'w') as f:
                     f.write(''.join(pylint_result))
+
+        return []
+
+    def validate_default_branch(self, repo):
+        """ Makes sure that the default branch is main """
+        if not repo["name"].startswith("Adafruit_CircuitPython"):
+            return []
+
+        if repo["default_branch"] != "main":
+            return [ERROR_INCORRECT_DEFAULT_BRANCH]
 
         return []
