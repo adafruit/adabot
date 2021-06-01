@@ -1218,6 +1218,6 @@ class library_validator():
             return []
 
         if repo["default_branch"] != "main":
-            return[ERROR_INCORRECT_DEFAULT_BRANCH]
+            return [ERROR_INCORRECT_DEFAULT_BRANCH]
 
         return []
