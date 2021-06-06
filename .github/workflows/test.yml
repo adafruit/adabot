@@ -20,6 +20,7 @@ jobs:
     # Its necessary to do this here, since 'schedule' events cannot (currently)
     # be limited (they run on all forks' default branches).
     #if: startswith(github.repository, 'adafruit/')
+    if: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
     services:
       redis:
         image: redis
