@@ -236,11 +236,8 @@ def run_arduino_lib_checks():
         print_list_output("Libraries that is missing library.properties file: ({})", missing_library_properties_list)
 
 
-if __name__ == "__main__":
-    cmd_line_args = cmd_line_parser.parse_args()
-    verbosity = cmd_line_args.verbose
-    if cmd_line_args.output_file:
-        output_filename = cmd_line_args.output_file
+def main(verbosity=1, output_filename=None):
+
     try:
         reply = requests.get("http://downloads.arduino.cc/libraries/library_index.json")
         if not reply.ok:
@@ -268,3 +265,11 @@ if __name__ == "__main__":
             with open(output_filename, 'w') as f:
                 for line in file_data:
                     f.write(str(line) + "\n")
+
+if __name__ == "__main__":
+    cmd_line_args = cmd_line_parser.parse_args()
+    main(
+        verbosity=cmd_line_args.verbose,
+        output_filename=cmd_line_args.output_file
+    )
+
