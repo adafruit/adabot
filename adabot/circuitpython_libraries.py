@@ -109,7 +109,7 @@ blinka_repos = [
     'Adafruit_Python_Extended_Bus'
 ]
 
-def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
+def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args, error_depth):
     """runs the various library checking functions"""
     pylint_info = pypi.get("/pypi/pylint/json")
     if pylint_info and pylint_info.ok:
@@ -491,29 +491,24 @@ def print_issue_overview(*insights):
             )
         output_handler(hacktober_changes)
 
-if __name__ == "__main__":
+def main(verbosity=1, output_filename=None, validator=None, error_depth=5):
     validator_kwarg_list = {}
     startup_message = [
         "Running CircuitPython Library checks...",
         "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p"))
     ]
-    cmd_line_args = cmd_line_parser.parse_args()
 
-    verbosity = cmd_line_args.verbose
-
-    if cmd_line_args.output_file:
-        output_filename = cmd_line_args.output_file
+    if output_filename:
         startup_message.append(" - Report output will be saved to: {}".format(output_filename))
 
     validators = []
     validator_names = []
-    if cmd_line_args.validator:
-        error_depth = cmd_line_args.error_depth
+    if validator:
         startup_message.append(" - Depth for listing libraries with errors: {}".format(error_depth))
 
-        if cmd_line_args.validator != "all":
+        if validator != "all":
             validators = []
-            for func in cmd_line_args.validator.split(","):
+            for func in validator.split(","):
                 func_name = func.strip()
                 try:
                     if not func_name.startswith("validate"):
@@ -553,7 +548,7 @@ if __name__ == "__main__":
         output_handler()
         #print(validators)
         run_library_checks(validators, bundle_submodules, latest_pylint,
-                           validator_kwarg_list)
+                           validator_kwarg_list, error_depth)
     except:
         if output_filename is not None:
             exc_type, exc_val, exc_tb = sys.exc_info()
@@ -572,3 +567,12 @@ if __name__ == "__main__":
             with open(output_filename, 'w') as f:
                 for line in file_data:
                     f.write(str(line) + "\n")
+
+if __name__ == "__main__":
+    cli_args = cmd_line_parser.parse_args()
+    main(
+        verbosity=cli_args.verbose,
+        output_filename=cli_args.output_file,
+        validator=cli_args.validator,
+        error_depth=cli_args.error_depth
+    )
