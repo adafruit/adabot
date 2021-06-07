@@ -8,3 +8,4 @@ env.sh
 .libraries/*
 .cp_org/*
 .blinka/*
+.vscode
