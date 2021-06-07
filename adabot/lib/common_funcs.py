@@ -101,7 +101,7 @@ def get_bundle_submodules():
     # Assume the bundle repository is public and get the .gitmodules file
     # without any authentication or Github API usage.  Also assumes the
     # master branch of the bundle is the canonical source of the bundle release.
-    result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/.gitmodules',
+    result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/main/.gitmodules',
                           timeout=15)
     if result.status_code != 200:
         #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
