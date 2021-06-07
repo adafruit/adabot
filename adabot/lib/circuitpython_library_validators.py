@@ -204,12 +204,13 @@ class library_validator():
         if self._rtd_yaml_base is None:
             rtd_yml_dl_url = (
                 "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
-                "circuitpython/master/%7B%25%20if%20cookiecutter.library_prefix"
+                "circuitpython/main/%7B%25%20if%20cookiecutter.library_prefix"
                 "%20%25%7D%7B%7B%20cookiecutter.library_prefix%20%7C%20capitalize"
-                "%20%7D%7D_%7B%25%20endif%20%25%7DCircuitPython_%7B%7B%20cookiecutter"
-                ".library_name%7D%7D/%7B%25%20if%20cookiecutter.sphinx_docs%20in"
-                "%20%5B'y'%2C%20'yes'%5D%20%25%7D.readthedocs.yml%7B%25%20endif"
-                "%20%25%7D"
+                "%20%7D%7D_CircuitPython%7B%25%20else%20%25%7DCircuitPython_Org%7B"
+                "%25%20endif%20%25%7D_%7B%7B%20cookiecutter.library_name%7Creplace"
+                "(%22%20%22%2C%20%22_%22)%7D%7D/%7B%25%20if%20cookiecutter.sphinx"
+                "_docs%20in%20%5B'y'%2C%20'yes'%5D%20%25%7D.readthedocs.yml%7B%25"
+                "%20endif%20%25%7D"
             )
             rtd_yml = requests.get(rtd_yml_dl_url)
             if rtd_yml.ok:
@@ -912,7 +913,7 @@ class library_validator():
             return []
         global core_driver_page
         if not core_driver_page:
-            driver_page = requests.get("https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/master/docs/drivers.rst",
+            driver_page = requests.get("https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/main/docs/drivers.rst",
                                        timeout=15)
             if not driver_page.ok:
                 return [ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED]
