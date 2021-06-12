@@ -53,54 +53,40 @@ PYPI_FORCE_NON_CIRCUITPYTHON = ["Adafruit-Blinka"]
 PIWHEELS_PACKAGES_URL = "https://www.piwheels.org/packages.json"
 
 
-def pypistats_get(repo_name):
-    # get download stats for the last week
-    api_url = "https://pypistats.org/api/packages/" + repo_name + "/recent"
-    pypi_stats_last_week = requests.get(api_url, timeout=30)
-    if not pypi_stats_last_week.ok:
-        # return "Failed to retrieve data ({})".format(pypi_stats.text)
-        return None, None
-    pypi_dl_last_week = pypi_stats_last_week.json()["data"]["last_week"]
+def piwheels_stats():
+    stats = {}
+    response = requests.get(PIWHEELS_PACKAGES_URL)
+    if response.ok:
+        packages = response.json()
+        stats = {
+            pkg: {"total": dl_all, "month": dl_month}
+            for pkg, dl_month, dl_all, *_ in packages if pkg.startswith("adafruit")
+        }
 
-    # get total download stats
-    pypi_dl_total = 0
-    api_url = "https://pypistats.org/api/packages/" + repo_name + "/overall?mirrors=false"
-    pypi_stats_total = requests.get(api_url, timeout=30)
-    if pypi_stats_total.ok:
-        for data in pypi_stats_total.json()["data"]:
-            pypi_dl_total += data["downloads"]
-
-    return pypi_dl_last_week, pypi_dl_total
+    return stats
 
 def get_pypi_stats():
     successful_stats = {}
     failed_stats = []
     repos = common_funcs.list_repos()
+    dl_stats = piwheels_stats()
     for repo in repos:
         if (repo["owner"]["login"] == "adafruit" and repo["name"].startswith("Adafruit_CircuitPython")):
             if common_funcs.repo_is_on_pypi(repo):
-                pypi_dl_last_week, pypi_dl_total = pypistats_get(repo["name"].replace("_", "-").lower())
-                if pypi_dl_last_week is None:
+                pkg_name = repo["name"].replace("_", "-").lower()
+                if pkg_name in dl_stats:
+                    successful_stats[repo["name"]] = (dl_stats[pkg_name]["month"], dl_stats[pkg_name]["total"])
+                else:
                     failed_stats.append(repo["name"])
-                    continue
-                successful_stats[repo["name"]] = (pypi_dl_last_week, pypi_dl_total)
 
     for lib in PYPI_FORCE_NON_CIRCUITPYTHON:
-        pypi_dl_last_week, pypi_dl_total = pypistats_get(lib.lower())
-        if pypi_dl_last_week is None:
-            failed_stats.append(lib)
-            continue
-        successful_stats[lib] = (pypi_dl_last_week, pypi_dl_total)
+        pkg_name = lib.lower()
+        if pkg_name in dl_stats:
+            successful_stats[lib] = (dl_stats[pkg_name]["month"], dl_stats[pkg_name]["total"])
+        else:
+            failed_stats.append(repo["name"])
 
     return successful_stats, failed_stats
-
-def get_piwheels_stats():
-    r = requests.get(PIWHEELS_PACKAGES_URL)
-    if r.ok:
-        packages = r.json()
-        for pkg, d_month, d_all, *_ in packages:
-            if pkg.startswith('adafruit'):
-                yield (pkg, d_month, d_all)
 
 def get_bundle_stats(bundle):
     """ Returns the download stats for 'bundle'. Uses release tag names to compile download
@@ -153,7 +139,7 @@ def run_stat_check():
 
     pypi_downloads = {}
     pypi_failures = []
-    downloads_list = [["| Library", "| Last Week", "| Total |"],
+    downloads_list = [["| Library", "| Last Month", "| Total |"],
                       ["|:-------", "|:--------:", "|:-----:|"]]
     output_handler("Adafruit CircuitPython Library PyPi downloads:")
     output_handler()
@@ -172,12 +158,6 @@ def run_stat_check():
         output_handler(" * Failed to retrieve stats for the following libraries:")
         for fail in pypi_failures:
             output_handler("   * {}".format(fail))
-    
-    output_handler("Piwheels downloads:")
-    output_handler()
-    piwheels_stats = reversed(sorted(list(get_piwheels_stats()), key=operator.itemgetter(2)))
-    for pkg, d_month, d_all in piwheels_stats:
-        output_handler("{}: {:,} downloads (last month) {:,} downloads (total)".format(pkg, d_month, d_all))
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
