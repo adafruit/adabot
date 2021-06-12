@@ -141,7 +141,7 @@ def run_stat_check():
     pypi_failures = []
     downloads_list = [["| Library", "| Last Month", "| Total |"],
                       ["|:-------", "|:--------:", "|:-----:|"]]
-    output_handler("Adafruit CircuitPython Library PyPi downloads:")
+    output_handler("Adafruit CircuitPython Library Piwheels downloads:")
     output_handler()
     pypi_downloads, pypi_failures = get_pypi_stats()
     for stat in sorted(pypi_downloads.items(), key=operator.itemgetter(1,1), reverse=True):

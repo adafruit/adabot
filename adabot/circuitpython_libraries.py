@@ -293,8 +293,8 @@ def run_library_checks(validators, bundle_submodules, latest_pylint, kw_args):
     print_issue_overview(blinka_insights)
     output_handler("* {} open issues".format(len(blinka_insights["open_issues"])))
     output_handler("  * https://github.com/adafruit/Adafruit_Blinka/issues")
-    blinka_dl, _ = dl_stats.pypistats_get('adafruit-blinka')
-    output_handler("* PyPI Downloads in the last week: {}".format(blinka_dl))
+    blinka_dl = dl_stats.piwheels_stats().get('adafruit-blinka', {}).get("month", "N/A")
+    output_handler("* Piwheels Downloads in the last month: {}".format(blinka_dl))
     output_handler(
         "Number of supported boards: {}".format(blinka_funcs.board_count())
     )
