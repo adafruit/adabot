@@ -19,14 +19,24 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-import datetime
-import sys
+
 import argparse
+import datetime
+import logging
+import sys
 import traceback
 
 import requests
 
 from adabot import github_requests as github
+
+logger = logging.getLogger(__name__)
+ch = logging.StreamHandler(stream=sys.stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[ch]
+)
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(description="Adabot utility for Arduino Libraries.",
@@ -35,9 +45,6 @@ cmd_line_parser.add_argument("-o", "--output_file", help="Output log to the file
                              metavar="<OUTPUT FILENAME>", dest="output_file")
 cmd_line_parser.add_argument("-v", "--verbose", help="Set the level of verbosity printed to the command prompt."
                              " Zero is off; One is on (default).", type=int, default=1, dest="verbose", choices=[0,1])
-output_filename = None
-verbosity = 1
-file_data = []
 
 all_libraries = []
 adafruit_library_index = []
@@ -72,20 +79,13 @@ def is_arduino_library(repo):
 
 def print_list_output(title, coll):
     ""
-    output_handler()
-    output_handler(title.format(len(coll)-2))
+    logger.info("")
+    logger.info(title.format(len(coll)-2))
     long_col = [(max([len(str(row[i])) for row in coll]) + 3)
                 for i in range(len(coll[0]))]
     row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
     for lib in coll:
-        output_handler(row_format.format(*lib))
-
-def output_handler(message="", quiet=False):
-    """Handles message output to prompt/file for print_*() functions."""
-    if output_filename is not None:
-        file_data.append(message)
-    if verbosity and not quiet:
-        print(message)
+        logger.info(row_format.format(*lib))
 
 def validate_library_properties(repo):
     """ Checks if the latest GitHub Release Tag and version in the library_properties
@@ -132,7 +132,7 @@ def validate_release_state(repo):
 
     compare_tags = github.get("/repos/" + repo["full_name"] + "/compare/master..." + repo['tag_name'])
     if not compare_tags.ok:
-        output_handler("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], repo['tag_name']))
+        logger.error("Error: failed to compare {0} 'master' to tag '{1}'".format(repo["name"], repo['tag_name']))
         return
     compare_tags_json = compare_tags.json()
     if "status" in compare_tags_json:
@@ -142,7 +142,7 @@ def validate_release_state(repo):
             #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
             return [repo['tag_name'], compare_tags_json["behind_by"]]
     elif "errors" in compare_tags_json:
-        output_handler("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
+        logger.error("Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
                        repo["name"], compare_tags_json["message"]))
 
     return
@@ -166,11 +166,11 @@ def validate_example(repo):
     return repo_has_ino.ok and len(repo_has_ino.json())
 
 def run_arduino_lib_checks():
-    output_handler("Running Arduino Library Checks")
-    output_handler("Getting list of libraries to check...")
+    logger.info("Running Arduino Library Checks")
+    logger.info("Getting list of libraries to check...")
 
     repo_list = list_repos()
-    output_handler("Found {} Arduino libraries to check\n".format(len(repo_list)))
+    logger.info("Found {} Arduino libraries to check\n".format(len(repo_list)))
     failed_lib_prop = [["  Repo", "Release Tag", "library.properties Version"], ["  ----", "-----------", "--------------------------"]]
     needs_release_list = [["  Repo", "Latest Release", "Commits Behind"], ["  ----", "--------------", "--------------"]]
     needs_registration_list = [["  Repo"], ["  ----"]]
@@ -218,7 +218,7 @@ def run_arduino_lib_checks():
         all_libraries.append(entry)
 
     for entry in all_libraries:
-        print(entry)
+        logging.info(entry)
 
     if len(failed_lib_prop) > 2:
         print_list_output("Libraries Have Mismatched Release Tag and library.properties Version: ({})", failed_lib_prop)
@@ -236,12 +236,16 @@ def run_arduino_lib_checks():
         print_list_output("Libraries that is missing library.properties file: ({})", missing_library_properties_list)
 
 
-def main(verbosity=1, output_filename=None):
+def main(verbosity=1, output_file=None):
+
+    if output_file:
+        fh = logging.FileHandler(output_file)
+        logger.addHandler(fh)
 
     try:
         reply = requests.get("http://downloads.arduino.cc/libraries/library_index.json")
         if not reply.ok:
-            print("Could not fetch http://downloads.arduino.cc/libraries/library_index.json")
+            logging.error("Could not fetch http://downloads.arduino.cc/libraries/library_index.json")
             exit()
         arduino_library_index = reply.json()
         for lib in arduino_library_index['libraries']:
@@ -249,27 +253,21 @@ def main(verbosity=1, output_filename=None):
                 adafruit_library_index.append(lib)
         run_arduino_lib_checks()
     except:
-        if output_filename is not None:
-            exc_type, exc_val, exc_tb = sys.exc_info()
-            output_handler("Exception Occurred!", quiet=True)
-            output_handler(("-"*60), quiet=True)
-            output_handler("Traceback (most recent call last):", quiet=True)
-            tb = traceback.format_tb(exc_tb)
-            for line in tb:
-                output_handler(line, quiet=True)
-            output_handler(exc_val, quiet=True)
+        exc_type, exc_val, exc_tb = sys.exc_info()
+        logger.error("Exception Occurred!", quiet=True)
+        logger.error(("-"*60), quiet=True)
+        logger.error("Traceback (most recent call last):")
+        tb = traceback.format_tb(exc_tb)
+        for line in tb:
+            logger.error(line)
+        logger.error(exc_val)
 
         raise
-    finally:
-        if output_filename is not None:
-            with open(output_filename, 'w') as f:
-                for line in file_data:
-                    f.write(str(line) + "\n")
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
     main(
         verbosity=cmd_line_args.verbose,
-        output_filename=cmd_line_args.output_file
+        output_file=cmd_line_args.output_file
     )
 
