@@ -987,7 +987,11 @@ class library_validator():
                         insights["pr_authors"].add(pr_info["user"]["login"])
                     insights["active_prs"] += 1
                 else:
-                    if pr_info["merged"]:
+                    merged = datetime.datetime.strptime(
+                            issue["closed_at"],
+                            "%Y-%m-%dT%H:%M:%SZ"
+                            )
+                    if pr_info["merged"] and merged > since:
                         merged_info = ""
                         if show_closed_metric:
                             created = datetime.datetime.strptime(
