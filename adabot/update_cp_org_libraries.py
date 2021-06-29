@@ -33,7 +33,7 @@ from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
 
-DO_NOT_VALIDATE = ['CircuitPython_Community_Bundle', 'cookiecutter-adafruit-circuitpython']
+DO_NOT_VALIDATE = ['CircuitPython_Community_Bundle', 'cookiecutter-adafruit-circuitpython', 'Adafruit_CircuitPython_TestRepo']
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
