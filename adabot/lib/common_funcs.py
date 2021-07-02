@@ -33,6 +33,7 @@ from adabot import pypi_requests as pypi
 
 core_repo_url = "/repos/adafruit/circuitpython"
 
+
 def parse_gitmodules(input_text):
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
@@ -64,14 +65,16 @@ def parse_gitmodules(input_text):
     # Define a regular expression to match a variable setting line and capture
     # the variable name and value.  This does NOT handle multi-line or quote
     # escaping (far outside the abilities of a regular expression).
-    variable_re = '^\s*([a-zA-Z0-9\-]+) =\s+(.+?)\s*$'
+    variable_re = "^\s*([a-zA-Z0-9\-]+) =\s+(.+?)\s*$"
     # Process all the lines to parsing submodule sections and the variables
     # within them as they're found.
     results = []
     submodule_name = None
     submodule_variables = {}
     for line in input_text.splitlines():
-        submodule_section_match = re.match(submodule_section_re, line, flags=re.IGNORECASE)
+        submodule_section_match = re.match(
+            submodule_section_re, line, flags=re.IGNORECASE
+        )
         variable_match = re.match(variable_re, line)
         if submodule_section_match:
             # Found a new section.  End the current one if it had data and add
@@ -85,11 +88,14 @@ def parse_gitmodules(input_text):
             # Force the variable name to lower case as variable names are
             # case-insensitive in git config sections and this makes later
             # processing easier (can assume lower-case names to find values).
-            submodule_variables[variable_match.group(1).lower()] = variable_match.group(2)
+            submodule_variables[variable_match.group(1).lower()] = variable_match.group(
+                2
+            )
     # Add the last parsed section if it exists.
     if submodule_name is not None:
         results.append((submodule_name, submodule_variables))
     return results
+
 
 def get_bundle_submodules():
     """Query Adafruit_CircuitPython_Bundle repository for all the submodules
@@ -101,12 +107,15 @@ def get_bundle_submodules():
     # Assume the bundle repository is public and get the .gitmodules file
     # without any authentication or Github API usage.  Also assumes the
     # master branch of the bundle is the canonical source of the bundle release.
-    result = requests.get('https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/main/.gitmodules',
-                          timeout=15)
+    result = requests.get(
+        "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/main/.gitmodules",
+        timeout=15,
+    )
     if result.status_code != 200:
-        #output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
-        raise RuntimeError('Failed to access bundle .gitmodules file from GitHub!')
+        # output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
+        raise RuntimeError("Failed to access bundle .gitmodules file from GitHub!")
     return parse_gitmodules(result.text)
+
 
 def sanitize_url(url):
     """Convert a Github repository URL into a format which can be compared for
@@ -122,13 +131,14 @@ def sanitize_url(url):
     # Strip out any preceding http://, https:// or git:// from the URL to
     # make URL comparisons safe (probably better to explicitly parse using
     # a URL module in the future).
-    scheme_end = url.find('://')
+    scheme_end = url.find("://")
     if scheme_end >= 0:
         url = url[scheme_end:]
     # Strip out any .git suffix if it exists.
-    if url.endswith('.git'):
+    if url.endswith(".git"):
         url = url[:-4]
     return url
+
 
 def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     """Return a boolean indicating if the specified repository (the clone URL
@@ -142,7 +152,7 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     # items in the bundle.
     for submodule in bundle_submodules:
         name, variables = submodule
-        submodule_url = variables.get('url', '')
+        submodule_url = variables.get("url", "")
         # Compare URLs and skip to the next submodule if it's not a match.
         # Right now this is a case sensitive compare, but perhaps it should
         # be insensitive in the future (unsure if Github repos are sensitive).
@@ -151,12 +161,13 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
         # URLs matched so now check if the submodule is placed in the libraries
         # subfolder of the bundle.  Just look at the path from the submodule
         # state.
-        if variables.get('path', '').startswith('libraries/'):
+        if variables.get("path", "").startswith("libraries/"):
             # Success! Found the repo as a submodule of the libraries folder
             # in the bundle.
             return True
     # Failed to find the repo as a submodule of the libraries folders.
     return False
+
 
 def list_repos(*, include_repos=None):
     """Return a list of all Adafruit repositories that start with
@@ -167,17 +178,29 @@ def list_repos(*, include_repos=None):
                                       are included.
     """
     repos = []
-    result = github.get("/search/repositories",
-                        params={"q":"Adafruit_CircuitPython user:adafruit archived:false fork:true",
-                                "per_page": 100,
-                                "sort": "updated",
-                                "order": "asc"}
-                        )
+    result = github.get(
+        "/search/repositories",
+        params={
+            "q": "Adafruit_CircuitPython user:adafruit archived:false fork:true",
+            "per_page": 100,
+            "sort": "updated",
+            "order": "asc",
+        },
+    )
 
     while result.ok:
-        #repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
-        repos.extend(repo for repo in result.json()["items"] if (repo["owner"]["login"] == "adafruit" and
-                     (repo["name"].startswith("Adafruit_CircuitPython") or repo["name"] == "circuitpython")))
+        # repos.extend(result.json()["items"]) # uncomment and comment below, to include all forks
+        repos.extend(
+            repo
+            for repo in result.json()["items"]
+            if (
+                repo["owner"]["login"] == "adafruit"
+                and (
+                    repo["name"].startswith("Adafruit_CircuitPython")
+                    or repo["name"] == "circuitpython"
+                )
+            )
+        )
 
         if result.links.get("next"):
             result = github.get(result.links["next"]["url"])
@@ -202,9 +225,10 @@ def list_repos(*, include_repos=None):
 
     return repos
 
+
 def get_docs_link(bundle_path, submodule):
     try:
-        f = open(f"{bundle_path}/{submodule[1]['path']}/README.rst", 'r')
+        f = open(f"{bundle_path}/{submodule[1]['path']}/README.rst", "r")
         lines = f.read().split("\n")
         f.close()
         for i in range(10):
@@ -215,19 +239,21 @@ def get_docs_link(bundle_path, submodule):
         # didn't find readme
         return None
 
+
 def repo_is_on_pypi(repo):
     """returns True when the provided repository is in pypi"""
     is_on = False
-    the_page = pypi.get("/pypi/"+repo["name"]+"/json")
+    the_page = pypi.get("/pypi/" + repo["name"] + "/json")
     if the_page and the_page.status_code == 200:
         is_on = True
 
     return is_on
 
+
 def is_new_or_updated(repo):
-    """ Check the repo for new release(s) within the last week. Then determine
-        if all releases are within the last week to decide if this is a newly
-        released library, or an updated library.
+    """Check the repo for new release(s) within the last week. Then determine
+    if all releases are within the last week to decide if this is a newly
+    released library, or an updated library.
     """
 
     today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
@@ -241,8 +267,7 @@ def is_new_or_updated(repo):
         return
     else:
         release_date = datetime.datetime.strptime(
-            release_info["published_at"],
-            "%Y-%m-%dT%H:%M:%SZ"
+            release_info["published_at"], "%Y-%m-%dT%H:%M:%SZ"
         )
         if release_date < today_minus_seven:
             return
@@ -259,8 +284,7 @@ def is_new_or_updated(repo):
         if not release["published_at"]:
             continue
         release_date = datetime.datetime.strptime(
-            release["published_at"],
-            "%Y-%m-%dT%H:%M:%SZ"
+            release["published_at"], "%Y-%m-%dT%H:%M:%SZ"
         )
         if not release_date < today_minus_seven:
             new_releases += 1
@@ -270,9 +294,10 @@ def is_new_or_updated(repo):
     else:
         return "updated"
 
+
 def whois_github_user():
-    """ Find who the user is that is running the current instance of adabot.
-        'GITHUB_ACTOR' is an environment variable available on GitHub Actions.
+    """Find who the user is that is running the current instance of adabot.
+    'GITHUB_ACTOR' is an environment variable available on GitHub Actions.
     """
     user = None
     if "GITHUB_ACTOR" in os.environ:
@@ -282,9 +307,9 @@ def whois_github_user():
 
     return user
 
+
 class InsightData(collections.UserDict):
-    """ Container class for holding insight data (issues, PRs, etc).
-    """
+    """Container class for holding insight data (issues, PRs, etc)."""
 
     def __init__(self):
         self.data = {

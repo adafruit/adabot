@@ -37,5 +37,6 @@ def _fix_url(url):
         url = "https://pypi.org" + url
     return url
 
+
 def get(url, **kwargs):
     return requests.get(_fix_url(url), timeout=30, **kwargs)

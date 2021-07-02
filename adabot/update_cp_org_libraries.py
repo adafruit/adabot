@@ -33,55 +33,48 @@ from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
 
-DO_NOT_VALIDATE = ['CircuitPython_Community_Bundle', 'cookiecutter-adafruit-circuitpython']
+DO_NOT_VALIDATE = [
+    "CircuitPython_Community_Bundle",
+    "cookiecutter-adafruit-circuitpython",
+]
 
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
     description="Adabot utility for updating circuitpython.org libraries info.",
-    prog="Adabot circuitpython.org/libraries Updater"
+    prog="Adabot circuitpython.org/libraries Updater",
 )
 cmd_line_parser.add_argument(
-    "-o", "--output_file",
+    "-o",
+    "--output_file",
     help="Output JSON file to the filename provided.",
     metavar="<OUTPUT FILENAME>",
-    dest="output_file"
+    dest="output_file",
 )
 cmd_line_parser.add_argument(
     "--cache-http",
     help="Cache HTTP requests using requests_cache",
-    action='store_true',
-    default=False
+    action="store_true",
+    default=False,
 )
 cmd_line_parser.add_argument(
-    "--cache-ttl",
-    help="HTTP cache TTL",
-    type=int,
-    default=7200
+    "--cache-ttl", help="HTTP cache TTL", type=int, default=7200
 )
 cmd_line_parser.add_argument(
-    "--keep-repos",
-    help="Keep repos between runs",
-    action='store_true',
-    default=False
+    "--keep-repos", help="Keep repos between runs", action="store_true", default=False
 )
 cmd_line_parser.add_argument(
-    "--loglevel",
-    help="Adjust the log level (default ERROR)",
-    type=str,
-    default='ERROR'
+    "--loglevel", help="Adjust the log level (default ERROR)", type=str, default="ERROR"
 )
 
-sort_re = re.compile(r'(?<=\(Open\s)(.+)(?=\sdays)')
+sort_re = re.compile(r"(?<=\(Open\s)(.+)(?=\sdays)")
 
 
 def get_open_issues_and_prs(repo):
-    """ Retreive all of the open issues (minus pull requests) for the repo.
-    """
+    """Retreive all of the open issues (minus pull requests) for the repo."""
     open_issues = []
     open_pull_requests = []
-    params = {"state":"open"}
-    result = github.get("/repos/adafruit/" + repo["name"] + "/issues",
-                        params=params)
+    params = {"state": "open"}
+    result = github.get("/repos/adafruit/" + repo["name"] + "/issues", params=params)
     if not result.ok:
         return [], []
 
@@ -89,12 +82,11 @@ def get_open_issues_and_prs(repo):
     for issue in issues:
         created = datetime.datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
         days_open = datetime.datetime.today() - created
-        if days_open.days < 0: # opened earlier today
+        if days_open.days < 0:  # opened earlier today
             days_open += datetime.timedelta(days=(days_open.days * -1))
 
-        issue_title = "{0} (Open {1} days)".format(issue["title"],
-                                                   days_open.days)
-        if "pull_request" not in issue: # ignore pull requests
+        issue_title = "{0} (Open {1} days)".format(issue["title"], days_open.days)
+        if "pull_request" not in issue:  # ignore pull requests
             issue_labels = ["None"]
             if len(issue["labels"]) != 0:
                 issue_labels = [label["name"] for label in issue["labels"]]
@@ -116,9 +108,8 @@ def get_contributors(repo):
     contributors = []
     reviewers = []
     merged_pr_count = 0
-    params = {"state":"closed", "sort":"updated", "direction":"desc"}
-    result = github.get("/repos/adafruit/" + repo["name"] + "/pulls",
-                        params=params)
+    params = {"state": "closed", "sort": "updated", "direction": "desc"}
+    result = github.get("/repos/adafruit/" + repo["name"] + "/pulls", params=params)
     if result.ok:
         today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
         prs = result.json()
@@ -127,8 +118,9 @@ def get_contributors(repo):
             if "merged_at" in pr:
                 if pr["merged_at"] is None:
                     continue
-                merged_at = datetime.datetime.strptime(pr["merged_at"],
-                                                       "%Y-%m-%dT%H:%M:%SZ")
+                merged_at = datetime.datetime.strptime(
+                    pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ"
+                )
             else:
                 continue
             if merged_at < today_minus_seven:
@@ -155,9 +147,11 @@ def get_contributors(repo):
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
 
-    logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                        datefmt='%Y-%m-%d %T',
-                        level=getattr(logging, cmd_line_args.loglevel))
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %T",
+        level=getattr(logging, cmd_line_args.loglevel),
+    )
 
     logging.info("Running circuitpython.org/libraries updater...")
 
@@ -177,8 +171,12 @@ if __name__ == "__main__":
     if cmd_line_args.cache_http:
         cpy_vals.github.setup_cache(cmd_line_args.cache_ttl)
 
-    repos = common_funcs.list_repos(include_repos=("CircuitPython_Community_Bundle",
-                                                   'cookiecutter-adafruit-circuitpython',))
+    repos = common_funcs.list_repos(
+        include_repos=(
+            "CircuitPython_Community_Bundle",
+            "cookiecutter-adafruit-circuitpython",
+        )
+    )
 
     new_libs = {}
     updated_libs = {}
@@ -190,7 +188,8 @@ if __name__ == "__main__":
     repos_by_error = {}
 
     default_validators = [
-        vals[1] for vals in inspect.getmembers(cpy_vals.library_validator)
+        vals[1]
+        for vals in inspect.getmembers(cpy_vals.library_validator)
         if vals[0].startswith("validate")
     ]
     bundle_submodules = common_funcs.get_bundle_submodules()
@@ -204,13 +203,15 @@ if __name__ == "__main__":
         default_validators,
         bundle_submodules,
         latest_pylint,
-        keep_repos=cmd_line_args.keep_repos
+        keep_repos=cmd_line_args.keep_repos,
     )
 
     for repo in repos:
-        if (repo["name"] in cpy_vals.BUNDLE_IGNORE_LIST
-            or repo["name"] == "circuitpython"):
-                continue
+        if (
+            repo["name"] in cpy_vals.BUNDLE_IGNORE_LIST
+            or repo["name"] == "circuitpython"
+        ):
+            continue
         repo_name = repo["name"]
 
         # get a list of new & updated libraries for the last week
@@ -249,7 +250,7 @@ if __name__ == "__main__":
             if not isinstance(error, tuple):
                 # check for an error occurring in the validator module
                 if error == cpy_vals.ERROR_OUTPUT_HANDLER:
-                    #print(errors, "repo output handler error:", validator.output_file_data)
+                    # print(errors, "repo output handler error:", validator.output_file_data)
                     logging.error(", ".join(validator.output_file_data))
                     validator.output_file_data.clear()
                 if error not in repos_by_error:

@@ -28,9 +28,13 @@ from adabot import github_requests as github
 from adabot.lib import common_funcs
 
 cli_args = argparse.ArgumentParser(description="Hacktoberfest Label Assigner")
-cli_args.add_argument("-r", "--remove-label", action="store_true",
-                     help="Option to remove Hacktoberfest labels, instead of adding them.",
-                     dest="remove_label")
+cli_args.add_argument(
+    "-r",
+    "--remove-label",
+    action="store_true",
+    help="Option to remove Hacktoberfest labels, instead of adding them.",
+    dest="remove_label",
+)
 
 
 # Hacktoberfest Season
@@ -39,15 +43,14 @@ cli_args.add_argument("-r", "--remove-label", action="store_true",
 _ADD_SEASON = [(9, 29), (10, 30)]
 _REMOVE_SEASON = [(11, 1), (11, 10)]
 
+
 def is_hacktober_season():
-    """ Checks if the current day falls within either the add range (_ADD_SEASON)
-        or the remove range (_REMOVE_SEASON). Returns boolean if within
-        Hacktoberfest season, and which action to take.
+    """Checks if the current day falls within either the add range (_ADD_SEASON)
+    or the remove range (_REMOVE_SEASON). Returns boolean if within
+    Hacktoberfest season, and which action to take.
     """
     today = datetime.date.today()
-    add_range = [
-        datetime.date(today.year, *month_day) for month_day in _ADD_SEASON
-    ]
+    add_range = [datetime.date(today.year, *month_day) for month_day in _ADD_SEASON]
     remove_range = [
         datetime.date(today.year, *month_day) for month_day in _REMOVE_SEASON
     ]
@@ -60,8 +63,7 @@ def is_hacktober_season():
 
 
 def get_open_issues(repo):
-    """ Retrieve all open issues for given repo.
-    """
+    """Retrieve all open issues for given repo."""
 
     params = {
         "state": "open",
@@ -73,7 +75,9 @@ def get_open_issues(repo):
 
     issues = []
     while response.ok:
-        issues.extend([issue for issue in response.json() if "pull_request" not in issue])
+        issues.extend(
+            [issue for issue in response.json() if "pull_request" not in issue]
+        )
 
         try:
             links = response.headers["Link"]
@@ -84,7 +88,7 @@ def get_open_issues(repo):
             link, rel = link.split(";")
             link = link.strip(" <>")
             rel = rel.strip()
-            if rel == "rel=\"next\"":
+            if rel == 'rel="next"':
                 next_url = link
                 break
         if not next_url:
@@ -96,8 +100,8 @@ def get_open_issues(repo):
 
 
 def ensure_hacktober_label_exists(repo):
-    """ Checks if the 'Hacktoberfest' label exists on the repo.
-        If not, creates the label.
+    """Checks if the 'Hacktoberfest' label exists on the repo.
+    If not, creates the label.
     """
     response = github.get("/repos/" + repo["full_name"] + "/labels")
     if not response.ok:
@@ -111,18 +115,21 @@ def ensure_hacktober_label_exists(repo):
         params = {
             "name": "Hacktoberfest",
             "color": "f2b36f",
-            "description": "DigitalOcean's Hacktoberfest"
+            "description": "DigitalOcean's Hacktoberfest",
         }
         result = github.post("/repos/" + repo["full_name"] + "/labels", json=params)
         if not result.status_code == 201:
-            print("Failed to create new Hacktoberfest label for: {}".format(repo["name"]))
+            print(
+                "Failed to create new Hacktoberfest label for: {}".format(repo["name"])
+            )
             return False
 
     return True
 
+
 def assign_hacktoberfest(repo, issues=None, remove_labels=False):
-    """ Gathers open issues on a repo, and assigns the 'Hacktoberfest' label
-        to each issue if its not already assigned.
+    """Gathers open issues on a repo, and assigns the 'Hacktoberfest' label
+    to each issue if its not already assigned.
     """
     labels_changed = 0
 
@@ -138,8 +145,7 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
         if remove_labels:
             if has_hacktober:
                 label_names = [
-                    label for label in label_names
-                    if label not in has_hacktober
+                    label for label in label_names if label not in has_hacktober
                 ]
                 update_issue = True
         else:
@@ -150,14 +156,11 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
                 update_issue = True
 
         if update_issue:
-            params = {
-                "labels": label_names
-            }
-            result = github.patch("/repos/"
-                                  + repo["full_name"]
-                                  + "/issues/"
-                                  + str(issue["number"]),
-                                  json=params)
+            params = {"labels": label_names}
+            result = github.patch(
+                "/repos/" + repo["full_name"] + "/issues/" + str(issue["number"]),
+                json=params,
+            )
 
             if result.ok:
                 labels_changed += 1
@@ -168,6 +171,7 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
                 print("Failed to add Hacktoberfest label to: {}".format(issue["url"]))
 
     return labels_changed
+
 
 def process_hacktoberfest(repo, issues=None, remove_labels=False):
     result = assign_hacktoberfest(repo, issues, remove_labels)

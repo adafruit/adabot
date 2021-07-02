@@ -3,8 +3,8 @@ import pytest
 from adabot import arduino_libraries
 from adabot import github_requests
 
-def test_adafruit_libraries(monkeypatch):
 
+def test_adafruit_libraries(monkeypatch):
     def get_list_repos():
         repos = []
         repos.append(github_requests.get("/repos/adafruit/Adafruit_NeoPixel").json())
@@ -16,8 +16,8 @@ def test_adafruit_libraries(monkeypatch):
 
     arduino_libraries.main()
 
-def test_adafruit_libraries_output_file(monkeypatch, tmp_path, capsys):
 
+def test_adafruit_libraries_output_file(monkeypatch, tmp_path, capsys):
     def get_list_repos():
         repos = []
         repos.append(github_requests.get("/repos/adafruit/Adafruit_NeoPixel").json())

@@ -38,11 +38,13 @@ def _fix_url(url):
         url = "https://api.travis-ci.com" + url
     return url
 
+
 def _auth_token():
     if not "ADABOT_TRAVIS_ACCESS_TOKEN" in os.environ:
         print("Please configure the ADABOT_TRAVIS_ACCESS_TOKEN environment variable.")
         return "token "
     return "token {}".format(os.environ["ADABOT_TRAVIS_ACCESS_TOKEN"])
+
 
 def _fix_kwargs(kwargs):
     user_agent = "AdafruitAdabot"
@@ -54,15 +56,18 @@ def _fix_kwargs(kwargs):
         kwargs["headers"] = {
             "Authorization": _auth_token(),
             "User-Agent": user_agent,
-            "Travis-API-Version": "3"
+            "Travis-API-Version": "3",
         }
     return kwargs
+
 
 def get(url, **kwargs):
     return requests.get(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
 
+
 def post(url, **kwargs):
     return requests.post(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
+
 
 def put(url, **kwargs):
     return requests.put(_fix_url(url), timeout=30, **_fix_kwargs(kwargs))
