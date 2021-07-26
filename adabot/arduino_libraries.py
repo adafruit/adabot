@@ -20,8 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""Adabot utility for Arduino Libraries."""
+
 import argparse
-import datetime
 import logging
 import sys
 import traceback
@@ -70,7 +71,12 @@ def list_repos():
     result = github.get(
         "/search/repositories",
         params={
-            "q": "Arduino in:name in:description in:readme fork:true user:adafruit archived:false OR Library in:name in:description in:readme fork:true user:adafruit archived:false OR Adafruit_ in:name fork:true user:adafruit archived:false AND NOT PCB in:name AND NOT Python in:name",
+            "q": (
+                "Arduino in:name in:description in:readme fork:true user:adafruit archived:false"
+                " OR Library in:name in:description in:readme fork:true user:adafruit"
+                " archived:false OR Adafruit_ in:name fork:true user:adafruit archived:false AND"
+                " NOT PCB in:name AND NOT Python in:name"
+            ),
             "per_page": 100,
             "sort": "updated",
             "order": "asc",
@@ -102,7 +108,7 @@ def is_arduino_library(repo):
 
 
 def print_list_output(title, coll):
-    """"""
+    """Helper function to format output."""
     logger.info("")
     logger.info(title.format(len(coll) - 2))
     long_col = [
@@ -110,7 +116,7 @@ def print_list_output(title, coll):
     ]
     row_format = "".join(["{:<" + str(this_col) + "}" for this_col in long_col])
     for lib in coll:
-        logger.info(row_format.format(*lib))
+        logger.info("%s", row_format.format(*lib))
 
 
 def validate_library_properties(repo):
@@ -161,47 +167,34 @@ def validate_release_state(repo):
     repository.
     """
     if not is_arduino_library(repo):
-        return
+        return None
 
     compare_tags = github.get(
         "/repos/" + repo["full_name"] + "/compare/master..." + repo["tag_name"]
     )
     if not compare_tags.ok:
         logger.error(
-            "Error: failed to compare {0} 'master' to tag '{1}'".format(
-                repo["name"], repo["tag_name"]
-            )
+            "Error: failed to compare %s 'master' to tag '%s'",
+            repo["name"],
+            repo["tag_name"],
         )
-        return
+        return None
     compare_tags_json = compare_tags.json()
     if "status" in compare_tags_json:
         if compare_tags.json()["status"] != "identical":
-            # print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
-            #      compare_tags_json["status"], compare_tags_json["ahead_by"],
-            #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
             return [repo["tag_name"], compare_tags_json["behind_by"]]
     elif "errors" in compare_tags_json:
         logger.error(
-            "Error: comparing latest release to 'master' failed on '{0}'. Error Message: {1}".format(
-                repo["name"], compare_tags_json["message"]
-            )
+            "Error: comparing latest release to 'master' failed on '%s'. Error Message: %s",
+            repo["name"],
+            compare_tags_json["message"],
         )
 
-    return
+    return None
 
 
 def validate_actions(repo):
     """Validate if a repo has workflows/githubci.yml"""
-    repo_has_actions = requests.get(
-        "https://raw.githubusercontent.com/adafruit/"
-        + repo["name"]
-        + "/master/.github/workflows/githubci.yml"
-    )
-    return repo_has_actions.ok
-
-
-def validate_actions(repo):
-    """Validate if a repo has actions githubci.yml"""
     repo_has_actions = requests.get(
         "https://raw.githubusercontent.com/adafruit/"
         + repo["name"]
@@ -216,12 +209,14 @@ def validate_example(repo):
     return repo_has_ino.ok and len(repo_has_ino.json())
 
 
+# pylint: disable=too-many-branches
 def run_arduino_lib_checks():
+    """Run necessary functions and outout the results."""
     logger.info("Running Arduino Library Checks")
     logger.info("Getting list of libraries to check...")
 
     repo_list = list_repos()
-    logger.info("Found {} Arduino libraries to check\n".format(len(repo_list)))
+    logger.info("Found %s Arduino libraries to check\n", len(repo_list))
     failed_lib_prop = [
         ["  Repo", "Release Tag", "library.properties Version"],
         ["  ----", "-----------", "--------------------------"],
@@ -310,11 +305,13 @@ def run_arduino_lib_checks():
         )
 
 
-def main(verbosity=1, output_file=None):
-
+def main(verbosity=1, output_file=None):  # pylint: disable=missing-function-docstring
     if output_file:
-        fh = logging.FileHandler(output_file)
-        logger.addHandler(fh)
+        file_handler = logging.FileHandler(output_file)
+        logger.addHandler(file_handler)
+
+    if verbosity == 0:
+        logger.setLevel("CRITICAL")
 
     try:
         reply = requests.get("http://downloads.arduino.cc/libraries/library_index.json")
@@ -322,19 +319,19 @@ def main(verbosity=1, output_file=None):
             logging.error(
                 "Could not fetch http://downloads.arduino.cc/libraries/library_index.json"
             )
-            exit()
+            sys.exit()
         arduino_library_index = reply.json()
         for lib in arduino_library_index["libraries"]:
             if "adafruit" in lib["url"]:
                 adafruit_library_index.append(lib)
         run_arduino_lib_checks()
     except:
-        exc_type, exc_val, exc_tb = sys.exc_info()
+        _, exc_val, exc_tb = sys.exc_info()
         logger.error("Exception Occurred!", quiet=True)
         logger.error(("-" * 60), quiet=True)
         logger.error("Traceback (most recent call last):")
-        tb = traceback.format_tb(exc_tb)
-        for line in tb:
+        trace = traceback.format_tb(exc_tb)
+        for line in trace:
             logger.error(line)
         logger.error(exc_val)
 

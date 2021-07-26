@@ -20,6 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+""" Collects download stats for the Adafruit CircuitPython Library Bundles
+    and each library.
+"""
+
 import datetime
 import sys
 import argparse
@@ -28,7 +32,6 @@ import operator
 import requests
 
 from adabot import github_requests as github
-from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
 
 # Setup ArgumentParser
@@ -56,8 +59,8 @@ cmd_line_parser.add_argument(
 )
 
 # Global variables
-output_filename = None
-verbosity = 1
+OUTPUT_FILENAME = None
+VERBOSITY = 1
 file_data = []
 
 # List containing libraries on PyPi that are not returned by the 'list_repos()' function,
@@ -69,6 +72,7 @@ PIWHEELS_PACKAGES_URL = "https://www.piwheels.org/packages.json"
 
 
 def piwheels_stats():
+    """Get data dump of piwheels download stats"""
     stats = {}
     response = requests.get(PIWHEELS_PACKAGES_URL)
     if response.ok:
@@ -83,6 +87,7 @@ def piwheels_stats():
 
 
 def get_pypi_stats():
+    """Map piwheels download stats for each repo"""
     successful_stats = {}
     failed_stats = []
     repos = common_funcs.list_repos()
@@ -109,7 +114,7 @@ def get_pypi_stats():
                 dl_stats[pkg_name]["total"],
             )
         else:
-            failed_stats.append(repo["name"])
+            failed_stats.append(lib)
 
     return successful_stats, failed_stats
 
@@ -132,7 +137,7 @@ def get_bundle_stats(bundle):
                 int(release["tag_name"][4:6]),
                 int(release["tag_name"][6:]),
             )
-        except:
+        except ValueError:
             output_handler(
                 "Skipping release. Tag name invalid: {}".format(release["tag_name"])
             )
@@ -155,13 +160,14 @@ def get_bundle_stats(bundle):
 
 def output_handler(message="", quiet=False):
     """Handles message output to prompt/file for functions."""
-    if output_filename is not None:
+    if OUTPUT_FILENAME is not None:
         file_data.append(message)
-    if verbosity and not quiet:
+    if VERBOSITY and not quiet:
         print(message)
 
 
 def run_stat_check():
+    """Run and report all download stats."""
     output_handler("Adafruit CircuitPython Library Download Stats")
     output_handler(
         "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p"))
@@ -209,13 +215,13 @@ def run_stat_check():
 
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
-    verbosity = cmd_line_args.verbose
+    VERBOSITY = cmd_line_args.verbose
     if cmd_line_args.output_file:
-        output_filename = cmd_line_args.output_file
+        OUTPUT_FILENAME = cmd_line_args.output_file
     try:
         run_stat_check()
     except:
-        if output_filename is not None:
+        if OUTPUT_FILENAME is not None:
             exc_type, exc_val, exc_tb = sys.exc_info()
             output_handler("Exception Occurred!", quiet=True)
             output_handler(("-" * 60), quiet=True)
@@ -228,7 +234,7 @@ if __name__ == "__main__":
         raise
 
     finally:
-        if output_filename is not None:
-            with open(output_filename, "w") as f:
+        if OUTPUT_FILENAME is not None:
+            with open(OUTPUT_FILENAME, "w") as f:
                 for line in file_data:
                     f.write(str(line) + "\n")

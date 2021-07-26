@@ -1,11 +1,36 @@
-import json
-import requests
-import os
-import sys
+# The MIT License (MIT)
+#
+# Copyright (c) 2019 Michael Schroeder
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+"""Adabot utility for applying patches to all CircuitPython Libraries."""
+
 import argparse
+import os
 import shutil
+import sys
+
+import requests
 import sh
 from sh.contrib import git
+
 from adabot.lib import common_funcs
 
 
@@ -107,7 +132,7 @@ def get_patches(run_local):
 
     return return_list
 
-
+# pylint: disable=too-many-arguments
 def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
     """Apply the `patch` in `patch_filepath` to the `repo` in
     `repo_directory` using git am or git apply. The commit
@@ -124,9 +149,9 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
     if not use_apply:
         try:
             git.am(flags, patch_filepath)
-        except sh.ErrorReturnCode as Err:
+        except sh.ErrorReturnCode as err:
             apply_errors.append(
-                dict(repo_name=repo, patch_name=patch, error=Err.stderr)
+                dict(repo_name=repo, patch_name=patch, error=err.stderr)
             )
             return False
     else:
@@ -136,33 +161,34 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
                 apply_flags.append(flag)
         try:
             git.apply(apply_flags, patch_filepath)
-        except sh.ErrorReturnCode as Err:
+        except sh.ErrorReturnCode as err:
             apply_errors.append(
-                dict(repo_name=repo, patch_name=patch, error=Err.stderr)
+                dict(repo_name=repo, patch_name=patch, error=err.stderr)
             )
             return False
 
-        with open(patch_filepath) as f:
-            for line in f:
+        with open(patch_filepath) as patchfile:
+            for line in patchfile:
                 if "[PATCH]" in line:
                     message = '"' + line[(line.find("]") + 2) :] + '"'
                     break
         try:
             git.commit("-a", "-m", message)
-        except sh.ErrorReturnCode as Err:
+        except sh.ErrorReturnCode as err:
             apply_errors.append(
-                dict(repo_name=repo, patch_name=patch, error=Err.stderr)
+                dict(repo_name=repo, patch_name=patch, error=err.stderr)
             )
             return False
 
     try:
         git.push()
-    except sh.ErrorReturnCode as Err:
-        apply_errors.append(dict(repo_name=repo, patch_name=patch, error=Err.stderr))
+    except sh.ErrorReturnCode as err:
+        apply_errors.append(dict(repo_name=repo, patch_name=patch, error=err.stderr))
         return False
     return True
 
 
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def check_patches(repo, patches, flags, use_apply, dry_run):
     """Gather a list of patches from the `adabot/patches` directory
     on the adabot repo. Clone the `repo` and run git apply --check
@@ -187,11 +213,11 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
 
         try:
             git.clone(repo["url"])
-        except sh.ErrorReturnCode_128 as Err:
-            if b"already exists" in Err.stderr:
+        except sh.ErrorReturnCode_128 as err:
+            if b"already exists" in err.stderr:
                 pass
             else:
-                raise RuntimeError(Err.stderr)
+                raise RuntimeError(err.stderr) from None
         os.chdir(repo_directory)
 
         patch_filepath = patch_directory + patch
@@ -204,16 +230,16 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
                         check_flags.append(flag)
             git.apply(check_flags, patch_filepath)
             run_apply = True
-        except sh.ErrorReturnCode_1 as Err:
+        except sh.ErrorReturnCode_1 as err:
             run_apply = False
-            if b"error" not in Err.stderr or b"patch does not apply" in Err.stderr:
-                parse_err = Err.stderr.decode()
+            if b"error" not in err.stderr or b"patch does not apply" in err.stderr:
+                parse_err = err.stderr.decode()
                 parse_err = parse_err[parse_err.rfind(":") + 1 : -1]
                 print("   . Skipping {}:{}".format(repo["name"], parse_err))
                 skipped += 1
             else:
                 failed += 1
-                error_str = str(Err.stderr, encoding="utf-8").replace("\n", " ")
+                error_str = str(err.stderr, encoding="utf-8").replace("\n", " ")
                 error_start = error_str.rfind("error:") + 7
                 check_errors.append(
                     dict(
@@ -223,10 +249,10 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
                     )
                 )
 
-        except sh.ErrorReturnCode as Err:
+        except sh.ErrorReturnCode as err:
             run_apply = False
             failed += 1
-            error_str = str(Err.stderr, encoding="utf-8").replace("\n", " ")
+            error_str = str(err.stderr, encoding="utf-8").replace("\n", " ")
             error_start = error_str.rfind("error:") + 7
             check_errors.append(
                 dict(
@@ -252,11 +278,8 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
 
 if __name__ == "__main__":
     cli_args = cli_parser.parse_args()
-    use_apply = cli_args.use_apply
-    dry_run = cli_args.dry_run
-    run_local = cli_args.run_local
-    if run_local:
-        if dry_run or cli_args.list:
+    if cli_args.run_local:
+        if cli_args.dry_run or cli_args.list:
             pass
         else:
             raise RuntimeError(
@@ -264,8 +287,8 @@ if __name__ == "__main__":
                 " '--dry-run' or '--list'."
             )
 
-    run_patches = get_patches(run_local)
-    flags = ["--signoff"]
+    run_patches = get_patches(cli_args.run_local)
+    cmd_flags = ["--signoff"]
 
     if cli_args.list:
         print("Available Patches:", run_patches)
@@ -276,16 +299,16 @@ if __name__ == "__main__":
                 "'{}' is not an available patchfile.".format(cli_args.patch)
             )
         run_patches = [cli_args.patch]
-    if not cli_args.flags == None:
+    if cli_args.flags is not None:
         if not cli_args.patch:
             raise RuntimeError(
                 "Must be used with a single patch. See help (-h) for usage."
             )
         if "[-i]" in cli_args.flags:
             raise ValueError("Interactive Mode flag not allowed.")
-        for flag in cli_args.flags:
-            if not flag == "[--signoff]":
-                flags.append(flag.strip("[]"))
+        for flag_arg in cli_args.flags:
+            if not flag_arg == "[--signoff]":
+                cmd_flags.append(flag_arg.strip("[]"))
     if cli_args.use_apply:
         if not cli_args.patch:
             raise RuntimeError(
@@ -312,8 +335,14 @@ if __name__ == "__main__":
     repos = get_repo_list()
     print(".... Running Patch Checks On", len(repos), "Repos ....")
 
-    for repo in repos:
-        results = check_patches(repo, run_patches, flags, use_apply, dry_run)
+    for repository in repos:
+        results = check_patches(
+            repository,
+            run_patches,
+            cmd_flags,
+            cli_args.use_apply,
+            cli_args.dry_run
+        )
         for k in range(3):
             stats[k] += results[k]
 

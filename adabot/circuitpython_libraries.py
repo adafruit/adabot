@@ -21,16 +21,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""Adabot utility for CircuitPython Libraries."""
+
 import argparse
-import copy
 import datetime
 import inspect
 import logging
 import re
 import sys
 import traceback
-
-import requests
 
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
@@ -83,13 +82,6 @@ cmd_line_parser.add_argument(
     metavar='all OR "validator1, validator2, ..."',
 )
 
-# Define global state shared by the functions above:
-# Submodules inside the bundle (result of get_bundle_submodules)
-bundle_submodules = []
-
-# Load the latest pylint version
-latest_pylint = "2.0.1"
-
 # Functions to run on repositories to validate their state.  By convention these
 # return a list of string errors for the specified repository (a dictionary
 # of Github API repository object state).
@@ -112,26 +104,27 @@ blinka_repos = [
     "Adafruit_Python_Extended_Bus",
 ]
 
-
-def run_library_checks(
-    validators, bundle_submodules, latest_pylint, kw_args, error_depth
-):
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def run_library_checks(validators, kw_args, error_depth):
     """runs the various library checking functions"""
+
+    # Load the latest pylint version
+    latest_pylint = "2.0.1"
     pylint_info = pypi.get("/pypi/pylint/json")
     if pylint_info and pylint_info.ok:
         latest_pylint = pylint_info.json()["info"]["version"]
-    logger.info("Latest pylint is: {}".format(latest_pylint))
+    logger.info("Latest pylint is: %s", latest_pylint)
 
     repos = common_funcs.list_repos(
         include_repos=tuple(blinka_repos)
         + ("CircuitPython_Community_Bundle", "cookiecutter-adafruit-circuitpython")
     )
 
-    logger.info("Found {} repos to check.".format(len(repos)))
+    logger.info("Found %s repos to check.", len(repos))
     bundle_submodules = common_funcs.get_bundle_submodules()
-    logger.info("Found {} submodules in the bundle.".format(len(bundle_submodules)))
+    logger.info("Found %s submodules in the bundle.", len(bundle_submodules))
     github_user = common_funcs.whois_github_user()
-    logger.info("Running GitHub checks as " + github_user)
+    logger.info("Running GitHub checks as %s", github_user)
     need_work = 0
 
     lib_insights = common_funcs.InsightData()
@@ -208,37 +201,34 @@ def run_library_checks(
     logger.info("")
     logger.info("### Core")
     print_pr_overview(core_insights)
-    logger.info("* {} open pull requests".format(len(core_insights["open_prs"])))
+    logger.info("* %s open pull requests", len(core_insights["open_prs"]))
     sorted_prs = sorted(
         core_insights["open_prs"],
         key=lambda days: int(pr_sort_re.search(days).group(1)),
         reverse=True,
     )
-    for pr in sorted_prs:
-        logger.info("  * {}".format(pr))
+    for pull_request in sorted_prs:
+        logger.info("  * %s", pull_request)
     print_issue_overview(core_insights)
-    logger.info("* {} open issues".format(len(core_insights["open_issues"])))
+    logger.info("* %s open issues", len(core_insights["open_issues"]))
     logger.info("  * https://github.com/adafruit/circuitpython/issues")
-    logger.info("* {} active milestones".format(len(core_insights["milestones"])))
+    logger.info("* %s active milestones", len(core_insights["milestones"]))
     ms_count = 0
     for milestone in sorted(core_insights["milestones"].keys()):
         ms_count += core_insights["milestones"][milestone]
         logger.info(
-            "  * {0}: {1} open issues".format(
-                milestone, core_insights["milestones"][milestone]
-            )
+            "  * %s: %s open issues", milestone, core_insights["milestones"][milestone]
         )
     logger.info(
-        "  * {} issues not assigned a milestone".format(
-            len(core_insights["open_issues"]) - ms_count
-        )
+        "  * %s issues not assigned a milestone",
+        len(core_insights["open_issues"]) - ms_count,
     )
     logger.info("")
 
     ## temporarily disabling core download stats:
     #  - GitHub API has been broken, due to the number of release artifacts
     #  - Release asset delivery is being moved to AWS CloudFront/S3
-    # print_circuitpython_download_stats()
+    # print_circuitpython_dl_stats()
     logger.info("* Core download stats available at https://circuitpython.org/stats")
 
     logger.info("")
@@ -250,34 +240,33 @@ def run_library_checks(
         key=lambda days: int(close_pr_sort_re.search(days).group(1)),
         reverse=True,
     )
-    for pr in sorted_prs:
-        logger.info("    * {}".format(pr))
+    for pull_request in sorted_prs:
+        logger.info("    * %s", pull_request)
     print_issue_overview(lib_insights)
     logger.info("* https://circuitpython.org/contributing")
-    logger.info("  * {} open issues".format(len(lib_insights["open_issues"])))
-    logger.info("  * {} good first issues".format(lib_insights["good_first_issues"]))
+    logger.info("  * %s open issues", len(lib_insights["open_issues"]))
+    logger.info("  * %s good first issues", lib_insights["good_first_issues"])
     open_pr_days = [
-        int(pr_sort_re.search(pr).group(1))
-        for pr in lib_insights["open_prs"]
-        if pr_sort_re.search(pr) is not None
+        int(pr_sort_re.search(pull_request).group(1))
+        for pull_request in lib_insights["open_prs"]
+        if pr_sort_re.search(pull_request) is not None
     ]
     if len(lib_insights["open_prs"]) != 0:
         logger.info(
-            "  * {0} open pull requests (Oldest: {1}, Newest: {2})".format(
-                len(lib_insights["open_prs"]),
-                max(open_pr_days),
-                max((min(open_pr_days), 1)),  # ensure the minumum is '1'
-            )
+            "  * %s open pull requests (Oldest: %s, Newest: %s)",
+            len(lib_insights["open_prs"]),
+            max(open_pr_days),
+            max((min(open_pr_days), 1)),  # ensure the minumum is '1'
         )
     logger.info("Library updates in the last seven days:")
     if len(new_libs) != 0:
         logger.info("**New Libraries**")
-        for new in new_libs:
-            logger.info(" * [{}]({})".format(new, new_libs[new]))
+        for title, link in new_libs.items():
+            logger.info(" * [%s](%s)", title, link)
     if len(updated_libs) != 0:
         logger.info("**Updated Libraries**")
-        for updated in updated_libs:
-            logger.info(" * [{}]({})".format(updated, updated_libs[updated]))
+        for title, link in updated_libs.items():
+            logger.info(" * [%s](%s)", title, link)
 
     if len(validators) != 0:
         lib_repos = []
@@ -287,7 +276,7 @@ def run_library_checks(
             ):
                 lib_repos.append(repo)
 
-        logger.info("{} out of {} repos need work.".format(need_work, len(lib_repos)))
+        logger.info("%s out of %s repos need work.", need_work, len(lib_repos))
 
         list_repos_for_errors = [cirpy_lib_vals.ERROR_NOT_IN_BUNDLE]
         logger.info("")
@@ -296,36 +285,39 @@ def run_library_checks(
                 continue
             logger.info("")
             error_count = len(repos_by_error[error])
-            logger.info("{} - {}".format(error, error_count))
+            logger.info("%s - %s", error, error_count)
             if error_count <= error_depth or error in list_repos_for_errors:
-                logger.info("\n".join(["  * " + x for x in repos_by_error[error]]))
+                logger.info(
+                    "%s", "\n".join(["  * " + x for x in repos_by_error[error]])
+                )
 
     logger.info("")
     logger.info("### Blinka")
     print_pr_overview(blinka_insights)
-    logger.info("* {} open pull requests".format(len(blinka_insights["open_prs"])))
+    logger.info("* %s open pull requests", len(blinka_insights["open_prs"]))
     sorted_prs = sorted(
         blinka_insights["open_prs"],
         key=lambda days: int(pr_sort_re.search(days).group(1)),
         reverse=True,
     )
-    for pr in sorted_prs:
-        logger.info("  * {}".format(pr))
+    for pull_request in sorted_prs:
+        logger.info("  * %s", pull_request)
     print_issue_overview(blinka_insights)
-    logger.info("* {} open issues".format(len(blinka_insights["open_issues"])))
+    logger.info("* %s open issues", len(blinka_insights["open_issues"]))
     logger.info("  * https://github.com/adafruit/Adafruit_Blinka/issues")
     blinka_dl = dl_stats.piwheels_stats().get("adafruit-blinka", {}).get("month", "N/A")
-    logger.info("* Piwheels Downloads in the last month: {}".format(blinka_dl))
-    logger.info("Number of supported boards: {}".format(blinka_funcs.board_count()))
+    logger.info("* Piwheels Downloads in the last month: %s", blinka_dl)
+    logger.info("Number of supported boards: %s", blinka_funcs.board_count())
 
 
-def print_circuitpython_download_stats():
+# pylint: disable=too-many-branches,too-many-statements
+def print_circuitpython_dl_stats():
     """Gather and report analytics on the main CircuitPython repository."""
 
     # TODO: with the move of release assets to AWS CloudFront/S3, update
     #       this to use AWS CloudWatch metrics to gather download stats.
     #       AWS' Python SDK `boto3` has CloudWatch interfaces which should
-    #       enable this. https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudwatch.html
+    #       enable this.
 
     try:
         response = github.get("/repos/adafruit/circuitpython/releases")
@@ -396,7 +388,7 @@ def print_circuitpython_download_stats():
                 total[release["tag_name"]] = 0
             total[release["tag_name"]] += count
 
-    logger.info("Number of supported boards: {}".format(len(by_board)))
+    logger.info("Number of supported boards: %s", len(by_board))
     logger.info("")
     logger.info("Download stats by board:")
     logger.info("")
@@ -459,7 +451,7 @@ def print_circuitpython_download_stats():
     )
 
     for row in by_board_list:
-        logger.info(row_format.format(*row))
+        logger.info("%s", row_format.format(*row))
     logger.info("")
 
     logger.info("Download stats by language:")
@@ -523,31 +515,35 @@ def print_circuitpython_download_stats():
     )
 
     for row in by_lang_list:
-        logger.info(row_format.format(*row))
+        logger.info("%s", row_format.format(*row))
     # for language in by_language:
-    #    logger.info("* {} - {}".format(language, by_language[language]))
+    #    logger.info("* %s - %s", language, by_language[language])
     logger.info("")
 
 
 def print_pr_overview(*insights):
+    """Prints an overview of Pull Requests"""
     merged_prs = sum([len(x["merged_prs"]) for x in insights])
     authors = set().union(*[x["pr_merged_authors"] for x in insights])
     reviewers = set().union(*[x["pr_reviewers"] for x in insights])
 
-    logger.info("* {} pull requests merged".format(merged_prs))
-    logger.info("  * {} authors - {}".format(len(authors), ", ".join(authors)))
-    logger.info("  * {} reviewers - {}".format(len(reviewers), ", ".join(reviewers)))
+    logger.info("* %s pull requests merged", merged_prs)
+    logger.info("  * %s authors - %s", len(authors), ", ".join(authors))
+    logger.info("  * %s reviewers - %s", len(reviewers), ", ".join(reviewers))
 
 
 def print_issue_overview(*insights):
+    """Prints an overview of Issues"""
     closed_issues = sum([x["closed_issues"] for x in insights])
     issue_closers = set().union(*[x["issue_closers"] for x in insights])
     new_issues = sum([x["new_issues"] for x in insights])
     issue_authors = set().union(*[x["issue_authors"] for x in insights])
     logger.info(
-        "* {} closed issues by {} people, {} opened by {} people".format(
-            closed_issues, len(issue_closers), new_issues, len(issue_authors)
-        )
+        "* %s closed issues by %s people, %s opened by %s people",
+        closed_issues,
+        len(issue_closers),
+        new_issues,
+        len(issue_authors),
     )
 
     # print Hacktoberfest labels changes if its Hacktober
@@ -565,18 +561,21 @@ def print_issue_overview(*insights):
         logger.info(hacktober_changes)
 
 
+# pylint: disable=too-many-branches
 def main(verbose=1, output_file=None, validator=None, error_depth=5):
+    """Main"""
     validator_kwarg_list = {}
     startup_message = [
         "Running CircuitPython Library checks...",
         "Report Date: {}".format(datetime.datetime.now().strftime("%d %B %Y, %I:%M%p")),
     ]
 
-    verbosity = verbose
+    if verbose == 0:
+        logger.setLevel("CRITICAL")
 
     if output_file:
-        fh = logging.FileHandler(output_file)
-        logger.addHandler(fh)
+        file_handler = logging.FileHandler(output_file)
+        logger.addHandler(file_handler)
         startup_message.append(
             " - Report output will be saved to: {}".format(output_file)
         )
@@ -617,11 +616,9 @@ def main(verbose=1, output_file=None, validator=None, error_depth=5):
                 except KeyError:
                     # print(default_validators)
                     logger.info(
-                        "Error: '{0}' is not an available validator.\n"
-                        "Available validators are: {1}".format(
-                            func.strip(),
-                            ", ".join([val[0] for val in default_validators]),
-                        )
+                        "Error: '%s' is not an available validator.\nAvailable validators are: %s",
+                        func.strip(),
+                        ", ".join([val[0] for val in default_validators]),
                     )
                     sys.exit()
         else:
@@ -648,18 +645,16 @@ def main(verbose=1, output_file=None, validator=None, error_depth=5):
         # print(validators)
         run_library_checks(
             validators,
-            bundle_submodules,
-            latest_pylint,
             validator_kwarg_list,
             error_depth,
         )
     except:
-        exc_type, exc_val, exc_tb = sys.exc_info()
+        _, exc_val, exc_tb = sys.exc_info()
         logger.error("Exception Occurred!")
         logger.error(("-" * 60))
         logger.error("Traceback (most recent call last):")
-        tb = traceback.format_tb(exc_tb)
-        for line in tb:
+        trace = traceback.format_tb(exc_tb)
+        for line in trace:
             logger.error(line)
         logger.error(exc_val)
 

@@ -20,6 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""Adabot utility for updating circuitpython.org libraries info."""
+
+# pylint: disable=redefined-outer-name
+
 import argparse
 import datetime
 import inspect
@@ -105,6 +109,7 @@ def get_open_issues_and_prs(repo):
 
 
 def get_contributors(repo):
+    """Gather contributor information."""
     contributors = []
     reviewers = []
     merged_pr_count = 0
@@ -112,24 +117,24 @@ def get_contributors(repo):
     result = github.get("/repos/adafruit/" + repo["name"] + "/pulls", params=params)
     if result.ok:
         today_minus_seven = datetime.datetime.today() - datetime.timedelta(days=7)
-        prs = result.json()
-        for pr in prs:
+        pull_requests = result.json()
+        for pull_request in pull_requests:
             merged_at = datetime.datetime.min
-            if "merged_at" in pr:
-                if pr["merged_at"] is None:
+            if "merged_at" in pull_request:
+                if pull_request["merged_at"] is None:
                     continue
                 merged_at = datetime.datetime.strptime(
-                    pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ"
+                    pull_request["merged_at"], "%Y-%m-%dT%H:%M:%SZ"
                 )
             else:
                 continue
             if merged_at < today_minus_seven:
                 continue
-            contributors.append(pr["user"]["login"])
+            contributors.append(pull_request["user"]["login"])
             merged_pr_count += 1
 
             # get reviewers (merged_by, and any others)
-            single_pr = github.get(pr["url"])
+            single_pr = github.get(pull_request["url"])
             if not single_pr.ok:
                 continue
             pr_info = single_pr.json()
@@ -144,6 +149,7 @@ def get_contributors(repo):
     return contributors, reviewers, merged_pr_count
 
 
+# pylint: disable=invalid-name
 if __name__ == "__main__":
     cmd_line_args = cmd_line_parser.parse_args()
 
@@ -243,7 +249,7 @@ if __name__ == "__main__":
         errors = []
         try:
             errors = validator.run_repo_validation(repo)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logging.exception("Unhandled exception %s", str(e))
             errors.extend([cpy_vals.ERROR_OUTPUT_HANDLER])
         for error in errors:
@@ -277,8 +283,8 @@ if __name__ == "__main__":
         sorted_issues_list[issue] = open_issues_by_repo[issue]
 
     sorted_prs_list = {}
-    for pr in sorted(open_prs_by_repo, key=str.lower):
-        sorted_prs_list[pr] = open_prs_by_repo[pr]
+    for pull_request in sorted(open_prs_by_repo, key=str.lower):
+        sorted_prs_list[pull_request] = open_prs_by_repo[pull_request]
 
     sorted_repos_by_error = {}
     for error in sorted(repos_by_error, key=str.lower):
@@ -287,8 +293,8 @@ if __name__ == "__main__":
     # assemble the JSON data
     build_json = {
         "updated_at": run_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "contributors": [contrib for contrib in set(contributors)],
-        "reviewers": [rev for rev in set(reviewers)],
+        "contributors": list(set(contributors)),
+        "reviewers": list(set(reviewers)),
         "merged_pr_count": str(merged_pr_count_total),
         "library_updates": {"new": sorted_new_list, "updated": sorted_updated_list},
         "open_issues": sorted_issues_list,
