@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use
 # The MIT License (MIT)
 #
 # Copyright (c) 2017 Scott Shawcroft for Adafruit Industries
@@ -19,37 +20,45 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+"""Collection of validator methods to maintain a standard, as well as detect
+errors, across the entire CirtuitPython library ecosystem."""
+
 import datetime
+from io import StringIO
 import json
 import logging
 import pathlib
 import re
-from io import StringIO
 from tempfile import TemporaryDirectory
+
+from packaging.version import parse as pkg_version_parse
+from packaging.requirements import Requirement, InvalidRequirement
+
+from pylint import lint
+from pylint.reporters import JSONReporter
 
 import requests
 
 import sh
-from pylint import lint
-from pylint.reporters import JSONReporter
 from sh.contrib import git
+
 import yaml
 
 from adabot import github_requests as github
-from adabot import pypi_requests as pypi
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
-from packaging.version import parse as pkg_version_parse
-from packaging.requirements import Requirement as pkg_Requirement
-
 
 class CapturedJsonReporter(JSONReporter):
+    """Helper class to stringify PyLint JSON reports."""
+
     def __init__(self):
         self._stringio = StringIO()
         super().__init__(self._stringio)
 
     def get_result(self):
+        """The current value."""
         return self._stringio.getvalue()
 
 
@@ -61,7 +70,7 @@ ERROR_README_MISSING_DISCORD_BADGE = "README missing Discord badge"
 ERROR_README_MISSING_RTD_BADGE = "README missing ReadTheDocs badge"
 ERROR_README_MISSING_CI_BADGE = "README missing CI badge"
 ERROR_README_MISSING_CI_ACTIONS_BADGE = (
-    "README CI badge needs to be changed" " to GitHub Actions"
+    "README CI badge needs to be changed to GitHub Actions"
 )
 ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
 ERROR_PYFILE_MISSING_STRUCT = (
@@ -90,7 +99,10 @@ ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
 ERROR_EXAMPLE_MISSING_SENSORNAME = "Example file(s) missing sensor/library name"
 ERROR_MISSING_EXAMPLE_SIMPLETEST = "Missing simpletest example."
-ERROR_MISSING_STANDARD_LABELS = "Missing one or more standard issue labels (bug, documentation, enhancement, good first issue)."
+ERROR_MISSING_STANDARD_LABELS = (
+    "Missing one or more standard issue labels"
+    " (bug, documentation, enhancement, good first issue)."
+)
 ERROR_MISSING_LIBRARIANS = (
     "CircuitPythonLibrarians team missing or does not have write access"
 )
@@ -134,7 +146,10 @@ ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W = (
     "Library has new commits since last release within the last week"
 )
 ERROR_GITHUB_FAILING_ACTIONS = "The most recent GitHub Actions run has failed"
-ERROR_RTD_MISSING_LATEST_RELEASE = "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is released. Only on pushes.)"
+ERROR_RTD_MISSING_LATEST_RELEASE = (
+    "ReadTheDocs missing the latest release. (Ignore me! RTD doesn't update when a new version is"
+    " released. Only on pushes.)"
+)
 ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED = (
     "Failed to download drivers page from CircuitPython docs"
 )
@@ -193,14 +208,8 @@ STD_REPO_LABELS = {
     "good first issue": {"color": "7057ff"},
 }
 
-# Cache CircuitPython's subprojects on ReadTheDocs so its not fetched every repo check.
-rtd_subprojects = None
 
-# Cache the CircuitPython driver page so we can make sure every driver is linked to.
-core_driver_page = None
-
-
-class library_validator:
+class LibraryValidator:
     """Class to hold instance variables needed to traverse the calling
     code, and the validator functions.
     """
@@ -216,6 +225,8 @@ class library_validator:
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
         self.has_setup_py_disabled = set()
         self.keep_repos = keep_repos
+        self.rtd_subprojects = None
+        self.core_driver_page = None
 
     @property
     def rtd_yml_base(self):
@@ -339,6 +350,7 @@ class library_validator:
             return [ERROR_GITHUB_FAILING_ACTIONS]
         return []
 
+    # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
     def validate_release_state(self, repo):
         """Validate if a repo 1) has a release, and 2) if there have been commits
         since the last release. Only files that drive user-facing changes
@@ -365,9 +377,8 @@ class library_validator:
                 "pyproject.toml",
             }
             compare_files = [name for name in filenames if not name.startswith(".")]
-            non_ignored_files = list(set(compare_files).difference(_ignored_files))
 
-            return non_ignored_files
+            return list(set(compare_files).difference(_ignored_files))
 
         if not (
             repo["owner"]["login"] == "adafruit"
@@ -384,42 +395,34 @@ class library_validator:
         if not repo_last_release.ok:
             return [ERROR_GITHUB_NO_RELEASE]
         repo_release_json = repo_last_release.json()
-        if "tag_name" in repo_release_json:
-            tag_name = repo_release_json["tag_name"]
-        elif "message" in repo_release_json:
+        if "message" in repo_release_json:
             if repo_release_json["message"] == "Not Found":
                 return [ERROR_GITHUB_NO_RELEASE]
-            else:
-                # replace 'output_handler' with ERROR_OUTPUT_HANDLER
-                err_msg = [
-                    "Error: retrieving latest release information failed on ",
-                    "'{}'. ".format(repo["name"]),
-                    "Information Received: ",
-                    "{}".format(repo_release_json["message"]),
-                ]
-                self.output_file_data.append("".join(err_msg))
-                return [ERROR_OUTPUT_HANDLER]
 
-        main_branch = repo["default_branch"]
-        compare_tags = github.get(
-            "/repos/" + repo["full_name"] + "/compare/" + tag_name + "..." + main_branch
-        )
-        if not compare_tags.ok:
-            # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
-                "Error: failed to compare {} '{}' ".format(repo["name"], main_branch),
-                "to tag '{}'".format(tag_name),
+                f"Error: retrieving latest release information failed on '{repo['name']}'.",
+                f"Information Received: {repo_release_json['message']}",
             ]
             self.output_file_data.append("".join(err_msg))
+            return [ERROR_OUTPUT_HANDLER]
+
+        tag_name = repo_release_json.get("tag_name", "")
+        main_branch = repo["default_branch"]
+        compare_tags = github.get(
+            f"/repos/{repo['full_name']}/compare/{tag_name}...{main_branch}"
+        )
+        if not compare_tags.ok:
+            self.output_file_data.append(
+                f"Error: failed to compare {repo['name']} '{main_branch}' to tag '{tag_name}'"
+            )
             return [ERROR_OUTPUT_HANDLER]
         compare_tags_json = compare_tags.json()
         if "status" in compare_tags_json:
             if compare_tags_json["status"] != "identical":
 
-                comp_filenames = [
-                    file["filename"] for file in compare_tags_json.get("files")
-                ]
-                filtered_files = _filter_file_diffs(comp_filenames)
+                filtered_files = _filter_file_diffs(
+                    [file["filename"] for file in compare_tags_json.get("files")]
+                )
                 if filtered_files:
                     oldest_commit_date = datetime.datetime.today()
                     for commit in compare_tags_json["commits"]:
@@ -431,10 +434,6 @@ class library_validator:
                             oldest_commit_date = commit_date
 
                     date_diff = datetime.datetime.today() - oldest_commit_date
-                    # print("{0} Release State:\n  Tag Name: {1}\tRelease Date: {2}\n  Today: {3}\t Released {4} days ago.".format(repo["name"], tag_name, oldest_commit_date, datetime.datetime.today(), date_diff.days))
-                    # print("Compare {4} status: {0} \n  Ahead: {1} \t Behind: {2} \t Commits: {3}".format(
-                    #      compare_tags_json["status"], compare_tags_json["ahead_by"],
-                    #      compare_tags_json["behind_by"], compare_tags_json["total_commits"], repo["full_name"]))
                     if date_diff.days > datetime.date.today().max.day:
                         return [
                             (
@@ -442,7 +441,7 @@ class library_validator:
                                 date_diff.days,
                             )
                         ]
-                    elif date_diff.days <= datetime.date.today().max.day:
+                    if date_diff.days <= datetime.date.today().max.day:
                         if date_diff.days > 7:
                             return [
                                 (
@@ -450,26 +449,25 @@ class library_validator:
                                     date_diff.days,
                                 )
                             ]
-                        else:
-                            return [
-                                (
-                                    ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
-                                    date_diff.days,
-                                )
-                            ]
+
+                        return [
+                            (
+                                ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_1W,
+                                date_diff.days,
+                            )
+                        ]
         elif "errors" in compare_tags_json:
-            # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             err_msg = [
-                "Error: comparing latest release to '{}' failed on ",
-                "'{}'. ".format(main_branch, repo["name"]),
-                "Error Message: {}".format(compare_tags_json["message"]),
+                f"Error: comparing latest release to '{main_branch}' failed on '{repo['name']}'. ",
+                f"Error Message: {compare_tags_json['message']}",
             ]
             self.output_file_data.append("".join(err_msg))
             return [ERROR_OUTPUT_HANDLER]
 
         return []
 
-    def _validate_readme(self, repo, download_url):
+    # pylint: disable=too-many-branches
+    def _validate_readme(self, download_url):
         # We use requests because file contents are hosted by
         # githubusercontent.com, not the API domain.
         contents = requests.get(download_url, timeout=30)
@@ -511,7 +509,7 @@ class library_validator:
 
         return errors
 
-    def _validate_py_for_u_modules(self, repo, download_url):
+    def _validate_py_for_u_modules(self, download_url):
         """For a .py file, look for usage of "import u___" and
         look for "import ___".  If the "import u___" is
         used with NO "import ____" generate an error.
@@ -549,7 +547,7 @@ class library_validator:
 
         return errors
 
-    def _validate_actions_build_yml(self, repo, actions_build_info):
+    def _validate_actions_build_yml(self, actions_build_info):
         """Check the following configurations in the GitHub Actions
         build.yml file:
             - Pylint version is the latest release
@@ -577,8 +575,8 @@ class library_validator:
             return [ERROR_PYLINT_VERSION_NOT_FIXED]
 
         try:
-            pylint_version = pkg_Requirement(pylint_info.group("pylint"))
-        except Exception:
+            pylint_version = Requirement(pylint_info.group("pylint"))
+        except InvalidRequirement:
             pass
 
         if not pylint_version:
@@ -588,7 +586,7 @@ class library_validator:
 
         return errors
 
-    def _validate_setup_py(self, repo, file_info):
+    def _validate_setup_py(self, file_info):
         """Check setup.py for pypi compatibility"""
         download_url = file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
@@ -614,6 +612,7 @@ class library_validator:
             errors.append(ERROR_MISSING_BLINKA)
         return errors
 
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
     def validate_contents(self, repo):
         """Validate the contents of a repository meets current CircuitPython
         criteria (within reason, functionality checks are not possible).  Expects
@@ -677,11 +676,11 @@ class library_validator:
             errors.append(ERROR_MISSING_README_RST)
         else:
             readme_info = None
-            for f in content_list:
-                if f["name"] == "README.rst":
-                    readme_info = f
+            for file in content_list:
+                if file["name"] == "README.rst":
+                    readme_info = file
                     break
-            errors.extend(self._validate_readme(repo, readme_info["download_url"]))
+            errors.extend(self._validate_readme(readme_info["download_url"]))
 
         if ".travis.yml" in files:
             errors.append(ERROR_NEEDS_ACTION_MIGRATION)
@@ -702,18 +701,16 @@ class library_validator:
                     actions_build_info = response.json()
 
             if actions_build_info:
-                errors.extend(
-                    self._validate_actions_build_yml(repo, actions_build_info)
-                )
+                errors.extend(self._validate_actions_build_yml(actions_build_info))
             else:
                 errors.append(ERROR_UNABLE_PULL_REPO_CONTENTS)
 
         if "readthedocs.yml" in files or ".readthedocs.yml" in files:
             if self.rtd_yml_base != "":
-                fn = "readthedocs.yml"
+                filename = "readthedocs.yml"
                 if ".readthedocs.yml" in files:
-                    fn = ".readthedocs.yml"
-                file_info = content_list[files.index(fn)]
+                    filename = ".readthedocs.yml"
+                file_info = content_list[files.index(filename)]
                 rtd_contents = requests.get(file_info["download_url"])
                 if rtd_contents.ok:
                     try:
@@ -730,7 +727,7 @@ class library_validator:
 
         if "setup.py" in files:
             file_info = content_list[files.index("setup.py")]
-            errors.extend(self._validate_setup_py(repo, file_info))
+            errors.extend(self._validate_setup_py(file_info))
         elif "setup.py.disabled" not in files:
             errors.append(ERROR_MISSING_SETUP_PY)
 
@@ -764,7 +761,9 @@ class library_validator:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
 
-                def __check_lib_name(repo_name, file_name):
+                def __check_lib_name(
+                    repo_name, file_name
+                ):  # pylint: disable=unused-private-member
                     """Nested function to test example file names.
                     Allows examples to either match the repo name,
                     or have additional underscores separating the repo name.
@@ -810,7 +809,7 @@ class library_validator:
         ]
         for pyfile in pyfiles:
             # adafruit_xxx.py file; check if for proper usage of u___ versions of modules
-            errors.extend(self._validate_py_for_u_modules(repo, pyfile))
+            errors.extend(self._validate_py_for_u_modules(pyfile))
 
         # now location any directories whose names begin with "adafruit_"
         re_str = re.compile(r"adafruit\_[\w]*")
@@ -832,11 +831,12 @@ class library_validator:
                 for dir_file in dir_files:
                     # .py files in subdirectory adafruit_xxx
                     # check if for proper usage of u___ versions of modules
-                    errors.extend(self._validate_py_for_u_modules(repo, dir_file))
+                    errors.extend(self._validate_py_for_u_modules(dir_file))
 
         return errors
 
     def validate_readthedocs(self, repo):
+        """Method to check the health of `repo`'s ReadTheDocs."""
         if not (
             repo["owner"]["login"] == "adafruit"
             and repo["name"].startswith("Adafruit_CircuitPython")
@@ -844,25 +844,24 @@ class library_validator:
             return []
         if repo["name"] in BUNDLE_IGNORE_LIST:
             return []
-        global rtd_subprojects
-        if not rtd_subprojects:
+        if not self.rtd_subprojects:
             rtd_response = requests.get(
                 "https://readthedocs.org/api/v2/project/74557/subprojects/", timeout=15
             )
             if not rtd_response.ok:
                 return [ERROR_RTD_SUBPROJECT_FAILED]
-            rtd_subprojects = {}
+            self.rtd_subprojects = {}
             for subproject in rtd_response.json()["subprojects"]:
-                rtd_subprojects[
+                self.rtd_subprojects[
                     common_funcs.sanitize_url(subproject["repo"])
                 ] = subproject
 
         repo_url = common_funcs.sanitize_url(repo["clone_url"])
-        if repo_url not in rtd_subprojects:
+        if repo_url not in self.rtd_subprojects:
             return [ERROR_RTD_SUBPROJECT_MISSING]
 
         errors = []
-        subproject = rtd_subprojects[repo_url]
+        subproject = self.rtd_subprojects[repo_url]
 
         if 105398 not in subproject["users"]:
             errors.append(ERROR_RTD_ADABOT_MISSING)
@@ -884,7 +883,10 @@ class library_validator:
                 errors.append(ERROR_GITHUB_RELEASE_FAILED)
             # disabling this for now, since it is ignored and always fails
             # else:
-            #    if latest_release.json()["tag_name"] not in [tag["verbose_name"] for tag in valid_versions["versions"]]:
+            #    if (
+            #       latest_release.json()["tag_name"] not in
+            #       [tag["verbose_name"] for tag in valid_versions["versions"]]
+            #   ):
             #        errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
 
         # There is no API which gives access to a list of builds for a project so we parse the html
@@ -893,6 +895,8 @@ class library_validator:
             "https://readthedocs.org/projects/{}/builds/".format(subproject["slug"]),
             timeout=15,
         )
+        # pylint: disable=too-many-nested-blocks
+        # TODO: look into reducing the number of nested blocks.
         if not builds_webpage.ok:
             errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILDS)
         else:
@@ -940,6 +944,7 @@ class library_validator:
         return errors
 
     def validate_core_driver_page(self, repo):
+        """Method to ensure that `repo` is listed on the main driver page in the bundle."""
         if not (
             repo["owner"]["login"] == "adafruit"
             and repo["name"].startswith("Adafruit_CircuitPython")
@@ -947,15 +952,17 @@ class library_validator:
             return []
         if repo["name"] in BUNDLE_IGNORE_LIST:
             return []
-        global core_driver_page
-        if not core_driver_page:
+        if not self.core_driver_page:
             driver_page = requests.get(
-                "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/main/docs/drivers.rst",
+                (
+                    "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/"
+                    "main/docs/drivers.rst"
+                ),
                 timeout=15,
             )
             if not driver_page.ok:
                 return [ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED]
-            core_driver_page = driver_page.text
+            self.core_driver_page = driver_page.text
 
         repo_short_name = repo["name"][len("Adafruit_CircuitPython_") :].lower()
         full_url = (
@@ -964,43 +971,34 @@ class library_validator:
             + "/en/latest/"
         )
         full_url_dashes = full_url.replace("_", "-")
-        if full_url not in core_driver_page and full_url_dashes not in core_driver_page:
+        if (
+            full_url not in self.core_driver_page
+            and full_url_dashes not in self.core_driver_page
+        ):
             return [ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER]
         return []
 
+    # TODO: this could probably be moved to `common_funcs` and used through Adabot
     def github_get_all_pages(self, url, params):
+        """Retrieves all paginated results from the GitHub `url`."""
         results = []
         response = github.get(url, params=params)
 
         if not response.ok:
-            # set error message and return ERROR_OUTPUT_HANDLER
-            # the caller must test and forward to the outside
-            self.output_file_data.append(
-                "Github request failed: {}, {}".format(repo["full_name"], link)
-            )
+            self.output_file_data.append(f"Github request failed: {url}")
             return ERROR_OUTPUT_HANDLER
 
         while response.ok:
             results.extend(response.json())
-            try:
-                links = response.headers["Link"]
-            except KeyError:
+
+            if response.links.get("next"):
+                response = github.get(response.links["next"]["url"])
+            else:
                 break
 
-            if links:
-                next_url = None
-                for link in links.split(","):
-                    link, rel = link.split(";")
-                    link = link.strip(" <>")
-                    rel = rel.strip()
-                    if rel == 'rel="next"':
-                        next_url = link
-                        break
-                if not next_url:
-                    break
-                response = github.get(link)
         return results
 
+    # pylint: disable=too-many-nested-blocks
     def gather_insights(self, repo, insights, since, show_closed_metric=False):
         """Gather analytics about a repository like open and merged pull requests.
         This expects a dictionary with GitHub API repository state (like from the
@@ -1149,16 +1147,12 @@ class library_validator:
                 "/repos/adafruit/circuitpython/milestones", params=params
             )
             if not response.ok:
-                # replace 'output_handler' with ERROR_OUTPUT_HANDLER
                 self.output_file_data.append("Failed to get core milestone insights.")
                 return [ERROR_OUTPUT_HANDLER]
-            else:
-                milestones = response.json()
-                for milestone in milestones:
-                    # print(milestone)
-                    insights["milestones"][milestone["title"]] = milestone[
-                        "open_issues"
-                    ]
+
+            milestones = response.json()
+            for milestone in milestones:
+                insights["milestones"][milestone["title"]] = milestone["open_issues"]
         return []
 
     def validate_in_pypi(self, repo):
@@ -1252,7 +1246,7 @@ class library_validator:
 
                 logging.debug("Running pylint on %s", file)
 
-                linted = lint.Run(pylint_args, reporter=reporter, exit=False)
+                lint.Run(pylint_args, reporter=reporter, exit=False)
                 pylint_stderr = ""
                 pylint_stdout = reporter.get_result()
 
@@ -1274,8 +1268,8 @@ class library_validator:
                     return [ERROR_PYLINT_FAILED_LINTING]
 
             if self.keep_repos:
-                with open(repo_dir / ".pylint-ok", "w") as f:
-                    f.write("".join(pylint_result))
+                with open(repo_dir / ".pylint-ok", "w") as pylint_ok:
+                    pylint_ok.write("".join(pylint_result))
 
         return []
 

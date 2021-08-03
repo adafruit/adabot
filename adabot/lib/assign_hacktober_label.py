@@ -20,6 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""An utility to automatically apply the 'hacktoberfest' label to open issues
+marked as 'good first issue', during DigitalOcean's/GitHub's Hacktoberfest
+event.
+"""
+
 import argparse
 import datetime
 import requests
@@ -33,7 +38,13 @@ cli_args.add_argument(
     "--remove-label",
     action="store_true",
     help="Option to remove Hacktoberfest labels, instead of adding them.",
-    dest="remove_label",
+    dest="remove_labels",
+)
+cli_args.add_argument(
+    "--dry-run",
+    action="store_true",
+    help="Option to remove Hacktoberfest labels, instead of adding them.",
+    dest="dry_run",
 )
 
 
@@ -56,7 +67,7 @@ def is_hacktober_season():
     ]
     if add_range[0] <= today <= add_range[1]:
         return True, "add"
-    elif remove_range[0] <= today <= remove_range[1]:
+    if remove_range[0] <= today <= remove_range[1]:
         return True, "remove"
 
     return False, None
@@ -70,7 +81,7 @@ def get_open_issues(repo):
     }
     response = github.get("/repos/" + repo["full_name"] + "/issues", params=params)
     if not response.ok:
-        print("Failed to retrieve issues for '{}'".format(repo["name"]))
+        print(f"Failed to retrieve issues for '{repo['name']}'")
         return False
 
     issues = []
@@ -79,33 +90,21 @@ def get_open_issues(repo):
             [issue for issue in response.json() if "pull_request" not in issue]
         )
 
-        try:
-            links = response.headers["Link"]
-        except KeyError:
+        if response.links.get("next"):
+            response = requests.get(response.links["next"]["url"])
+        else:
             break
-        next_url = None
-        for link in links.split(","):
-            link, rel = link.split(";")
-            link = link.strip(" <>")
-            rel = rel.strip()
-            if rel == 'rel="next"':
-                next_url = link
-                break
-        if not next_url:
-            break
-
-        response = requests.get(link, timeout=30)
 
     return issues
 
 
-def ensure_hacktober_label_exists(repo):
+def ensure_hacktober_label_exists(repo, dry_run=False):
     """Checks if the 'Hacktoberfest' label exists on the repo.
     If not, creates the label.
     """
-    response = github.get("/repos/" + repo["full_name"] + "/labels")
+    response = github.get(f"/repos/{repo['full_name']}/labels")
     if not response.ok:
-        print("Failed to retrieve labels for '{}'".format(repo["name"]))
+        print(f"Failed to retrieve labels for '{repo['name']}'")
         return False
 
     repo_labels = [label["name"] for label in response.json()]
@@ -117,17 +116,16 @@ def ensure_hacktober_label_exists(repo):
             "color": "f2b36f",
             "description": "DigitalOcean's Hacktoberfest",
         }
-        result = github.post("/repos/" + repo["full_name"] + "/labels", json=params)
-        if not result.status_code == 201:
-            print(
-                "Failed to create new Hacktoberfest label for: {}".format(repo["name"])
-            )
-            return False
+        if not dry_run:
+            result = github.post(f"/repos/{repo['full_name']}/labels", json=params)
+            if not result.status_code == 201:
+                print(f"Failed to create new Hacktoberfest label for: {repo['name']}")
+                return False
 
     return True
 
 
-def assign_hacktoberfest(repo, issues=None, remove_labels=False):
+def assign_hacktoberfest(repo, issues=None, remove_labels=False, dry_run=False):
     """Gathers open issues on a repo, and assigns the 'Hacktoberfest' label
     to each issue if its not already assigned.
     """
@@ -150,50 +148,54 @@ def assign_hacktoberfest(repo, issues=None, remove_labels=False):
                 update_issue = True
         else:
             if has_good_first and not has_hacktober:
-                label_exists = ensure_hacktober_label_exists(repo)
+                label_exists = ensure_hacktober_label_exists(repo, dry_run)
                 if not label_exists:
                     continue
                 update_issue = True
 
         if update_issue:
             params = {"labels": label_names}
-            result = github.patch(
-                "/repos/" + repo["full_name"] + "/issues/" + str(issue["number"]),
-                json=params,
-            )
+            if not dry_run:
+                result = github.patch(
+                    f"/repos/{repo['full_name']}/issues/{str(issue['number'])}",
+                    json=params,
+                )
 
-            if result.ok:
-                labels_changed += 1
+                if result.ok:
+                    labels_changed += 1
+                else:
+                    # sadly, GitHub will only silently ignore labels that are
+                    # not added and return a 200. so this will most likely only
+                    # trigger on endpoint/connection failures.
+                    print(f"Failed to add Hacktoberfest label to: {issue['url']}")
             else:
-                # sadly, GitHub will only silently ignore labels that are
-                # not added and return a 200. so this will most likely only
-                # trigger on endpoint/connection failures.
-                print("Failed to add Hacktoberfest label to: {}".format(issue["url"]))
+                labels_changed += 1
 
     return labels_changed
 
 
-def process_hacktoberfest(repo, issues=None, remove_labels=False):
-    result = assign_hacktoberfest(repo, issues, remove_labels)
+def process_hacktoberfest(repo, issues=None, remove_labels=False, dry_run=False):
+    """Run hacktoberfest functions and return the result."""
+    result = assign_hacktoberfest(repo, issues, remove_labels, dry_run)
     return result
 
 
 if __name__ == "__main__":
-    labels_assigned = 0
+    LABELS_ASSIGNED = 0
     args = cli_args.parse_args()
 
-    remove_labels = args.remove_label
-
-    if not remove_labels:
+    if not args.remove_labels:
         print("Checking for open issues to assign the Hacktoberfest label to...")
     else:
         print("Checking for open issues to remove the Hacktoberfest label from...")
 
     repos = common_funcs.list_repos()
-    for repo in repos:
-        labels_assigned += process_hacktoberfest(repo, remove_labels)
+    for repository in repos:
+        LABELS_ASSIGNED += process_hacktoberfest(
+            repository, remove_labels=args.remove_labels, dry_run=args.dry_run
+        )
 
-    if not remove_labels:
-        print("Added the Hacktoberfest label to {} issues.".format(labels_assigned))
+    if not args.remove_labels:
+        print(f"Added the Hacktoberfest label to {LABELS_ASSIGNED} issues.")
     else:
-        print("Removed the Hacktoberfest label from {} issues.".format(labels_assigned))
+        print(f"Removed the Hacktoberfest label from {LABELS_ASSIGNED} issues.")

@@ -87,7 +87,7 @@ cmd_line_parser.add_argument(
 # of Github API repository object state).
 default_validators = [
     vals
-    for vals in inspect.getmembers(cirpy_lib_vals.library_validator)
+    for vals in inspect.getmembers(cirpy_lib_vals.LibraryValidator)
     if vals[0].startswith("validate")
 ]
 
@@ -138,7 +138,7 @@ def run_library_checks(validators, kw_args, error_depth):
     new_libs = {}
     updated_libs = {}
 
-    validator = cirpy_lib_vals.library_validator(
+    validator = cirpy_lib_vals.LibraryValidator(
         validators, bundle_submodules, latest_pylint, **kw_args
     )
     for repo in repos:

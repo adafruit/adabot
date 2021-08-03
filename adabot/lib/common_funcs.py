@@ -23,6 +23,8 @@
 # GitHub API Serch has stopped returning the core repo for some reason. Tried several
 # different search params, and came up emtpy. Hardcoding it as a failsafe.
 
+"""Common functions used throughout Adabot."""
+
 import collections
 import datetime
 import os
@@ -31,10 +33,11 @@ import requests
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
 
-core_repo_url = "/repos/adafruit/circuitpython"
+CORE_REPO_URL = "/repos/adafruit/circuitpython"
 
 
 def parse_gitmodules(input_text):
+    # pylint: disable=anomalous-backslash-in-string
     """Parse a .gitmodules file and return a list of all the git submodules
     defined inside of it.  Each list item is 2-tuple with:
       - submodule name (string)
@@ -56,16 +59,18 @@ def parse_gitmodules(input_text):
     surprisingly complex and no mature parsing modules are available (outside
     the code in git itself).
     """
+    # pylint: enable=anomalous-backslash-in-string
+
     # Assume no results if invalid input.
     if input_text is None:
         return []
     # Define a regular expression to match a basic submodule section line and
     # capture its subsection value.
-    submodule_section_re = '^\[submodule "(.+)"\]$'
+    submodule_section_re = r'^\[submodule "(.+)"\]$'
     # Define a regular expression to match a variable setting line and capture
     # the variable name and value.  This does NOT handle multi-line or quote
     # escaping (far outside the abilities of a regular expression).
-    variable_re = "^\s*([a-zA-Z0-9\-]+) =\s+(.+?)\s*$"
+    variable_re = r"^\s*([a-zA-Z0-9\-]+) =\s+(.+?)\s*$"
     # Process all the lines to parsing submodule sections and the variables
     # within them as they're found.
     results = []
@@ -151,7 +156,7 @@ def is_repo_in_bundle(repo_clone_url, bundle_submodules):
     # this clone URL.  Not the most efficient search but it's a handful of
     # items in the bundle.
     for submodule in bundle_submodules:
-        name, variables = submodule
+        _, variables = submodule
         submodule_url = variables.get("url", "")
         # Compare URLs and skip to the next submodule if it's not a match.
         # Right now this is a case sensitive compare, but perhaps it should
@@ -210,7 +215,7 @@ def list_repos(*, include_repos=None):
     repo_names = [repo["name"] for repo in repos]
 
     if "circuitpython" not in repo_names:
-        core = github.get(core_repo_url)
+        core = github.get(CORE_REPO_URL)
         if core.ok:
             repos.append(core.json())
 
@@ -227,10 +232,11 @@ def list_repos(*, include_repos=None):
 
 
 def get_docs_link(bundle_path, submodule):
+    """The URL to the documentation from the README."""
+    lines = None
     try:
-        f = open(f"{bundle_path}/{submodule[1]['path']}/README.rst", "r")
-        lines = f.read().split("\n")
-        f.close()
+        with open(f"{bundle_path}/{submodule[1]['path']}/README.rst", "r") as readme:
+            lines = readme.read().split("\n")
         for i in range(10):
             if "target" in lines[i] and "readthedocs" in lines[i]:
                 return lines[i].replace("    :target: ", "")
@@ -261,22 +267,22 @@ def is_new_or_updated(repo):
     # first, check the latest release to see if within the last 7 days
     result = github.get("/repos/adafruit/" + repo["name"] + "/releases/latest")
     if not result.ok:
-        return
+        return None
     release_info = result.json()
     if "published_at" not in release_info:
-        return
-    else:
-        release_date = datetime.datetime.strptime(
-            release_info["published_at"], "%Y-%m-%dT%H:%M:%SZ"
-        )
-        if release_date < today_minus_seven:
-            return
+        return None
+
+    release_date = datetime.datetime.strptime(
+        release_info["published_at"], "%Y-%m-%dT%H:%M:%SZ"
+    )
+    if release_date < today_minus_seven:
+        return None
 
     # we have a release within the last 7 days. now check if its a newly
     # released library within the last week, or if its just an update
     result = github.get("/repos/adafruit/" + repo["name"] + "/releases")
     if not result.ok:
-        return
+        return None
 
     new_releases = 0
     releases = result.json()
@@ -291,8 +297,8 @@ def is_new_or_updated(repo):
 
     if new_releases == len(releases):
         return "new"
-    else:
-        return "updated"
+
+    return "updated"
 
 
 def whois_github_user():
@@ -311,6 +317,7 @@ def whois_github_user():
 class InsightData(collections.UserDict):
     """Container class for holding insight data (issues, PRs, etc)."""
 
+    # pylint: disable=super-init-not-called
     def __init__(self):
         self.data = {
             "merged_prs": [],

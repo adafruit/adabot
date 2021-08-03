@@ -195,7 +195,7 @@ if __name__ == "__main__":
 
     default_validators = [
         vals[1]
-        for vals in inspect.getmembers(cpy_vals.library_validator)
+        for vals in inspect.getmembers(cpy_vals.LibraryValidator)
         if vals[0].startswith("validate")
     ]
     bundle_submodules = common_funcs.get_bundle_submodules()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     if pylint_info and pylint_info.ok:
         latest_pylint = pylint_info.json()["info"]["version"]
 
-    validator = cpy_vals.library_validator(
+    validator = cpy_vals.LibraryValidator(
         default_validators,
         bundle_submodules,
         latest_pylint,
