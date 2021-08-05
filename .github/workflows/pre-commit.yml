@@ -1,0 +1,30 @@
+name: Run pre-commit
+
+on: [pull_request, push]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dump GitHub context
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+      run: echo "$GITHUB_CONTEXT"
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.9
+    - name: Versions
+      run: |
+        python3 --version
+    - name: Checkout Current Repo
+      uses: actions/checkout@v1
+    - name: Pip install requirements
+      run: |
+        pip install --force-reinstall -r requirements.txt
+    - name: Pip install pre-commit
+      run: |
+        pip install pre-commit
+    - name: Run pre-commit hooks
+      run: |
+        pre-commit run --all-files
