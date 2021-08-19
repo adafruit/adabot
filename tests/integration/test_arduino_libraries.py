@@ -28,7 +28,7 @@ from adabot import arduino_libraries
 from adabot import github_requests
 
 
-def get_list_repos():
+def mock_list_repos():
     """Function to monkeypatch `arduino_libraries.list_repos()` for a shorter set of repos."""
 
     return [github_requests.get("/repos/adafruit/Adafruit_NeoPixel").json()]
@@ -37,7 +37,7 @@ def get_list_repos():
 def test_adafruit_libraries(monkeypatch):
     """Test main arduino_libraries function, without writing an output file."""
 
-    monkeypatch.setattr(arduino_libraries, "list_repos", get_list_repos)
+    monkeypatch.setattr(arduino_libraries, "list_repos", mock_list_repos)
 
     arduino_libraries.main()
 
@@ -46,7 +46,7 @@ def test_adafruit_libraries(monkeypatch):
 def test_adafruit_libraries_output_file(monkeypatch, tmp_path, capsys):
     """Test main arduino_libraries funciton, with writing an output file."""
 
-    monkeypatch.setattr(arduino_libraries, "list_repos", get_list_repos)
+    monkeypatch.setattr(arduino_libraries, "list_repos", mock_list_repos)
 
     tmp_output_file = tmp_path / "output_test.txt"
 
