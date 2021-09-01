@@ -22,6 +22,8 @@
 
 """Unit tests for 'adabot/lib/common_funcs.py'"""
 
+import re
+
 import pytest  # pylint: disable=unused-import
 from adabot.lib import common_funcs
 
@@ -36,3 +38,20 @@ def test_list_repos():
 def test_repo_is_on_pypi_true():
     """Test 'repo_is_on_pypi'"""
     assert common_funcs.repo_is_on_pypi({"name": "pytest"})
+
+
+sani_urls = [
+    {"id": "sanitize http://", "url": "http://www.website.com/"},
+    {"id": "sanitize https://", "url": "https://www.website.com"},
+    {"id": "sanitize git://", "url": "git://www.website.com"},
+    {"id": "sanitize ://*.git", "url": "http://www.website.com/page.git"},
+]
+
+
+@pytest.mark.parametrize("urls", sani_urls, ids=[url["id"] for url in sani_urls])
+def test_sanitize_url(urls):
+    """Test 'sanitize_urls'"""
+    assert re.match(
+        r"^(?!http|https|git)(?:\:\/\/){0,1}.+(?<!.git)$",
+        common_funcs.sanitize_url(urls["url"]),
+    )
