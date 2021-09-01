@@ -29,13 +29,18 @@ import datetime
 import inspect
 import json
 import logging
-import os
 import re
+import sys
 
 from adabot.lib import common_funcs
 from adabot.lib import circuitpython_library_validators as cpy_vals
 from adabot import github_requests as github
 from adabot import pypi_requests as pypi
+
+logger = logging.getLogger(__name__)
+ch = logging.StreamHandler(stream=sys.stdout)
+logging.basicConfig(format="%(message)s", handlers=[ch])
+
 
 DO_NOT_VALIDATE = [
     "CircuitPython_Community_Bundle",
@@ -67,7 +72,7 @@ cmd_line_parser.add_argument(
     "--keep-repos", help="Keep repos between runs", action="store_true", default=False
 )
 cmd_line_parser.add_argument(
-    "--loglevel", help="Adjust the log level (default ERROR)", type=str, default="ERROR"
+    "--loglevel", help="Adjust the log level (default INFO)", type=str, default="INFO"
 )
 
 sort_re = re.compile(r"(?<=\(Open\s)(.+)(?=\sdays)")
@@ -149,33 +154,29 @@ def get_contributors(repo):
     return contributors, reviewers, merged_pr_count
 
 
-# pylint: disable=invalid-name
-if __name__ == "__main__":
-    cmd_line_args = cmd_line_parser.parse_args()
-
-    logging.basicConfig(
-        format="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%Y-%m-%d %T",
-        level=getattr(logging, cmd_line_args.loglevel),
-    )
-
-    logging.info("Running circuitpython.org/libraries updater...")
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def main(
+    loglevel="ERROR",
+    keep_repos=False,
+    cache_http=False,
+    cache_ttl=7200,
+    output_file=None,
+):
+    """Main"""
+    logger.setLevel(loglevel)
+    logger.info("Running circuitpython.org/libraries updater...")
 
     run_time = datetime.datetime.now()
 
-    working_directory = os.path.abspath(os.getcwd())
+    logger.info("Run Date: %s", run_time.strftime("%d %B %Y, %I:%M%p"))
 
-    logging.info("Run Date: %s", run_time.strftime("%d %B %Y, %I:%M%p"))
+    if output_file:
+        file_handler = logging.FileHandler(output_file)
+        logger.addHandler(file_handler)
+        logger.info(" - Report output will be saved to: %s", output_file)
 
-    output_filename = ""
-    local_file_output = False
-    if cmd_line_args.output_file:
-        output_filename = os.path.abspath(cmd_line_args.output_file)
-        local_file_output = True
-        logging.info(" - Output will be saved to: %s", output_filename)
-
-    if cmd_line_args.cache_http:
-        cpy_vals.github.setup_cache(cmd_line_args.cache_ttl)
+    if cache_http:
+        cpy_vals.github.setup_cache(cache_ttl)
 
     repos = common_funcs.list_repos(
         include_repos=(
@@ -188,8 +189,8 @@ if __name__ == "__main__":
     updated_libs = {}
     open_issues_by_repo = {}
     open_prs_by_repo = {}
-    contributors = []
-    reviewers = []
+    contributors = set()
+    reviewers = set()
     merged_pr_count_total = 0
     repos_by_error = {}
 
@@ -209,7 +210,7 @@ if __name__ == "__main__":
         default_validators,
         bundle_submodules,
         latest_pylint,
-        keep_repos=cmd_line_args.keep_repos,
+        keep_repos=keep_repos,
     )
 
     for repo in repos:
@@ -237,9 +238,9 @@ if __name__ == "__main__":
         # get the contributors and reviewers for the last week
         get_contribs, get_revs, get_merge_count = get_contributors(repo)
         if get_contribs:
-            contributors.extend(get_contribs)
+            contributors.add(get_contribs)
         if get_revs:
-            reviewers.extend(get_revs)
+            reviewers.add(get_revs)
         merged_pr_count_total += get_merge_count
 
         if repo_name in DO_NOT_VALIDATE:
@@ -249,8 +250,8 @@ if __name__ == "__main__":
         errors = []
         try:
             errors = validator.run_repo_validation(repo)
-        except Exception as e:  # pylint: disable=broad-except
-            logging.exception("Unhandled exception %s", str(e))
+        except Exception as err:  # pylint: disable=broad-except
+            logging.exception("Unhandled exception %s", str(err))
             errors.extend([cpy_vals.ERROR_OUTPUT_HANDLER])
         for error in errors:
             if not isinstance(error, tuple):
@@ -265,45 +266,42 @@ if __name__ == "__main__":
             else:
                 if error[0] not in repos_by_error:
                     repos_by_error[error[0]] = []
-                repos_by_error[error[0]].append(
-                    "{0} ({1} days)".format(repo["html_url"], error[1])
-                )
-
-    # sort all of the items alphabetically
-    sorted_new_list = {}
-    for new in sorted(new_libs, key=str.lower):
-        sorted_new_list[new] = new_libs[new]
-
-    sorted_updated_list = {}
-    for updated in sorted(updated_libs, key=str.lower):
-        sorted_updated_list[updated] = updated_libs[updated]
-
-    sorted_issues_list = {}
-    for issue in sorted(open_issues_by_repo, key=str.lower):
-        sorted_issues_list[issue] = open_issues_by_repo[issue]
-
-    sorted_prs_list = {}
-    for pull_request in sorted(open_prs_by_repo, key=str.lower):
-        sorted_prs_list[pull_request] = open_prs_by_repo[pull_request]
-
-    sorted_repos_by_error = {}
-    for error in sorted(repos_by_error, key=str.lower):
-        sorted_repos_by_error[error] = repos_by_error[error]
+                repos_by_error[error[0]].append(f"{repo['html_url']} ({error[1]} days)")
 
     # assemble the JSON data
     build_json = {
         "updated_at": run_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "contributors": list(set(contributors)),
-        "reviewers": list(set(reviewers)),
+        "contributors": sorted(contributors, key=str.lower),
+        "reviewers": sorted(reviewers, key=str.lower),
         "merged_pr_count": str(merged_pr_count_total),
-        "library_updates": {"new": sorted_new_list, "updated": sorted_updated_list},
-        "open_issues": sorted_issues_list,
-        "pull_requests": sorted_prs_list,
-        "repo_infrastructure_errors": sorted_repos_by_error,
+        "library_updates": {
+            "new": {key: new_libs[key] for key in sorted(new_libs, key=str.lower)},
+            "updated": {
+                key: updated_libs[key] for key in sorted(updated_libs, key=str.lower)
+            },
+        },
+        "open_issues": {
+            key: open_issues_by_repo[key]
+            for key in sorted(open_issues_by_repo, key=str.lower)
+        },
+        "pull_requests": {
+            key: open_prs_by_repo[key]
+            for key in sorted(open_prs_by_repo, key=str.lower)
+        },
+        "repo_infrastructure_errors": {
+            key: repos_by_error[key] for key in sorted(repos_by_error, key=str.lower)
+        },
     }
-    json_obj = json.dumps(build_json, indent=2)
 
-    if local_file_output:
-        with open(output_filename, "w") as json_file:
-            json.dump(build_json, json_file, indent=2)
-    print(json_obj)
+    logger.info("%s", json.dumps(build_json, indent=2))
+
+
+if __name__ == "__main__":
+    cmd_line_args = cmd_line_parser.parse_args()
+    main(
+        loglevel=cmd_line_args.loglevel,
+        keep_repos=cmd_line_args.keep_repos,
+        cache_http=cmd_line_args.cache_http,
+        cache_ttl=cmd_line_args.cache_ttl,
+        output_file=cmd_line_args.output_file,
+    )
