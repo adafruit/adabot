@@ -31,11 +31,9 @@ from adabot import circuitpython_libraries
 # pylint: disable=unused-argument
 def mock_list_repos(*args, **kwargs):
     """Function to monkeypatch `common_funcs.list_repos()` for a shorter set of repos."""
-    repos = []
-    repos.append(
+    return [
         github_requests.get("/repos/adafruit/Adafruit_CircuitPython_TestRepo").json()
-    )
-    return repos
+    ]
 
 
 def test_circuitpython_libraires(monkeypatch):
