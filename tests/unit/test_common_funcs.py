@@ -55,3 +55,36 @@ def test_sanitize_url(urls):
         r"^(?!http|https|git)(?:\:\/\/){0,1}.+(?<!.git)$",
         common_funcs.sanitize_url(urls["url"]),
     )
+
+
+doc_links = [
+    {
+        "id": "valid link",
+        "content": (
+            ".. image:: https://readthedocs.org/projects/adafruit-circuitpython-testrepo/badge/"
+            "?version=latest\n    :target: https://circuitpython.readthedocs.io/projects/testrepo/"
+            "en/latest/\n:alt: Documentation Status"
+        ),
+        "path": "repo",
+        "expects": "https://circuitpython.readthedocs.io/projects/testrepo/en/latest/",
+    },
+    {
+        "id": "no valid link",
+        "content": "This is not valid.\n" * 15,
+        "path": "repo",
+        "expects": None,
+    },
+    {"id": "FileNotFoundError", "content": "", "path": "not_repo", "expects": None},
+]
+
+
+@pytest.mark.parametrize("links", doc_links, ids=[link["id"] for link in doc_links])
+def test_get_docs_link(links, tmp_path):
+    """Test 'get_docs_link'"""
+    mock_submod_path = ["", {"path": links["path"]}]
+    readme_path = tmp_path / "repo"
+    readme_path.mkdir()
+    readme = readme_path / "README.rst"
+    readme.write_text(links["content"])
+
+    assert links["expects"] == common_funcs.get_docs_link(tmp_path, mock_submod_path)
