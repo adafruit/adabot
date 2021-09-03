@@ -22,10 +22,14 @@
 
 """Unit tests for 'adabot/lib/common_funcs.py'"""
 
+import datetime
 import re
 
 import pytest  # pylint: disable=unused-import
+import requests
+
 from adabot.lib import common_funcs
+from adabot import github_requests
 
 
 def test_list_repos():
@@ -88,3 +92,63 @@ def test_get_docs_link(links, tmp_path):
     readme.write_text(links["content"])
 
     assert links["expects"] == common_funcs.get_docs_link(tmp_path, mock_submod_path)
+
+
+def published_date(subtract_days=0):
+    """Utility to return a formatted date"""
+    pub_date = datetime.datetime.today()
+    pub_date = pub_date - datetime.timedelta(days=subtract_days)
+    return datetime.datetime.strftime(pub_date, "%Y-%m-%dT%H:%M:%SZ")
+
+
+mock_repo_results = [
+    {
+        "id": "new library",
+        "name": "new_library",
+        "latest": f'{{"published_at":"{published_date()}"}}',
+        "releases": f'[{{"published_at":"{published_date()}"}}]',
+        "expects": "new",
+    },
+    {
+        "id": "updated library",
+        "name": "updated_library",
+        "latest": f'{{"published_at":"{published_date(subtract_days=6)}"}}',
+        "releases": (
+            "["
+            f'{{"published_at":"{published_date(subtract_days=7)}"}},'
+            f'{{"published_at":"{published_date(subtract_days=10)}"}}'
+            "]"
+        ),
+        "expects": "updated",
+    },
+    {
+        "id": "non-updated library",
+        "name": "non_updated_library",
+        "latest": f'{{"published_at":"{published_date(subtract_days=16)}"}}',
+        "releases": f'[{{"published_at":"{published_date(subtract_days=16)}"}}]',
+        "expects": None,
+    },
+]
+
+
+@pytest.mark.parametrize(
+    "repos", mock_repo_results, ids=[repo["id"] for repo in mock_repo_results]
+)
+# pylint: disable=protected-access
+def test_is_new_or_updated(monkeypatch, repos):
+    """Test 'is_new_or_updated'"""
+
+    def mock_github_get(url):
+        """Mock 'github_requests.get()' for testing"""
+        mock_repo_key = url.split("/")[-1]
+
+        result = requests.Response()
+        result.status_code = 200
+        result.encoding = "utf-8"
+        result._content = repos[mock_repo_key].encode()
+
+        return result
+
+    monkeypatch.setattr(github_requests, "get", mock_github_get)
+
+    assert repos["expects"] == common_funcs.is_new_or_updated(repos)
