@@ -36,7 +36,7 @@ def mock_list_repos(*args, **kwargs):
     ]
 
 
-def test_circuitpython_libraires(monkeypatch):
+def test_circuitpython_libraries(monkeypatch):
     """Test main function of 'circuitpyton_libraries.py', without writing an output file."""
 
     monkeypatch.setattr(common_funcs, "list_repos", mock_list_repos)
@@ -45,7 +45,7 @@ def test_circuitpython_libraires(monkeypatch):
 
 
 # pylint: disable=invalid-name
-def test_circuitpython_libraires_output_file(monkeypatch, tmp_path, capsys):
+def test_circuitpython_libraries_output_file(monkeypatch, tmp_path, capsys):
     """Test main funciton of 'circuitpython_libraries.py', with writing an output file."""
 
     monkeypatch.setattr(common_funcs, "list_repos", mock_list_repos)
