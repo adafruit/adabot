@@ -36,7 +36,7 @@ def mock_list_repos(*args, **kwargs):
     ]
 
 
-def test_update_cp_org_libraires(monkeypatch):
+def test_update_cp_org_libraries(monkeypatch):
     """Test main function of 'circuitpyton_libraries.py', without writing an output file."""
 
     monkeypatch.setattr(common_funcs, "list_repos", mock_list_repos)
