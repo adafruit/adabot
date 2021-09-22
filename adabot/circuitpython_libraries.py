@@ -242,10 +242,7 @@ def run_library_checks(validators, kw_args, error_depth):
     )
     for pull_request in sorted_prs:
         logger.info("    * %s", pull_request)
-    print_issue_overview(lib_insights)
-    logger.info("* https://circuitpython.org/contributing")
-    logger.info("  * %s open issues", len(lib_insights["open_issues"]))
-    logger.info("  * %s good first issues", lib_insights["good_first_issues"])
+
     open_pr_days = [
         int(pr_sort_re.search(pull_request).group(1))
         for pull_request in lib_insights["open_prs"]
@@ -258,6 +255,14 @@ def run_library_checks(validators, kw_args, error_depth):
             max(open_pr_days),
             max((min(open_pr_days), 1)),  # ensure the minumum is '1'
         )
+
+    print_issue_overview(lib_insights)
+
+    logger.info("  * %s open issues", len(lib_insights["open_issues"]))
+    logger.info("  * %s good first issues", lib_insights["good_first_issues"])
+
+    logger.info("* https://circuitpython.org/contributing")
+
     logger.info("Library updates in the last seven days:")
     if len(new_libs) != 0:
         logger.info("**New Libraries**")

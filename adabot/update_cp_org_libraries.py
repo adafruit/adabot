@@ -238,9 +238,9 @@ def main(
         # get the contributors and reviewers for the last week
         get_contribs, get_revs, get_merge_count = get_contributors(repo)
         if get_contribs:
-            contributors.add(get_contribs)
+            contributors.update(get_contribs)
         if get_revs:
-            reviewers.add(get_revs)
+            reviewers.update(get_revs)
         merged_pr_count_total += get_merge_count
 
         if repo_name in DO_NOT_VALIDATE:
