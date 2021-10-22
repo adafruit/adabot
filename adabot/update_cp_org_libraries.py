@@ -31,6 +31,7 @@ import json
 import logging
 import re
 import sys
+import os
 
 from adabot.lib import common_funcs
 from adabot.lib import circuitpython_library_validators as cpy_vals
@@ -170,7 +171,9 @@ def main(
 
     logger.info("Run Date: %s", run_time.strftime("%d %B %Y, %I:%M%p"))
 
+    output_filename = ""
     if output_file:
+        output_filename = os.path.abspath(cmd_line_args.output_file)
         file_handler = logging.FileHandler(output_file)
         logger.addHandler(file_handler)
         logger.info(" - Report output will be saved to: %s", output_file)
@@ -293,7 +296,9 @@ def main(
         },
     }
 
-    logger.info("%s", json.dumps(build_json, indent=2))
+    if output_file:
+        with open(output_filename, 'w') as json_file:
+            json.dump(build_json, json_file, indent=2)
 
 
 if __name__ == "__main__":
