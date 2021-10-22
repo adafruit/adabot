@@ -297,7 +297,7 @@ def main(
     }
 
     if output_file:
-        with open(output_filename, 'w') as json_file:
+        with open(output_filename, "w") as json_file:
             json.dump(build_json, json_file, indent=2)
 
 
