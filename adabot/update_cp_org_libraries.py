@@ -173,7 +173,7 @@ def main(
 
     output_filename = ""
     if output_file:
-        output_filename = os.path.abspath(cmd_line_args.output_file)
+        output_filename = os.path.abspath(output_filename)
         file_handler = logging.FileHandler(output_file)
         logger.addHandler(file_handler)
         logger.info(" - Report output will be saved to: %s", output_file)
