@@ -33,7 +33,6 @@ import re
 from tempfile import TemporaryDirectory
 
 from packaging.version import parse as pkg_version_parse
-from packaging.requirements import Requirement, InvalidRequirement
 
 from pylint import lint
 from pylint.reporters import JSONReporter
