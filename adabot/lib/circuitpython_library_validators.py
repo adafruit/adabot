@@ -112,6 +112,7 @@ ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yaml"
 ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
+ERROR_MISSING_PRE_COMMIT_CONFIG = "Missing .pre-commit-config.yaml"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = (
     "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
@@ -157,8 +158,12 @@ ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing
 ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
-ERROR_PYLINT_VERSION_NOT_FIXED = "PyLint version not fixed"
-ERROR_PYLINT_VERSION_NOT_LATEST = "PyLint version not latest"
+ERROR_BLACK_VERSION = "Missing or incorrect Black version in .pre-commit-config.yaml"
+ERROR_REUSE_VERSION = "Missing or incorrect REUSE version in .pre-commit-config.yaml"
+ERROR_PRE_COMMIT_VERSION = (
+    "Missing or incorrect pre-commit version in .pre-commit-config.yaml"
+)
+ERROR_PYLINT_VERSION = "Missing or incorrect pylint version in .pre-commit-config.yaml"
 ERROR_PYLINT_FAILED_LINTING = "Failed PyLint checks"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
@@ -556,29 +561,47 @@ class LibraryValidator:
 
         errors = []
 
-        pylint_version = None
-        re_pip_pattern = r"pip\sinstall.*"
-        re_pylint_pattern = r"(?P<pylint>pylint(?:[<>~=]){0,2}\d*(?:\.\d){0,2})"
+        return errors
 
-        pip_line = re.search(re_pip_pattern, contents.text)
-        if not pip_line:
-            return [ERROR_PYLINT_VERSION_NOT_FIXED]
+    def _validate_pre_commit_config_yaml(self, file_info):
+        download_url = file_info["download_url"]
+        contents = requests.get(download_url, timeout=30)
+        if not contents.ok:
+            return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
-        pip_line = pip_line[0]
+        errors = []
 
-        pylint_info = re.search(re_pylint_pattern, pip_line)
-        if not pylint_info or not pylint_info.group("pylint"):
-            return [ERROR_PYLINT_VERSION_NOT_FIXED]
+        re_black_pattern = r"repo:\shttps://github.com/python/black"
+        re_black_v_pattern = r"rev:\s20.8b1"
 
-        try:
-            pylint_version = Requirement(pylint_info.group("pylint"))
-        except InvalidRequirement:
-            pass
+        black_repo = re.search(re_black_pattern, contents.text)
+        black_version = re.search(re_black_v_pattern, contents.text)
+        if not black_version or not black_repo:
+            errors.append(ERROR_BLACK_VERSION)
 
-        if not pylint_version:
-            errors.append(ERROR_PYLINT_VERSION_NOT_FIXED)
-        elif self.latest_pylint not in pylint_version.specifier:
-            errors.append(ERROR_PYLINT_VERSION_NOT_LATEST)
+        re_reuse_pattern = r"repo:\shttps://github.com/fsfe/reuse-tool"
+        re_reuse_v_pattern = r"rev:\sv0.12.1"
+
+        reuse_repo = re.search(re_reuse_pattern, contents.text)
+        reuse_version = re.search(re_reuse_v_pattern, contents.text)
+        if not reuse_version or not reuse_repo:
+            errors.append(ERROR_REUSE_VERSION)
+
+        re_pre_commit_pattern = r"repo:\shttps://github.com/pre-commit/pre-commit-hooks"
+        re_pre_commit_v_pattern = r"rev:\sv2.3.0"
+
+        pre_commit_repo = re.search(re_pre_commit_pattern, contents.text)
+        pre_commit_version = re.search(re_pre_commit_v_pattern, contents.text)
+        if not pre_commit_version or not pre_commit_repo:
+            errors.append(ERROR_PRE_COMMIT_VERSION)
+
+        re_pylint_pattern = r"repo:\shttps://github.com/pycqa/pylint"
+        re_pylint_v_pattern = r"rev:\spylint-2.7.1"
+
+        pylint_repo = re.search(re_pylint_pattern, contents.text)
+        pylint_version = re.search(re_pylint_v_pattern, contents.text)
+        if not pylint_version or not pylint_repo:
+            errors.append(ERROR_PYLINT_VERSION)
 
         return errors
 
@@ -720,6 +743,12 @@ class LibraryValidator:
                         errors.append(ERROR_OUTPUT_HANDLER)
         else:
             errors.append(ERROR_MISSING_READTHEDOCS)
+
+        if ".pre-commit-config.yaml" in files:
+            file_info = content_list[files.index(".pre-commit-config.yaml")]
+            errors.extend(self._validate_pre_commit_config_yaml(file_info))
+        else:
+            errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
         if "setup.py" in files:
             file_info = content_list[files.index("setup.py")]
