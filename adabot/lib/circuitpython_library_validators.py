@@ -47,6 +47,7 @@ from adabot import github_requests as github
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
+
 class CapturedJsonReporter(JSONReporter):
     """Helper class to stringify PyLint JSON reports."""
 
