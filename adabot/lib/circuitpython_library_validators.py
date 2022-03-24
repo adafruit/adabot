@@ -760,7 +760,7 @@ class LibraryValidator:
                 def __check_lib_name(
                     repo_name,
                     file_name,
-                ):
+                ):  # pylint: disable=unused-private-member
                     """Nested function to test example file names.
                     Allows examples to either match the repo name,
                     or have additional underscores separating the repo name.
