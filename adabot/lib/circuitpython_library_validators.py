@@ -780,16 +780,17 @@ class LibraryValidator:
             else:
 
                 def __check_lib_name(
-                    repo_name, file_name
+                    repo_name,
+                    file_name,
                 ):  # pylint: disable=unused-private-member
                     """Nested function to test example file names.
                     Allows examples to either match the repo name,
                     or have additional underscores separating the repo name.
                     """
                     file_names = set()
-                    file_names.add(file_name)
+                    file_names.add(file_name[9:])
 
-                    name_split = file_name.split("_")
+                    name_split = file_name[9:].split("_")
                     name_rebuilt = "".join(
                         (part for part in name_split if ".py" not in part)
                     )
@@ -807,7 +808,7 @@ class LibraryValidator:
                 for example in examples_list:
                     if example["name"].endswith(".py"):
                         check_lib_name = __check_lib_name(
-                            lib_name, example["name"].lower()
+                            lib_name, example["path"].lower()
                         )
                         if not check_lib_name:
                             all_have_name = False
