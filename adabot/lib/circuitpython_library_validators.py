@@ -776,10 +776,6 @@ class LibraryValidator:
                     if name_rebuilt:  # avoid adding things like 'simpletest.py' -> ''
                         file_names.add(name_rebuilt)
 
-                    if "/" in name_rebuilt:
-                        for i in name_rebuilt.split("/"):
-                            file_names.add(i)
-
                     return any(name.startswith(repo_name) for name in file_names)
 
                 lib_name_start = repo["name"].rfind("CircuitPython_") + 14
