@@ -5,8 +5,7 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
@@ -47,7 +46,6 @@ import yaml
 from adabot import github_requests as github
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
-
 
 class CapturedJsonReporter(JSONReporter):
     """Helper class to stringify PyLint JSON reports."""
@@ -568,38 +566,32 @@ class LibraryValidator:
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
+        text = contents.text
+
         errors = []
 
-        re_black_pattern = r"repo:\shttps://github.com/python/black"
-        re_black_v_pattern = r"rev:\s20.8b1"
+        black_repo = "repo: https://github.com/python/black"
+        black_version = "rev: 20.8b1"
 
-        black_repo = re.search(re_black_pattern, contents.text)
-        black_version = re.search(re_black_v_pattern, contents.text)
-        if not black_version or not black_repo:
+        if black_repo not in text or black_version not in text:
             errors.append(ERROR_BLACK_VERSION)
 
-        re_reuse_pattern = r"repo:\shttps://github.com/fsfe/reuse-tool"
-        re_reuse_v_pattern = r"rev:\sv0.12.1"
+        reuse_repo = "repo: https://github.com/fsfe/reuse-tool"
+        reuse_version = "rev: v0.12.1"
 
-        reuse_repo = re.search(re_reuse_pattern, contents.text)
-        reuse_version = re.search(re_reuse_v_pattern, contents.text)
-        if not reuse_version or not reuse_repo:
+        if reuse_repo not in text or reuse_version not in text:
             errors.append(ERROR_REUSE_VERSION)
 
-        re_pre_commit_pattern = r"repo:\shttps://github.com/pre-commit/pre-commit-hooks"
-        re_pre_commit_v_pattern = r"rev:\sv2.3.0"
+        pc_repo = "repo: https://github.com/pre-commit/pre-commit-hooks"
+        pc_version = "rev: v2.3.0"
 
-        pre_commit_repo = re.search(re_pre_commit_pattern, contents.text)
-        pre_commit_version = re.search(re_pre_commit_v_pattern, contents.text)
-        if not pre_commit_version or not pre_commit_repo:
+        if pc_repo not in text or pc_version not in text:
             errors.append(ERROR_PRE_COMMIT_VERSION)
 
-        re_pylint_pattern = r"repo:\shttps://github.com/pycqa/pylint"
-        re_pylint_v_pattern = r"rev:\spylint-2.7.1"
+        pylint_repo = "repo: https://github.com/pycqa/pylint"
+        pylint_version = "rev: v2.11.1"
 
-        pylint_repo = re.search(re_pylint_pattern, contents.text)
-        pylint_version = re.search(re_pylint_v_pattern, contents.text)
-        if not pylint_version or not pylint_repo:
+        if pylint_repo not in text or pylint_version not in text:
             errors.append(ERROR_PYLINT_VERSION)
 
         return errors
