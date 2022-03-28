@@ -1,4 +1,4 @@
-# pylint: disable=no-self-use
+# pylint: disable=no-self-use,too-many-lines
 # The MIT License (MIT)
 #
 # Copyright (c) 2017 Scott Shawcroft for Adafruit Industries

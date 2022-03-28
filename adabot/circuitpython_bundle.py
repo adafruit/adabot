@@ -207,6 +207,7 @@ def update_bundle(bundle_path):
     # They will contain a '-' in the tag, such as '3.0.0-beta.5'.
     # --exclude must be before --tags.
     # sh fails to find the subcommand so we use subprocess.
+
     subprocess.run(  # pylint: disable=subprocess-run-check
         shlex.split(
             "git submodule foreach 'git checkout -q "
