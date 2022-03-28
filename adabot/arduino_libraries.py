@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(stream=sys.stdout)
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[ch])
 
+# pylint: disable=duplicate-code
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
     description="Adabot utility for Arduino Libraries.",
@@ -57,6 +58,7 @@ cmd_line_parser.add_argument(
     dest="verbose",
     choices=[0, 1],
 )
+# pylint: enable=duplicate-code
 
 all_libraries = []
 adafruit_library_index = []

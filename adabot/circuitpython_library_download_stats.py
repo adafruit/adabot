@@ -34,6 +34,7 @@ import requests
 from adabot import github_requests as github
 from adabot.lib import common_funcs
 
+# pylint: disable=duplicate-code
 # Setup ArgumentParser
 cmd_line_parser = argparse.ArgumentParser(
     description="Adabot utility for CircuitPython Library download stats."
@@ -57,6 +58,7 @@ cmd_line_parser.add_argument(
     dest="verbose",
     choices=[0, 1],
 )
+# pylint: enable=duplicate-code
 
 # Global variables
 OUTPUT_FILENAME = None
