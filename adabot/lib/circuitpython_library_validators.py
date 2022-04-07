@@ -573,7 +573,7 @@ class LibraryValidator:
         errors = []
 
         black_repo = "repo: https://github.com/python/black"
-        black_version = "rev: 20.8b1"
+        black_version = "rev: 22.3.0"
 
         if black_repo not in text or black_version not in text:
             errors.append(ERROR_BLACK_VERSION)
