@@ -579,7 +579,7 @@ class LibraryValidator:
             errors.append(ERROR_BLACK_VERSION)
 
         reuse_repo = "repo: https://github.com/fsfe/reuse-tool"
-        reuse_version = "rev: v0.12.1"
+        reuse_version = "rev: v0.14.0"
 
         if reuse_repo not in text or reuse_version not in text:
             errors.append(ERROR_REUSE_VERSION)
