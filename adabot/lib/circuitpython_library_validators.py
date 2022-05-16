@@ -585,7 +585,7 @@ class LibraryValidator:
             errors.append(ERROR_REUSE_VERSION)
 
         pc_repo = "repo: https://github.com/pre-commit/pre-commit-hooks"
-        pc_version = "rev: v2.3.0"
+        pc_version = "rev: v4.2.0"
 
         if pc_repo not in text or pc_version not in text:
             errors.append(ERROR_PRE_COMMIT_VERSION)
