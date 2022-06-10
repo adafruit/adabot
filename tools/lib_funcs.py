@@ -15,12 +15,13 @@ Library-specific functionalities to aid in developing patches
 
 import os
 import functools
-from typing import Protocol, Sequence, Any, Dict, Union
+from collections.abc import Sequence
+from typing import Protocol, Any
 from typing_extensions import TypeAlias
 from github.Repository import Repository
 
 # Helpful type annotation for path-like strings
-StrPath: TypeAlias = Union[str, os.PathLike[str]]
+StrPath: TypeAlias = str | os.PathLike[str]
 """Path or path-like strings"""
 
 # pylint: disable=too-few-public-methods
@@ -34,7 +35,7 @@ class LocalLibFunc(Protocol):
     """
 
     def __call__(
-        self, lib_path: StrPath, *args: Sequence[Any], **kwargs: Dict[str, Any]
+        self, lib_path: StrPath, *args: Sequence[Any], **kwargs: dict[str, Any]
     ) -> Any:
         ...
 
@@ -50,7 +51,7 @@ class RemoteLibFunc(Protocol):
     """
 
     def __call__(
-        self, lib_repo: Repository, *args: Sequence[Any], **kwargs: Dict[str, Any]
+        self, lib_repo: Repository, *args: Sequence[Any], **kwargs: dict[str, Any]
     ) -> Any:
         ...
 

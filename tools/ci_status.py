@@ -14,7 +14,7 @@ contained within the Adafruit CircuitPython Bundle
 
 """
 
-from typing import Optional, List
+from typing import Optional
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.GithubException import GithubException
@@ -94,7 +94,7 @@ def check_build_statuses(
     workflow_filename: Optional[str] = "build.yml",
     *,
     debug: bool = False,
-) -> List[RemoteLibFunc_IterResult[bool]]:
+) -> list[RemoteLibFunc_IterResult[bool]]:
     """Checks all the libraries in the Adafruit CircuitPython Bundle to get the
     latest build status with the requested information
 
@@ -116,7 +116,7 @@ def check_build_statuses(
 
 
 def save_build_statuses(
-    build_results: List[RemoteLibFunc_IterResult[bool]],
+    build_results: list[RemoteLibFunc_IterResult[bool]],
     failures_filepath: StrPath = "failures.txt",
 ) -> None:
     """Save the list of failed and/or errored libraries to files

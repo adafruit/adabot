@@ -16,7 +16,7 @@ cloned repos and their remotes
 """
 
 import functools
-from typing import Tuple, Any
+from typing import Any
 import git
 import git.repo
 import git.index.base
@@ -25,7 +25,7 @@ from tools.lib_funcs import StrPath
 
 def _get_repo_and_remote(
     lib_path: StrPath, remote_name: str = "origin"
-) -> Tuple[git.repo.Repo, git.Remote]:
+) -> tuple[git.repo.Repo, git.Remote]:
     """
     Get the repo and remote objects
 

@@ -17,7 +17,8 @@ Bundle to run functions on each library
 
 import os
 import glob
-from typing import Tuple, Iterable, List, Sequence, Dict, TypeVar
+from collections.abc import Sequence, Iterable
+from typing import TypeVar
 from typing_extensions import TypeAlias
 import parse
 from github import Github
@@ -31,8 +32,8 @@ PosArg = TypeVar("PosArg")
 KeyArg = TypeVar("KeyArg")
 RetArg = TypeVar("RetArg")
 
-LocalLibFunc_IterInstruction: TypeAlias = Tuple[
-    LocalLibFunc, Sequence[PosArg], Dict[str, KeyArg]
+LocalLibFunc_IterInstruction: TypeAlias = tuple[
+    LocalLibFunc, Sequence[PosArg], dict[str, KeyArg]
 ]
 """Instruction set as a tuple of a function to run on a local library,
 a list of the positional arguments to be provided to it, and a
@@ -40,13 +41,13 @@ dictionary of keyword arguments to be provided to it.  You do not need
 to include the libray path as an argument, as it is automatically
 supplied."""
 
-LocalLibFunc_IterResult: TypeAlias = Tuple[StrPath, List[RetArg]]
+LocalLibFunc_IterResult: TypeAlias = tuple[StrPath, list[RetArg]]
 """Result of function(s) run on a library as a tuple of the path to
 the local library modified and a list of the result(s) of the
 function(s)"""
 
-RemoteLibFunc_IterInstruction: TypeAlias = Tuple[
-    RemoteLibFunc, Sequence[PosArg], Dict[str, KeyArg]
+RemoteLibFunc_IterInstruction: TypeAlias = tuple[
+    RemoteLibFunc, Sequence[PosArg], dict[str, KeyArg]
 ]
 """Instruction set as a tuple of a function to run on a remote library,
 a list of the positional arguments to be provided to it, and a
@@ -54,7 +55,7 @@ dictionary of keyword arguments to be provided to it.  You do not need
 to include the Repository object as an argument, as it is autmoatically
 supplied."""
 
-RemoteLibFunc_IterResult: TypeAlias = Tuple[Repository, List[RetArg]]
+RemoteLibFunc_IterResult: TypeAlias = tuple[Repository, list[RetArg]]
 """Result of function(s) run on a library as a tuple of the name of
 the remote library modified and a list of the result(s) of the
 function(s)"""
@@ -68,7 +69,7 @@ _BUNDLE_BRANCHES = ("drivers", "helpers")
 def iter_local_bundle_with_func(
     bundle_path: StrPath,
     func_workflow: Iterable[LocalLibFunc_IterInstruction],
-) -> List[LocalLibFunc_IterResult]:
+) -> list[LocalLibFunc_IterResult]:
     """Iterate through the libraries and run a given function with the
     provided arguments
 
@@ -108,7 +109,7 @@ def iter_local_bundle_with_func(
 # pylint: disable=too-many-locals
 def iter_remote_bundle_with_func(
     gh_token: str, func_workflow: RemoteLibFunc_IterInstruction
-) -> List[RemoteLibFunc_IterResult]:
+) -> list[RemoteLibFunc_IterResult]:
     """Iterate through the remote bundle, accessing each library's git repo
     using the GitHub RESTful API (specifically using ``PyGithub``)
 
@@ -133,7 +134,7 @@ def iter_remote_bundle_with_func(
     for branch_name in _BUNDLE_BRANCHES:
 
         branch_repos_path = "/".join(("libraries", branch_name))
-        branch_repos: List[ContentFile] = bundle_repo.get_contents(branch_repos_path)
+        branch_repos: list[ContentFile] = bundle_repo.get_contents(branch_repos_path)
 
         # Enter each library in the bundle
         for repo_file in branch_repos:
