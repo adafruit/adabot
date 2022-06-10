@@ -17,7 +17,8 @@ Bundle to run functions on each library
 
 import os
 import glob
-from typing import TypeAlias, Tuple, Iterable, Any, List, Sequence, Dict
+from typing import Tuple, Iterable, Any, List, Sequence, Dict
+from typing_extensions import TypeAlias
 import parse
 from github import Github
 from github.Repository import Repository
