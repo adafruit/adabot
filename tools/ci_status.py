@@ -89,7 +89,7 @@ def check_build_status(
 
 
 def check_build_statuses(
-    token: str,
+    gh_token: str,
     user: Optional[str] = None,
     workflow_filename: Optional[str] = "build.yml",
     *,
@@ -98,7 +98,7 @@ def check_build_statuses(
     """Checks all the libraries in the Adafruit CircuitPython Bundle to get the
     latest build status with the requested infomration
 
-    :param str token: The Github token to be used for with the Github API
+    :param str gh_token: The Github token to be used for with the Github API
     :param str|None user: The user that triggered the run; if `None` is
         provided, any user is acceptable
     :param str|None workflow_filename: The filename of the workflow; if `None` is
@@ -112,7 +112,7 @@ def check_build_statuses(
 
     args = (user, workflow_filename)
     kwargs = {"debug": debug}
-    return iter_remote_bundle_with_func(token, [(check_build_status, args, kwargs)])
+    return iter_remote_bundle_with_func(gh_token, [(check_build_status, args, kwargs)])
 
 
 def save_build_statuses(

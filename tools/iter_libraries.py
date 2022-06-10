@@ -107,12 +107,12 @@ def iter_local_bundle_with_func(
 
 # pylint: disable=too-many-locals
 def iter_remote_bundle_with_func(
-    token: str, func_workflow: RemoteLibFunc_IterInstruction
+    gh_token: str, func_workflow: RemoteLibFunc_IterInstruction
 ) -> List[RemoteLibFunc_IterResult]:
     """Iterate through the remote bundle, accessing each library's git repo
     using the GitHub RESTful API (specifically using ``PyGithub``)
 
-    :param str token: A token with proper scopes
+    :param str gh_token: A GitHub token with proper scopes
     :param Iterable func_workflow: An iterable of tuples containing pairs
         of functions and corresponding arguments; the path to each specific
         library is automatically provided to the functions, so the functions
@@ -123,7 +123,7 @@ def iter_remote_bundle_with_func(
     """
 
     # Get the Github repo object
-    github_client = Github(token)
+    github_client = Github(gh_token)
     bundle_repo = github_client.get_repo("adafruit/Adafruit_CircuitPython_Bundle")
 
     # Initialize list of results
