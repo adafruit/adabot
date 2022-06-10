@@ -27,7 +27,7 @@ def run_gh_rest_check(
     user: Optional[str] = None,
     workflow_filename: Optional[str] = "build.yml",
 ) -> str:
-    """Runs the `gh` CLI in the current working directory
+    """Uses ``PyGithub`` to check the CI status of a repository
 
     :param Repository lib_repo: The repo as a github.Repository.Repository object
     :param str|None user: The user that triggered the run; if `None` is
@@ -95,8 +95,8 @@ def check_build_statuses(
     *,
     debug: bool = False,
 ) -> List[RemoteLibFunc_IterResult[bool]]:
-    """Checks all the libraries in a cloned Adafruit CircuitPython Bundle
-    to get the latest build status with the requested infomration
+    """Checks all the libraries in the Adafruit CircuitPython Bundle to get the
+    latest build status with the requested infomration
 
     :param str token: The Github token to be used for with the Github API
     :param str|None user: The user that triggered the run; if `None` is
@@ -105,7 +105,7 @@ def check_build_statuses(
         provided, any workflow name is acceptable; the defail is `"build.yml"`
     :param bool debug: Whether debug statements should be printed to
         the standard output
-    :return: A list of tuples containing paired library paths and build
+    :return: A list of tuples containing paired Repoistory objects and build
         statuses
     :rtype: list
     """
