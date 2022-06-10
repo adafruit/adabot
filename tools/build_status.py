@@ -14,12 +14,12 @@ contained within the Adafruit CircuitPython Bundle
 
 """
 
-from typing import Optional, List, Tuple
+from typing import Optional, List
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.GithubException import GithubException
 from tools.lib_funcs import StrPath
-from tools.iter_libraries import iter_remote_bundle_with_func
+from tools.iter_libraries import iter_remote_bundle_with_func, RemoteLibFunc_IterResult
 
 
 def run_gh_rest_check(
@@ -94,7 +94,7 @@ def check_build_statuses(
     workflow_filename: Optional[str] = "build.yml",
     *,
     debug: bool = False,
-) -> List[Tuple[Repository, List[bool]]]:
+) -> List[RemoteLibFunc_IterResult[bool]]:
     """Checks all the libraries in a cloned Adafruit CircuitPython Bundle
     to get the latest build status with the requested infomration
 
@@ -116,7 +116,7 @@ def check_build_statuses(
 
 
 def save_build_statuses(
-    build_results: List[Tuple[Repository, List[str]]],
+    build_results: List[RemoteLibFunc_IterResult[bool]],
     failures_filepath: StrPath = "failures.txt",
 ) -> None:
     """Save the list of failed and/or errored libraries to files

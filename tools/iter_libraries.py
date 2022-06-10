@@ -17,7 +17,7 @@ Bundle to run functions on each library
 
 import os
 import glob
-from typing import Tuple, Iterable, Any, List, Sequence, Dict
+from typing import Tuple, Iterable, List, Sequence, Dict, TypeVar
 from typing_extensions import TypeAlias
 import parse
 from github import Github
@@ -25,10 +25,14 @@ from github.Repository import Repository
 from github.ContentFile import ContentFile
 from tools.lib_funcs import StrPath, LocalLibFunc, RemoteLibFunc
 
-# Helpful type annotation definitions
+# Helpful type annotapython generic type aliastion definitions
+
+PosArg = TypeVar("PosArg")
+KeyArg = TypeVar("KeyArg")
+RetArg = TypeVar("RetArg")
 
 LocalLibFunc_IterInstruction: TypeAlias = Tuple[
-    LocalLibFunc, Sequence[Any], Dict[str, Any]
+    LocalLibFunc, Sequence[PosArg], Dict[str, KeyArg]
 ]
 """Instruction set as a tuple of a function to run on a local library,
 a list of the positional arguments to be provided to it, and a
@@ -36,13 +40,13 @@ dictionary of keyword arguments to be provided to it.  You do not need
 to include the libray path as an argument, as it is automatically
 supplied."""
 
-LocalLibFunc_IterResult: TypeAlias = Tuple[StrPath, List[Any]]
+LocalLibFunc_IterResult: TypeAlias = Tuple[StrPath, List[RetArg]]
 """Result of function(s) run on a library as a tuple of the path to
 the local library modified and a list of the result(s) of the
 function(s)"""
 
 RemoteLibFunc_IterInstruction: TypeAlias = Tuple[
-    RemoteLibFunc, Sequence[Any], Dict[str, Any]
+    RemoteLibFunc, Sequence[PosArg], Dict[str, KeyArg]
 ]
 """Instruction set as a tuple of a function to run on a remote library,
 a list of the positional arguments to be provided to it, and a
@@ -50,7 +54,7 @@ dictionary of keyword arguments to be provided to it.  You do not need
 to include the Repository object as an argument, as it is autmoatically
 supplied."""
 
-RemoteLibFunc_IterResult: TypeAlias = Tuple[Repository, List[Any]]
+RemoteLibFunc_IterResult: TypeAlias = Tuple[Repository, List[RetArg]]
 """Result of function(s) run on a library as a tuple of the name of
 the remote library modified and a list of the result(s) of the
 function(s)"""
