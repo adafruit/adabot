@@ -96,7 +96,7 @@ def check_build_statuses(
     debug: bool = False,
 ) -> List[RemoteLibFunc_IterResult[bool]]:
     """Checks all the libraries in the Adafruit CircuitPython Bundle to get the
-    latest build status with the requested infomration
+    latest build status with the requested information
 
     :param str gh_token: The Github token to be used for with the Github API
     :param str|None user: The user that triggered the run; if `None` is
