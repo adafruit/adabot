@@ -16,12 +16,12 @@ Library-specific functionalities to aid in developing patches
 import os
 import functools
 from collections.abc import Sequence
-from typing import Protocol, Any
+from typing import Protocol, Any, Union
 from typing_extensions import TypeAlias
 from github.Repository import Repository
 
 # Helpful type annotation for path-like strings
-StrPath: TypeAlias = str | os.PathLike[str]
+StrPath: TypeAlias = Union[str, os.PathLike[str]]
 """Path or path-like strings"""
 
 # pylint: disable=too-few-public-methods
