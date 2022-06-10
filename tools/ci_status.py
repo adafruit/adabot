@@ -4,8 +4,8 @@
 
 """
 
-build_status.py
-===============
+ci_status.py
+============
 
 Functionality using ``PyGithub`` to check the CI status of repos
 contained within the Adafruit CircuitPython Bundle
