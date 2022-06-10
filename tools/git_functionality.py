@@ -5,8 +5,8 @@
 
 """
 
-git_funcs.py
-============
+git_functionality.py
+====================
 
 Functionality for using GitPython to fetch, pull, commit, push, etc. to
 cloned repos and their remotes
@@ -20,7 +20,7 @@ from typing import Any
 import git
 import git.repo
 import git.index.base
-from tools.lib_funcs import StrPath
+from tools.library_functions import StrPath
 
 
 def _get_repo_and_remote(

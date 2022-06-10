@@ -5,8 +5,8 @@
 
 """
 
-iter_libraries.py
-=================
+iterate_libraries.py
+====================
 
 Functionality for iterating through a cloned Adafruit CircuitPython
 Bundle to run functions on each library
@@ -24,7 +24,7 @@ import parse
 from github import Github
 from github.Repository import Repository
 from github.ContentFile import ContentFile
-from tools.lib_funcs import StrPath, LocalLibFunc, RemoteLibFunc
+from tools.library_functions import StrPath, LocalLibFunc, RemoteLibFunc
 
 # Helpful type annotapython generic type aliastion definitions
 

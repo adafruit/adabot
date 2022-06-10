@@ -18,8 +18,8 @@ from typing import Optional
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.GithubException import GithubException
-from tools.lib_funcs import StrPath
-from tools.iter_libraries import iter_remote_bundle_with_func, RemoteLibFunc_IterResult
+from tools.library_functions import StrPath
+from tools.iterate_libraries import iter_remote_bundle_with_func, RemoteLibFunc_IterResult
 
 
 def run_gh_rest_check(
