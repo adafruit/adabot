@@ -94,7 +94,7 @@ def check_build_statuses(
     workflow_filename: Optional[str] = "build.yml",
     *,
     debug: bool = False,
-) -> List[Tuple[StrPath, List[bool]]]:
+) -> List[Tuple[Repository, List[bool]]]:
     """Checks all the libraries in a cloned Adafruit CircuitPython Bundle
     to get the latest build status with the requested infomration
 
