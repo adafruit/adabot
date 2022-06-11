@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2019 Michael Schroeder
+#
+# SPDX-License-Identifier: MIT
+
 name: Run Daily Reports
 
 on:
