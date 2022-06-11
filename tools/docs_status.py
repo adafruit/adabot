@@ -38,7 +38,10 @@ import parse
 import requests
 from github.Repository import Repository
 from github.ContentFile import ContentFile
-from tools.iterate_libraries import iter_remote_bundle_with_func, RemoteLibFunc_IterResult
+from tools.iterate_libraries import (
+    iter_remote_bundle_with_func,
+    RemoteLibFunc_IterResult,
+)
 
 
 def check_docs_status(lib_repo: Repository, rtd_token: str) -> Optional[bool]:
