@@ -60,8 +60,9 @@ validator = cpy_vals.LibraryValidator(
 
 valids = {}
 for count, val in enumerate(default_validators):
-    valids[count] = str(val).split(" at")[0].split("LibraryValidator.")[1]
-    print(f"{count}:", str(val).split(" at")[0].split("LibraryValidator.")[1])
+    t = str(val).split(" at", maxsplit=1)[0].split("Validator.", maxsplit=1)[1]
+    valids[count] = t
+    print(f"{count}:", t)
 
 select = valids[
     int(input(f"Select a function to run [0-{len(default_validators)-1}]: "))
