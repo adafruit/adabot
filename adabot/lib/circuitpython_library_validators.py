@@ -238,8 +238,8 @@ class LibraryValidator:
 
     @property
     def pcc_yml_base(self):
-        """The parsed YAML from `.pre-commit-config.yaml` in the cookiecutter-adafruit-circuitpython repo.
-        Used to verify that a library's `.pre-commit-config.yaml` matches this version.
+        """The parsed YAML from `.pre-commit-config.yaml` in cookiecutter.
+        Used to verify that a library's `.pre-commit-config.yaml` matches this.
         """
         if self._pcc_yaml_base is None:
             pcc_yml_dl_url = (
@@ -716,7 +716,9 @@ class LibraryValidator:
                             errors.append(ERROR_MISMATCHED_PRE_COMMIT_CONFIG)
                     except yaml.YAMLError:
                         self.output_file_data.append(
-                            "Error parsing {} .pre-commit-config.yaml.".format(repo["name"])
+                            "Error parsing {} .pre-commit-config.yaml.".format(
+                                repo["name"]
+                            )
                         )
                         errors.append(ERROR_OUTPUT_HANDLER)
         else:
