@@ -76,6 +76,7 @@ ERROR_PYFILE_MISSING_ERRNO = (
     "https://github.com/adafruit/circuitpython/issues/1582"
 )
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yaml"
+ERROR_MISMATCHED_PRE_COMMIT_CONFIG = "Mismatched .pre-commit-config.yaml"
 ERROR_MISSING_DESCRIPTION = "Missing repository description"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
@@ -140,12 +141,6 @@ ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing
 ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
-ERROR_BLACK_VERSION = "Missing or incorrect Black version in .pre-commit-config.yaml"
-ERROR_REUSE_VERSION = "Missing or incorrect REUSE version in .pre-commit-config.yaml"
-ERROR_PRE_COMMIT_VERSION = (
-    "Missing or incorrect pre-commit version in .pre-commit-config.yaml"
-)
-ERROR_PYLINT_VERSION = "Missing or incorrect pylint version in .pre-commit-config.yaml"
 ERROR_PYLINT_FAILED_LINTING = "Failed PyLint checks"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
@@ -208,6 +203,7 @@ class LibraryValidator:
         self.bundle_submodules = bundle_submodules
         self.latest_pylint = pkg_version_parse(latest_pylint)
         self._rtd_yaml_base = None
+        self._pcc_yaml_base = None
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
         self.has_setup_py_disabled = set()
@@ -239,6 +235,30 @@ class LibraryValidator:
                 self._rtd_yaml_base = ""
 
         return self._rtd_yaml_base
+
+    @property
+    def pcc_yml_base(self):
+        """The parsed YAML from `.pre-commit-config.yaml` in the cookiecutter-adafruit-circuitpython repo.
+        Used to verify that a library's `.pre-commit-config.yaml` matches this version.
+        """
+        if self._pcc_yaml_base is None:
+            pcc_yml_dl_url = (
+                "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
+                "circuitpython/main/%7B%7B%20cookiecutter%20and%20'tmp_repo'%20%7D"
+                "%7D/.pre-commit-config.yaml"
+            )
+            pcc_yml = requests.get(pcc_yml_dl_url)
+            if pcc_yml.ok:
+                try:
+                    self._pcc_yaml_base = yaml.safe_load(pcc_yml.text)
+                except yaml.YAMLError:
+                    print("Error parsing cookiecutter .pre-commit-config.yaml.")
+                    self._pcc_yaml_base = ""
+            else:
+                print("Error retrieving cookiecutter .pre-commit-config.yaml")
+                self._pcc_yaml_base = ""
+
+        return self._pcc_yaml_base
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
@@ -545,42 +565,6 @@ class LibraryValidator:
 
         return errors
 
-    def _validate_pre_commit_config_yaml(self, file_info):
-        download_url = file_info["download_url"]
-        contents = requests.get(download_url, timeout=30)
-        if not contents.ok:
-            return [ERROR_PYFILE_DOWNLOAD_FAILED]
-
-        text = contents.text
-
-        errors = []
-
-        black_repo = "repo: https://github.com/python/black"
-        black_version = "rev: 22.3.0"
-
-        if black_repo not in text or black_version not in text:
-            errors.append(ERROR_BLACK_VERSION)
-
-        reuse_repo = "repo: https://github.com/fsfe/reuse-tool"
-        reuse_version = "rev: v0.14.0"
-
-        if reuse_repo not in text or reuse_version not in text:
-            errors.append(ERROR_REUSE_VERSION)
-
-        pc_repo = "repo: https://github.com/pre-commit/pre-commit-hooks"
-        pc_version = "rev: v4.2.0"
-
-        if pc_repo not in text or pc_version not in text:
-            errors.append(ERROR_PRE_COMMIT_VERSION)
-
-        pylint_repo = "repo: https://github.com/pycqa/pylint"
-        pylint_version = "rev: v2.11.1"
-
-        if pylint_repo not in text or pylint_version not in text:
-            errors.append(ERROR_PYLINT_VERSION)
-
-        return errors
-
     def _validate_setup_py(self, file_info):
         """Check setup.py for pypi compatibility"""
         download_url = file_info["download_url"]
@@ -721,8 +705,20 @@ class LibraryValidator:
             errors.append(ERROR_MISSING_READTHEDOCS)
 
         if ".pre-commit-config.yaml" in files:
-            file_info = content_list[files.index(".pre-commit-config.yaml")]
-            errors.extend(self._validate_pre_commit_config_yaml(file_info))
+            if self.pcc_yml_base != "":
+                filename = ".pre-commit-config.yaml"
+                file_info = content_list[files.index(filename)]
+                pcc_contents = requests.get(file_info["download_url"])
+                if pcc_contents.ok:
+                    try:
+                        pcc_yml = yaml.safe_load(pcc_contents.text)
+                        if pcc_yml != self.pcc_yml_base:
+                            errors.append(ERROR_MISMATCHED_PRE_COMMIT_CONFIG)
+                    except yaml.YAMLError:
+                        self.output_file_data.append(
+                            "Error parsing {} .pre-commit-config.yaml.".format(repo["name"])
+                        )
+                        errors.append(ERROR_OUTPUT_HANDLER)
         else:
             errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
