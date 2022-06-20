@@ -74,6 +74,9 @@ def check_build_status(
     if debug:
         print("Checking", lib_repo.name)
 
+    if lib_repo.archived:
+        return True
+
     try:
         result = run_gh_rest_check(lib_repo, user, workflow_filename) == "success"
         if debug and not result:
