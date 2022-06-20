@@ -18,8 +18,8 @@ from typing import Optional
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.GithubException import GithubException
-from tools.library_functions import StrPath
-from tools.iterate_libraries import (
+from library_functions import StrPath
+from iterate_libraries import (
     iter_remote_bundle_with_func,
     RemoteLibFunc_IterResult,
 )

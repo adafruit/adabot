@@ -19,7 +19,7 @@ import parse
 import requests
 from github.Repository import Repository
 from github.ContentFile import ContentFile
-from tools.iterate_libraries import (
+from iterate_libraries import (
     iter_remote_bundle_with_func,
     RemoteLibFunc_IterResult,
 )
