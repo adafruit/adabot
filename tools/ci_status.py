@@ -15,6 +15,7 @@ contained within the Adafruit CircuitPython Bundle
 """
 
 from typing import Optional
+import argparse
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.GithubException import GithubException
@@ -141,3 +142,28 @@ def save_build_statuses(
         with open(failures_filepath, mode="w", encoding="utf-8") as outputfile:
             for build in bad_builds:
                 outputfile.write(build + "\n")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Check the CI status")
+    parser.add_argument("gh_token", metavar="GH_TOKEN", type=str)
+    parser.add_argument("--user", metavar="U", type=str, dest="user", default=None)
+    parser.add_argument("--workflow", metavar="W", type=str, dest="workflow", default="build.yml")
+    parser.add_argument("--debug", action="store_true")
+
+    args = parser.parse_args()
+
+    results = check_build_statuses(args.gh_token, args.user, args.workflow, debug=args.debug)
+    fail_list = [repo_name.name for repo_name, repo_results in results if not repo_results[0]]
+
+    if fail_list:
+        print(f'Failures for CI workflow "{args.workflow}":')
+        for failure in fail_list:
+            print(failure)
+        return_code = 1
+    else:
+        print(f'No failures for CI workflow: {args.workflow}!')
+        return_code = 0
+
+    raise SystemExit(return_code)

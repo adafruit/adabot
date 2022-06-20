@@ -15,6 +15,7 @@ in the Adafruit CircuitPython Bundle
 """
 
 from typing import Any, Optional
+import argparse
 import parse
 import requests
 from github.Repository import Repository
@@ -90,3 +91,27 @@ def check_docs_statuses(
     args = (rtd_token,)
     kwargs = {}
     return iter_remote_bundle_with_func(gh_token, [(check_docs_status, args, kwargs)])
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Check the RTD docs status")
+    parser.add_argument("gh_token", metavar="GH_TOKEN", type=str)
+    parser.add_argument("rtd_token", metavar="RTD_TOKEN", type=str)
+
+    args = parser.parse_args()
+
+    results = check_docs_statuses(args.gh_token, args.rtd_token)
+    fail_list = [repo_name.name for repo_name, repo_results in results if repo_results[0] != True]
+
+    if fail_list:
+        print(f"Failures for RTD builds:")
+        for failure in fail_list:
+            print(failure)
+        return_code = 1
+    else:
+        print(f'No failures for RTD builds!')
+        return_code = 0
+
+    raise SystemExit(return_code)
+
