@@ -117,9 +117,9 @@ def check_build_statuses(
     :rtype: list
     """
 
-    args = (user, workflow_filename)
-    kwargs = {"debug": debug}
-    return iter_remote_bundle_with_func(gh_token, [(check_build_status, args, kwargs)])
+    return iter_remote_bundle_with_func(
+        gh_token, [(check_build_status, (user, workflow_filename), {"debug": debug})]
+    )
 
 
 def save_build_statuses(
@@ -149,21 +149,27 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check the CI status")
     parser.add_argument("gh_token", metavar="GH_TOKEN", type=str)
     parser.add_argument("--user", metavar="U", type=str, dest="user", default=None)
-    parser.add_argument("--workflow", metavar="W", type=str, dest="workflow", default="build.yml")
+    parser.add_argument(
+        "--workflow", metavar="W", type=str, dest="workflow", default="build.yml"
+    )
     parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
 
-    results = check_build_statuses(args.gh_token, args.user, args.workflow, debug=args.debug)
-    fail_list = [repo_name.name for repo_name, repo_results in results if not repo_results[0]]
+    results = check_build_statuses(
+        args.gh_token, args.user, args.workflow, debug=args.debug
+    )
+    fail_list = [
+        repo_name.name for repo_name, repo_results in results if not repo_results[0]
+    ]
 
     if fail_list:
         print(f'Failures for CI workflow "{args.workflow}":')
         for failure in fail_list:
             print(failure)
-        return_code = 1
+        RETURN_CODE = 1
     else:
-        print(f'No failures for CI workflow: {args.workflow}!')
-        return_code = 0
+        print(f"No failures for CI workflow: {args.workflow}!")
+        RETURN_CODE = 0
 
-    raise SystemExit(return_code)
+    raise SystemExit(RETURN_CODE)

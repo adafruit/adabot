@@ -88,9 +88,9 @@ def check_docs_statuses(
     :rtype: list
     """
 
-    args = (rtd_token,)
-    kwargs = {}
-    return iter_remote_bundle_with_func(gh_token, [(check_docs_status, args, kwargs)])
+    return iter_remote_bundle_with_func(
+        gh_token, [(check_docs_status, (rtd_token,), {})]
+    )
 
 
 if __name__ == "__main__":
@@ -102,16 +102,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     results = check_docs_statuses(args.gh_token, args.rtd_token)
-    fail_list = [repo_name.name for repo_name, repo_results in results if repo_results[0] != True]
+    fail_list = [
+        repo_name.name
+        for repo_name, repo_results in results
+        if repo_results[0] == False  # pylint: disable=singleton-comparison
+    ]
 
     if fail_list:
-        print(f"Failures for RTD builds:")
+        print("Failures for RTD builds:")
         for failure in fail_list:
             print(failure)
-        return_code = 1
+        RETURN_CODE = 1
     else:
-        print(f'No failures for RTD builds!')
-        return_code = 0
+        print("No failures for RTD builds!")
+        RETURN_CODE = 0
 
-    raise SystemExit(return_code)
-
+    raise SystemExit(RETURN_CODE)
