@@ -95,9 +95,15 @@ def check_docs_statuses(
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Check the RTD docs status")
-    parser.add_argument("gh_token", metavar="GH_TOKEN", type=str)
-    parser.add_argument("rtd_token", metavar="RTD_TOKEN", type=str)
+    parser = argparse.ArgumentParser(
+        description="Check the RTD docs build status of the Bundle libraries"
+    )
+    parser.add_argument(
+        "gh_token", metavar="GH_TOKEN", type=str, help="GitHub token with proper scopes"
+    )
+    parser.add_argument(
+        "rtd_token", metavar="RTD_TOKEN", type=str, help="ReadTheDocs token"
+    )
 
     args = parser.parse_args()
 

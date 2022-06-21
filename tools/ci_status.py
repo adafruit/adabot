@@ -146,13 +146,31 @@ def save_build_statuses(
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Check the CI status")
-    parser.add_argument("gh_token", metavar="GH_TOKEN", type=str)
-    parser.add_argument("--user", metavar="U", type=str, dest="user", default=None)
-    parser.add_argument(
-        "--workflow", metavar="W", type=str, dest="workflow", default="build.yml"
+    parser = argparse.ArgumentParser(
+        description="Check the CI status of the Bundle libraries"
     )
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument(
+        "gh_token", metavar="GH_TOKEN", type=str, help="GitHub token with proper scopes"
+    )
+    parser.add_argument(
+        "--user",
+        metavar="U",
+        type=str,
+        dest="user",
+        default=None,
+        help="User that triggered the workflow",
+    )
+    parser.add_argument(
+        "--workflow",
+        metavar="W",
+        type=str,
+        dest="workflow",
+        default="build.yml",
+        help="Workflow name",
+    )
+    parser.add_argument(
+        "--debug", action="store_true", help="Print debug text during execution"
+    )
 
     args = parser.parse_args()
 
