@@ -158,7 +158,7 @@ if __name__ == "__main__":
         type=str,
         dest="user",
         default=None,
-        help="User that triggered the workflow",
+        help="Select a specific user that triggered the workflow",
     )
     parser.add_argument(
         "--workflow",
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         type=str,
         dest="workflow",
         default="build.yml",
-        help="Workflow name",
+        help='Workflow name; default is "build.yml"',
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print debug text during execution"
