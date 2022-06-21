@@ -29,7 +29,7 @@ from iterate_libraries import (
 def run_gh_rest_check(
     lib_repo: Repository,
     user: Optional[str] = None,
-    branch: Optional[str] = "main",
+    branch: Optional[str] = None,
     workflow_filename: Optional[str] = "build.yml",
 ) -> str:
     """Uses ``PyGithub`` to check the CI status of a repository
@@ -38,7 +38,7 @@ def run_gh_rest_check(
     :param str|None user: The user that triggered the run; if `None` is
         provided, any user is acceptable
     :param str|None branch: The branch name to specifically check; if `None` is
-        provided, all branches are allowed; the default is ``"main"``
+        provided, all branches are allowed; this is the default
     :param str|None workflow_filename: The filename of the workflow; if `None` is
         provided, any workflow name is acceptable; the default is ``"build.yml"``
     :return: The requested runs conclusion
@@ -59,7 +59,7 @@ def run_gh_rest_check(
 def check_build_status(
     lib_repo: Repository,
     user: Optional[str] = None,
-    branch: Optional[str] = "main",
+    branch: Optional[str] = None,
     workflow_filename: Optional[str] = "build.yml",
     debug: bool = False,
 ) -> Optional[str]:
@@ -70,7 +70,7 @@ def check_build_status(
     :param str|None user: The user that triggered the run; if `None` is
         provided, any user is acceptable
     :param str|None branch: The branch name to specifically check; if `None` is
-        provided, all branches are allowed; the default is ``"main"``
+        provided, all branches are allowed; this is the default
     :param str|None workflow_filename: The filename of the workflow; if `None`
         is provided, any workflow name is acceptable; the defail is `"build.yml"`
     :param bool debug: Whether debug statements should be printed to the standard
@@ -120,7 +120,7 @@ def check_build_statuses(
     :param str|None user: The user that triggered the run; if `None` is
         provided, any user is acceptable
     :param str|None branch: The branch name to specifically check; if `None` is
-        provided, all branches are allowed; the default is ``"main"``
+        provided, all branches are allowed; this is the default
     :param str|None workflow_filename: The filename of the workflow; if `None` is
         provided, any workflow name is acceptable; the defail is `"build.yml"`
     :param bool debug: Whether debug statements should be printed to
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         metavar="B",
         type=str,
         dest="branch",
-        default="main",
+        default=None,
         help='Branch name; default is "main"',
     )
     parser.add_argument(
