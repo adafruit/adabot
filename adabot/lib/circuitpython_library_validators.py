@@ -258,8 +258,8 @@ class LibraryValidator:
                 print("Error retrieving cookiecutter .pre-commit-config.yaml")
                 pcc_yaml_base = ""
 
-        for i in pcc_yaml_base["repos"]:
-            self._pcc_versions[i["repo"]] = i["rev"]
+            for i in pcc_yaml_base["repos"]:
+                self._pcc_versions[i["repo"]] = i["rev"]
 
         return self._pcc_versions
 
