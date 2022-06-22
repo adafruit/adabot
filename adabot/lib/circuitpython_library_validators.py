@@ -241,7 +241,7 @@ class LibraryValidator:
         """The parsed YAML from `.pre-commit-config.yaml` in cookiecutter.
         Used to verify that a library's `.pre-commit-config.yaml` matches this.
         """
-        if not len(self._pcc_versions):
+        if not self._pcc_versions:
             pcc_yml_dl_url = (
                 "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
                 "circuitpython/main/%7B%7B%20cookiecutter%20and%20'tmp_repo'%20%7D"
@@ -260,8 +260,6 @@ class LibraryValidator:
 
         for i in pcc_yaml_base["repos"]:
             self._pcc_versions[i["repo"]] = i["rev"]
-
-        print(self._pcc_versions)
 
         return self._pcc_versions
 
