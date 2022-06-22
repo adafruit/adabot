@@ -76,7 +76,7 @@ ERROR_PYFILE_MISSING_ERRNO = (
     "https://github.com/adafruit/circuitpython/issues/1582"
 )
 ERROR_MISMATCHED_READTHEDOCS = "Mismatched readthedocs.yaml"
-ERROR_MISMATCHED_PRE_COMMIT_CONFIG = "Mismatched .pre-commit-config.yaml"
+ERROR_MISMATCHED_PRE_COMMIT_CONFIG = "Mismatched versions in .pre-commit-config.yaml"
 ERROR_MISSING_DESCRIPTION = "Missing repository description"
 ERROR_MISSING_EXAMPLE_FILES = "Missing .py files in examples folder"
 ERROR_MISSING_EXAMPLE_FOLDER = "Missing examples folder"
@@ -203,7 +203,7 @@ class LibraryValidator:
         self.bundle_submodules = bundle_submodules
         self.latest_pylint = pkg_version_parse(latest_pylint)
         self._rtd_yaml_base = None
-        self._pcc_yaml_base = None
+        self._pcc_versions = {}
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
         self.has_setup_py_disabled = set()
@@ -237,11 +237,11 @@ class LibraryValidator:
         return self._rtd_yaml_base
 
     @property
-    def pcc_yml_base(self):
+    def pcc_versions(self):
         """The parsed YAML from `.pre-commit-config.yaml` in cookiecutter.
         Used to verify that a library's `.pre-commit-config.yaml` matches this.
         """
-        if self._pcc_yaml_base is None:
+        if not len(self._pcc_versions):
             pcc_yml_dl_url = (
                 "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
                 "circuitpython/main/%7B%7B%20cookiecutter%20and%20'tmp_repo'%20%7D"
@@ -250,15 +250,20 @@ class LibraryValidator:
             pcc_yml = requests.get(pcc_yml_dl_url)
             if pcc_yml.ok:
                 try:
-                    self._pcc_yaml_base = yaml.safe_load(pcc_yml.text)
+                    pcc_yaml_base = yaml.safe_load(pcc_yml.text)
                 except yaml.YAMLError:
                     print("Error parsing cookiecutter .pre-commit-config.yaml.")
-                    self._pcc_yaml_base = ""
+                    pcc_yaml_base = ""
             else:
                 print("Error retrieving cookiecutter .pre-commit-config.yaml")
-                self._pcc_yaml_base = ""
+                pcc_yaml_base = ""
 
-        return self._pcc_yaml_base
+        for i in pcc_yaml_base["repos"]:
+            self._pcc_versions[i["repo"]] = i["rev"]
+
+        print(self._pcc_versions)
+
+        return self._pcc_versions
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
@@ -705,14 +710,17 @@ class LibraryValidator:
             errors.append(ERROR_MISSING_READTHEDOCS)
 
         if ".pre-commit-config.yaml" in files:
-            if self.pcc_yml_base != "":
+            if len(self._pcc_versions) or self.pcc_versions != "":
                 filename = ".pre-commit-config.yaml"
                 file_info = content_list[files.index(filename)]
                 pcc_contents = requests.get(file_info["download_url"])
                 if pcc_contents.ok:
                     try:
                         pcc_yml = yaml.safe_load(pcc_contents.text)
-                        if pcc_yml != self.pcc_yml_base:
+                        pcc_versions = {}
+                        for i in pcc_yml["repos"]:
+                            pcc_versions[i["repo"]] = i["rev"]
+                        if self._pcc_versions != pcc_versions:
                             errors.append(ERROR_MISMATCHED_PRE_COMMIT_CONFIG)
                     except yaml.YAMLError:
                         self.output_file_data.append(
