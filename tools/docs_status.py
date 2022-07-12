@@ -115,7 +115,7 @@ if __name__ == "__main__":
     fail_list = [
         repo_name.name
         for repo_name, repo_results in results
-        if repo_results[0] == False  # pylint: disable=singleton-comparison
+        if not repo_results[0]  # pylint: disable=singleton-comparison
     ]
 
     if fail_list:
