@@ -17,6 +17,7 @@ in the Adafruit CircuitPython Bundle
 from typing import Any, Optional
 import argparse
 import parse
+import time
 import requests
 from github.Repository import Repository
 from github.ContentFile import ContentFile
