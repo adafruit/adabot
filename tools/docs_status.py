@@ -75,7 +75,7 @@ def check_docs_status(
         return None
     result = doc_build_results[0].get("success")
     if debug and not result:
-        print(f"RTD build failed for {lib_repo.name}")
+        print(f"RTD build failed or unavailable for {lib_repo.name}")
     time.sleep(3)
     return result
 
