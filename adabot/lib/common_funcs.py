@@ -37,7 +37,7 @@ def parse_gitmodules(input_text):
     values in double quotes are completely lost.  A very basic regular
     expression-based parsing logic is used here to parse the data.  This parsing
     is far from perfect and does not handle escaping quotes, line continuations
-    (when a line ends in '\;'), etc.  Unfortunately the git config format is
+    (when a line ends in '\\;'), etc.  Unfortunately the git config format is
     surprisingly complex and no mature parsing modules are available (outside
     the code in git itself).
     """
