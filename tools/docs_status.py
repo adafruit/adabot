@@ -55,7 +55,8 @@ def check_docs_status(lib_repo: Repository, rtd_token: str) -> Optional[bool]:
     search_results: parse.Result = parse.search(
         "https://readthedocs.org/projects/{slug:S}/badge", readme_text
     )
-    rtd_slug = search_results.named["slug"]
+    rtd_slug: str  = search_results.named["slug"]
+    rtd_slug = rtd_slug.replace("_", "-", -1)
 
     # GET the latest documentation build runs
     url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
