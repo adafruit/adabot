@@ -16,8 +16,8 @@ in the Adafruit CircuitPython Bundle
 
 from typing import Any, Optional
 import argparse
-import parse
 import time
+import parse
 import requests
 from github.Repository import Repository
 from github.ContentFile import ContentFile
@@ -27,7 +27,9 @@ from iterate_libraries import (
 )
 
 
-def check_docs_status(lib_repo: Repository, rtd_token: str, *, debug: bool = True) -> Optional[bool]:
+def check_docs_status(
+    lib_repo: Repository, rtd_token: str, *, debug: bool = True
+) -> Optional[bool]:
     """Checks a library for  the latest documentation build status with the
     requested information
 
@@ -56,7 +58,7 @@ def check_docs_status(lib_repo: Repository, rtd_token: str, *, debug: bool = Tru
     search_results: parse.Result = parse.search(
         "https://readthedocs.org/projects/{slug:S}/badge", readme_text
     )
-    rtd_slug: str  = search_results.named["slug"]
+    rtd_slug: str = search_results.named["slug"]
     rtd_slug = rtd_slug.replace("_", "-", -1)
 
     # GET the latest documentation build runs
