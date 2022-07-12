@@ -38,10 +38,14 @@ def check_docs_status(lib_repo: Repository, rtd_token: str) -> Optional[bool]:
     :param str gh_token: The Github token to be used for with the Github
         API
     :param str rtd_token: A ReadTheDocs API token with sufficient privileges
+    :param bool debug: Whether to use debug print statements
     :return: Whether the documentation built successfully; returns None if it
         could not be determined
     :rtype: bool|None
     """
+
+    if debug:
+        print("Checking", lib_repo.name)
 
     # Get the README file contents
     content_file: ContentFile = lib_repo.get_contents("README.rst")
@@ -89,7 +93,7 @@ def check_docs_statuses(
     """
 
     return iter_remote_bundle_with_func(
-        gh_token, [(check_docs_status, (rtd_token,), {})]
+        gh_token, [(check_docs_status, (rtd_token,), {"debug": True})]
     )
 
 
