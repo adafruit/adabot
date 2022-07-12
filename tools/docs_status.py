@@ -69,7 +69,11 @@ def check_docs_status(lib_repo: Repository, rtd_token: str) -> Optional[bool]:
     )
     if doc_build_results is None:
         return None
-    return doc_build_results[0].get("success")
+    result = doc_build_results[0].get("success")
+    if debug and not result:
+        print(f"RTD build failed for {lib_repo.name}")
+    time.sleep(3)
+    return result
 
 
 def check_docs_statuses(
