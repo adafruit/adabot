@@ -27,7 +27,7 @@ from iterate_libraries import (
 )
 
 
-def check_docs_status(lib_repo: Repository, rtd_token: str) -> Optional[bool]:
+def check_docs_status(lib_repo: Repository, rtd_token: str, *, debug: bool = True) -> Optional[bool]:
     """Checks a library for  the latest documentation build status with the
     requested information
 
