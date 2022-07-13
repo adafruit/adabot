@@ -223,7 +223,7 @@ class LibraryValidator:
         if self._rtd_yaml_base is None:
             rtd_yml_dl_url = (
                 "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
-                "circuitpython/main/%7B%7B%20cookiecutter%20and%20'tmp_repo'%20%7D"
+                "circuitpython/main/%7B%7B%20cookiecutter.__dirname%20%7D"
                 "%7D/%7B%25%20if%20cookiecutter.sphinx_docs%20in%20%5B'y'%2C%20'yes'"
                 "%5D%20%25%7D.readthedocs.yaml%7B%25%20endif%20%25%7D"
             )
