@@ -27,7 +27,7 @@ from sh.contrib import git
 
 import yaml
 
-from adabot import github_requests as github
+from adabot import github_requests as gh_reqs
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
@@ -276,7 +276,7 @@ class LibraryValidator:
         if repo_missing_some_keys:
             # only call the API if the passed in `repo` doesn't have what
             # we need.
-            response = github.get("/repos/" + repo["full_name"])
+            response = gh_reqs.get("/repos/" + repo["full_name"])
             if not response.ok:
                 return [ERROR_UNABLE_PULL_REPO_DETAILS]
             repo_fields = response.json()
@@ -372,7 +372,7 @@ class LibraryValidator:
         if repo["name"] in BUNDLE_IGNORE_LIST:
             return []
 
-        repo_last_release = github.get(
+        repo_last_release = gh_reqs.get(
             "/repos/" + repo["full_name"] + "/releases/latest"
         )
         if not repo_last_release.ok:
@@ -391,7 +391,7 @@ class LibraryValidator:
 
         tag_name = repo_release_json.get("tag_name", "")
         main_branch = repo["default_branch"]
-        compare_tags = github.get(
+        compare_tags = gh_reqs.get(
             f"/repos/{repo['full_name']}/compare/{tag_name}...{main_branch}"
         )
         if not compare_tags.ok:
@@ -623,7 +623,7 @@ class LibraryValidator:
         if repo["name"] == BUNDLE_REPO_NAME:
             return []
 
-        content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
+        content_list = gh_reqs.get("/repos/" + repo["full_name"] + "/contents/")
         empty_repo = False
         if not content_list.ok:
             # Empty repos return:
@@ -691,7 +691,7 @@ class LibraryValidator:
 
             if build_yml_url:
                 build_yml_url = build_yml_url + "/workflows/build.yml"
-                response = github.get(build_yml_url)
+                response = gh_reqs.get(build_yml_url)
                 if response.ok:
                     actions_build_info = response.json()
 
@@ -750,7 +750,7 @@ class LibraryValidator:
             while dirs:
                 # loop through the results to ensure we capture files
                 # in subfolders, and add any files in the current directory
-                result = github.get(dirs.pop(0))
+                result = gh_reqs.get(dirs.pop(0))
                 if not result.ok:
                     errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
                     break
@@ -818,7 +818,7 @@ class LibraryValidator:
         for adir in dirs:
             if re_str.fullmatch(adir):
                 # retrieve the files in that directory
-                dir_file_list = github.get(
+                dir_file_list = gh_reqs.get(
                     "/repos/" + repo["full_name"] + "/contents/" + adir
                 )
                 if not dir_file_list.ok:
@@ -984,7 +984,7 @@ class LibraryValidator:
     def github_get_all_pages(self, url, params):
         """Retrieves all paginated results from the GitHub `url`."""
         results = []
-        response = github.get(url, params=params)
+        response = gh_reqs.get(url, params=params)
 
         if not response.ok:
             self.output_file_data.append(f"Github request failed: {url}")
@@ -994,7 +994,7 @@ class LibraryValidator:
             results.extend(response.json())
 
             if response.links.get("next"):
-                response = github.get(response.links["next"]["url"])
+                response = gh_reqs.get(response.links["next"]["url"])
             else:
                 break
 
@@ -1027,7 +1027,7 @@ class LibraryValidator:
                 issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
             )
             if "pull_request" in issue:
-                pr_info = github.get(issue["pull_request"]["url"])
+                pr_info = gh_reqs.get(issue["pull_request"]["url"])
                 pr_info = pr_info.json()
                 if issue["state"] == "open":
                     if created > since:
@@ -1064,7 +1064,7 @@ class LibraryValidator:
 
                         pr_author = pr_info["user"]["login"]
                         if pr_author == "weblate":
-                            pr_commits = github.get(str(pr_info["url"]) + "/commits")
+                            pr_commits = gh_reqs.get(str(pr_info["url"]) + "/commits")
                             if pr_commits.ok:
                                 for commit in pr_commits.json():
                                     author = commit.get("author")
@@ -1076,7 +1076,7 @@ class LibraryValidator:
                             insights["pr_merged_authors"].add(pr_info["user"]["login"])
 
                         insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
-                        pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
+                        pr_reviews = gh_reqs.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
                             for review in pr_reviews.json():
                                 if review["state"].lower() == "approved":
@@ -1086,7 +1086,7 @@ class LibraryValidator:
                     else:
                         insights["closed_prs"] += 1
             else:
-                issue_info = github.get(issue["url"])
+                issue_info = gh_reqs.get(issue["url"])
                 issue_info = issue_info.json()
                 if issue["state"] == "open":
                     if created > since:
@@ -1145,7 +1145,7 @@ class LibraryValidator:
         # get milestones for core repo
         if repo["name"] == "circuitpython":
             params = {"state": "open"}
-            response = github.get(
+            response = gh_reqs.get(
                 "/repos/adafruit/circuitpython/milestones", params=params
             )
             if not response.ok:
@@ -1175,7 +1175,7 @@ class LibraryValidator:
 
     def validate_labels(self, repo):
         """ensures the repo has the standard labels available"""
-        response = github.get("/repos/" + repo["full_name"] + "/labels")
+        response = gh_reqs.get("/repos/" + repo["full_name"] + "/labels")
         if not response.ok:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             self.output_file_data.append(
