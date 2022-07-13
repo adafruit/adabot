@@ -115,6 +115,7 @@ ERROR_ONLY_ALLOW_MERGES = "Only allow merges, disallow rebase and squash"
 ERROR_RTD_SUBPROJECT_MISSING = "ReadTheDocs missing as a subproject on CircuitPython"
 ERROR_RTD_ADABOT_MISSING = "ReadTheDocs project missing adabot as owner"
 ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS = "Failed to load build status"
+ERROR_RTD_SUBPROJECT_FAILED = "Failed to list CircuitPython subprojects on ReadTheDocs"
 ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or errors"
 ERROR_GITHUB_NO_RELEASE = "Library repository has no releases"
 ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM = (
@@ -841,6 +842,17 @@ class LibraryValidator:
             return []
         if repo["name"] in BUNDLE_IGNORE_LIST:
             return []
+        if not self.rtd_subprojects:
+            rtd_response = requests.get(
+                "https://readthedocs.org/api/v2/project/74557/subprojects/", timeout=15
+            )
+            if not rtd_response.ok:
+                return [ERROR_RTD_SUBPROJECT_FAILED]
+            self.rtd_subprojects = {}
+            for subproject in rtd_response.json()["subprojects"]:
+                self.rtd_subprojects[
+                    common_funcs.sanitize_url(subproject["repo"])
+                ] = subproject
         repo_url = common_funcs.sanitize_url(repo["clone_url"])
         if repo_url not in self.rtd_subprojects:
             return [ERROR_RTD_SUBPROJECT_MISSING]
