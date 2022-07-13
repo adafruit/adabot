@@ -37,6 +37,7 @@ from adabot.lib import assign_hacktober_label as hacktober
 
 GH_INTERFACE = pygithub.Github(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"])
 
+
 class CapturedJsonReporter(JSONReporter):
     """Helper class to stringify PyLint JSON reports."""
 
@@ -321,7 +322,7 @@ class LibraryValidator:
         try:
             repo_obj = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
             workflow = repo_obj.get_workflow("build.yml")
-            workflow_runs = workflow.get_runs(branch = "main")
+            workflow_runs = workflow.get_runs(branch="main")
             return [] if workflow_runs[0].conclusion else [ERROR_GITHUB_FAILING_ACTIONS]
         except pygithub.GithubException:
             return [ERROR_UNABLE_PULL_REPO_DETAILS]
@@ -849,8 +850,7 @@ class LibraryValidator:
 
         if 105398 not in subproject["users"]:
             errors.append(ERROR_RTD_ADABOT_MISSING)
-        
-        
+
         # Get the README file contents
         try:
             lib_repo = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
