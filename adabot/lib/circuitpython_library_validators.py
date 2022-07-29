@@ -8,19 +8,15 @@
 errors, across the entire CirtuitPython library ecosystem."""
 
 import datetime
-from io import StringIO
-import json
 import os
 import logging
 import pathlib
 import re
+import subprocess
 import time
 from tempfile import TemporaryDirectory
 
 from packaging.version import parse as pkg_version_parse
-
-from pylint import lint
-from pylint.reporters import JSONReporter
 
 import requests
 
@@ -36,18 +32,6 @@ from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
 GH_INTERFACE = pygithub.Github(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"])
-
-
-class CapturedJsonReporter(JSONReporter):
-    """Helper class to stringify PyLint JSON reports."""
-
-    def __init__(self):
-        self._stringio = StringIO()
-        super().__init__(self._stringio)
-
-    def get_result(self):
-        """The current value."""
-        return self._stringio.getvalue()
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -1186,44 +1170,61 @@ class LibraryValidator:
             if self.keep_repos and (repo_dir / ".pylint-ok").exists():
                 return []
 
-            for file in repo_dir.rglob("*.py"):
-                if file.name in ignored_py_files or str(file.parent).endswith(
-                    "examples"
-                ):
-                    continue
+            disable_args = {}
 
-                pylint_args = [str(file)]
+            try:
+                with open(
+                    repo_dir / ".pre-commit-config.yaml", mode="r", encoding="utf-8"
+                ) as pccfile:
+                    pccyaml = yaml.safe_load(pccfile)
+                pylintrepo = [
+                    yamlrepo
+                    for yamlrepo in pccyaml["repos"]
+                    if yamlrepo["repo"] == "https://github.com/pycqa/pylint"
+                ][0]
+                disable_args["code"] = [
+                    repohook["args"]
+                    for repohook in pylintrepo["hooks"]
+                    if repohook["name"] == "pylint (library code)"
+                ][0]
+                disable_args["tests"] = [
+                    repohook["args"]
+                    for repohook in pylintrepo["hooks"]
+                    if repohook["name"] == "pylint (example code)"
+                ][0]
+                disable_args["examples"] = [
+                    repohook["args"]
+                    for repohook in pylintrepo["hooks"]
+                    if repohook["name"] == "pylint (test code)"
+                ][0]
+            except (FileNotFoundError, IndexError):
+                disable_args["code"] = []
+                disable_args["tests"] = []
+                disable_args["examples"] = []
+
+            for file in repo_dir.rglob("*.py"):
+
+                pylint_args = ["pylint", str(file)]
                 if (repo_dir / ".pylintrc").exists():
                     pylint_args += [f"--rcfile={str(repo_dir / '.pylintrc')}"]
 
-                reporter = CapturedJsonReporter()
+                if file.name in ignored_py_files:
+                    continue
+                if str(file.parent).endswith("examples"):
+                    file_pylint_args = pylint_args + disable_args["examples"]
+                elif str(file.parent).endswith("tests"):
+                    file_pylint_args = pylint_args + disable_args["tests"]
+                file_pylint_args = pylint_args + disable_args["code"]
 
                 logging.debug("Running pylint on %s", file)
 
-                lint.Run(pylint_args, reporter=reporter, exit=False)
-                pylint_stderr = ""
-                pylint_stdout = reporter.get_result()
-
-                if pylint_stderr:
-                    self.output_file_data.append(
-                        f"PyLint error ({repo['name']}): '{pylint_stderr}'"
-                    )
-                    return [ERROR_OUTPUT_HANDLER]
-
                 try:
-                    pylint_result = json.loads(pylint_stdout)
-                except json.JSONDecodeError as json_err:
-                    self.output_file_data.append(
-                        f"PyLint output JSONDecodeError: {json_err.msg}"
-                    )
-                    return [ERROR_OUTPUT_HANDLER]
-
-                if pylint_result:
+                    subprocess.check_output(file_pylint_args)
+                    if self.keep_repos:
+                        with open(repo_dir / ".pylint-ok", "w") as pylint_ok:
+                            pylint_ok.write("Pylint passed!")
+                except subprocess.CalledProcessError:
                     return [ERROR_PYLINT_FAILED_LINTING]
-
-            if self.keep_repos:
-                with open(repo_dir / ".pylint-ok", "w") as pylint_ok:
-                    pylint_ok.write("".join(pylint_result))
 
         return []
 
