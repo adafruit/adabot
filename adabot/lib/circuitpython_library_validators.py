@@ -1032,7 +1032,10 @@ class LibraryValidator:
                         pr_reviews = gh_reqs.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
                             for review in pr_reviews.json():
-                                if review["state"].lower() == "approved" and review["user"]:
+                                if (
+                                    review["state"].lower() == "approved"
+                                    and review["user"]
+                                ):
                                     insights["pr_reviewers"].add(
                                         review["user"]["login"]
                                     )
