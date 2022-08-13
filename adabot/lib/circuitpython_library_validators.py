@@ -129,7 +129,7 @@ ERROR_PRE_COMMIT_VERSION = (
     "Missing or incorrect pre-commit version in .pre-commit-config.yaml"
 )
 ERROR_PYLINT_VERSION = "Missing or incorrect pylint version in .pre-commit-config.yaml"
-ERROR_PYLINT_FAILED_LINTING = "Failed PyLint checks"
+ERROR_CI_BUILD = "Failed CI build"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
 # Temp category for GitHub Actions migration.
@@ -1145,88 +1145,42 @@ class LibraryValidator:
 
         return errors
 
-    def validate_passes_linting(self, repo):
-        """Clones the repo and runs pylint on the Python files"""
+    def validate_passes_build_ci(self, repo):
+        """Checks the latest CI build for the default branch"""
         if not repo["name"].startswith("Adafruit_CircuitPython"):
             return []
 
-        ignored_py_files = ["setup.py", "conf.py"]
+        pygh = pygithub.Github(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"])
 
-        desination_type = TemporaryDirectory
-        if self.keep_repos:
-            desination_type = pathlib.Path("repos").absolute
-
-        with desination_type() as tempdir:
-            repo_dir = pathlib.Path(tempdir) / repo["name"]
+        while True:
             try:
-                if not repo_dir.exists():
-                    git.clone("--depth=1", repo["clone_url"], repo_dir)
-            except sh.ErrorReturnCode as err:
-                self.output_file_data.append(
-                    f"Failed to clone repo for linting: {repo['full_name']}\n {err.stderr}"
-                )
-                return [ERROR_OUTPUT_HANDLER]
+                lib_repo = pygh.get_repo(repo["full_name"])
 
-            if self.keep_repos and (repo_dir / ".pylint-ok").exists():
-                return []
+                if lib_repo.archived:
+                    return []
 
-            disable_args = {}
-
-            try:
-                with open(
-                    repo_dir / ".pre-commit-config.yaml", mode="r", encoding="utf-8"
-                ) as pccfile:
-                    pccyaml = yaml.safe_load(pccfile)
-                pylintrepo = [
-                    yamlrepo
-                    for yamlrepo in pccyaml["repos"]
-                    if yamlrepo["repo"] == "https://github.com/pycqa/pylint"
-                ][0]
-                disable_args["code"] = [
-                    repohook["args"]
-                    for repohook in pylintrepo["hooks"]
-                    if repohook["name"] == "pylint (library code)"
-                ][0]
-                disable_args["tests"] = [
-                    repohook["args"]
-                    for repohook in pylintrepo["hooks"]
-                    if repohook["name"] == "pylint (example code)"
-                ][0]
-                disable_args["examples"] = [
-                    repohook["args"]
-                    for repohook in pylintrepo["hooks"]
-                    if repohook["name"] == "pylint (test code)"
-                ][0]
-            except (FileNotFoundError, IndexError):
-                disable_args["code"] = []
-                disable_args["tests"] = []
-                disable_args["examples"] = []
-
-            for file in repo_dir.rglob("*.py"):
-
-                pylint_args = ["pylint", str(file)]
-                if (repo_dir / ".pylintrc").exists():
-                    pylint_args += [f"--rcfile={str(repo_dir / '.pylintrc')}"]
-
-                if file.name in ignored_py_files:
-                    continue
-                if str(file.parent).endswith("examples"):
-                    file_pylint_args = pylint_args + disable_args["examples"]
-                elif str(file.parent).endswith("tests"):
-                    file_pylint_args = pylint_args + disable_args["tests"]
-                file_pylint_args = pylint_args + disable_args["code"]
-
-                logging.debug("Running pylint on %s", file)
+                arg_dict = {"branch": lib_repo.default_branch}
 
                 try:
-                    subprocess.check_output(file_pylint_args)
-                    if self.keep_repos:
-                        with open(repo_dir / ".pylint-ok", "w") as pylint_ok:
-                            pylint_ok.write("Pylint passed!")
-                except subprocess.CalledProcessError:
-                    return [ERROR_PYLINT_FAILED_LINTING]
+                    workflow = lib_repo.get_workflow("build.yml")
+                    workflow_runs = workflow.get_runs(**arg_dict)
+                except pygithub.GithubException:
+                    # No workflows or runs yet
+                    return []
+                if not workflow_runs[0].conclusion:
+                    return [ERROR_CI_BUILD]
+                return []
+            except pygithub.RateLimitExceededException as rl_err:
+                rate_limit_reset = datetime.datetime.fromtimestamp(
+                    rl_err.headers["X-RateLimit-Reset"]
+                )
+                while datetime.datetime.now() < rate_limit_reset:
+                    logging.warning("Rate Limit will reset at: %s", rate_limit_reset)
+                    reset_diff = rate_limit_reset - datetime.datetime.now()
 
-        return []
+                    logging.info("Sleeping %s seconds", reset_diff.seconds)
+                    time.sleep(reset_diff.seconds + 1)
+
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""
