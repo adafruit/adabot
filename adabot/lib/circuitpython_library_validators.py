@@ -1158,22 +1158,17 @@ class LibraryValidator:
                 try:
                     workflow = lib_repo.get_workflow("build.yml")
                     workflow_runs = workflow.get_runs(**arg_dict)
-                except pygithub.GithubException:
+                except pygithub.GithubException:  # This can probably be tightened later
                     # No workflows or runs yet
                     return []
                 if not workflow_runs[0].conclusion:
                     return [ERROR_CI_BUILD]
                 return []
-            except pygithub.RateLimitExceededException as rl_err:
-                rate_limit_reset = datetime.datetime.fromtimestamp(
-                    rl_err.headers["X-RateLimit-Reset"]
-                )
-                while datetime.datetime.now() < rate_limit_reset:
-                    logging.warning("Rate Limit will reset at: %s", rate_limit_reset)
-                    reset_diff = rate_limit_reset - datetime.datetime.now()
-
-                    logging.info("Sleeping %s seconds", reset_diff.seconds)
-                    time.sleep(reset_diff.seconds + 1)
+            except pygithub.RateLimitExceededException:
+                core_rate_limit_reset = pygh.get_rate_limit().core.reset
+                sleep_time = core_rate_limit_reset - datetime.datetime.now()
+                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
+                time.sleep(sleep_time.seconds)
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""
