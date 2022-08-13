@@ -286,26 +286,6 @@ class LibraryValidator:
             errors.append(ERROR_ONLY_ALLOW_MERGES)
         return errors
 
-    def validate_actions_state(self, repo):
-        """Validate if the most recent GitHub Actions run on the default branch
-        has passed.
-        Just returns a message stating that the most recent run failed.
-        """
-
-        if not (
-            repo["owner"]["login"] == "adafruit"
-            and repo["name"].startswith("Adafruit_CircuitPython")
-        ):
-            return []
-
-        try:
-            repo_obj = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
-            workflow = repo_obj.get_workflow("build.yml")
-            workflow_runs = workflow.get_runs(branch="main")
-            return [] if workflow_runs[0].conclusion else [ERROR_GITHUB_FAILING_ACTIONS]
-        except pygithub.GithubException:
-            return [ERROR_UNABLE_PULL_REPO_DETAILS]
-
     # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
     def validate_release_state(self, repo):
         """Validate if a repo 1) has a release, and 2) if there have been commits
@@ -699,6 +679,7 @@ class LibraryValidator:
         else:
             errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
+        # TODO: Change to pyproject.toml
         if "setup.py" in files:
             file_info = content_list[files.index("setup.py")]
             errors.extend(self._validate_setup_py(file_info))
@@ -1139,8 +1120,12 @@ class LibraryValidator:
 
         return errors
 
-    def validate_passes_build_ci(self, repo):
-        """Checks the latest CI build for the default branch"""
+    def validate_actions_state(self, repo):
+        """Validate if the most recent GitHub Actions run on the default branch
+        has passed.
+        Just returns a message stating that the most recent run failed.
+        """
+
         if not repo["name"].startswith("Adafruit_CircuitPython"):
             return []
 
