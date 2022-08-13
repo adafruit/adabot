@@ -77,7 +77,7 @@ ERROR_MISSING_LINT = "Missing lint config"
 ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yaml"
-ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
+ERROR_MISSING_PYPROJECT_TOML = "For pypi compatibility, missing pyproject.toml"
 ERROR_MISSING_PRE_COMMIT_CONFIG = "Missing .pre-commit-config.yaml"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = (
@@ -187,7 +187,7 @@ class LibraryValidator:
         self._rtd_yaml_base = None
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
-        self.has_setup_py_disabled = set()
+        self.has_pyproject_toml_disabled = set()
         self.keep_repos = keep_repos
         self.rtd_subprojects = None
         self.core_driver_page = None
@@ -322,7 +322,7 @@ class LibraryValidator:
                 "LICENSE",
                 "LICENSES/*",
                 "*.license",
-                "setup.py.disabled",
+                "pyproject.toml.disabled",
                 ".github/workflows/build.yml",
                 ".github/workflows/release.yml",
                 ".pre-commit-config.yaml",
@@ -554,8 +554,8 @@ class LibraryValidator:
 
         return errors
 
-    def _validate_setup_py(self, file_info):
-        """Check setup.py for pypi compatibility"""
+    def _validate_pyproject_toml(self, file_info):
+        """Check prproject.toml for pypi compatibility"""
         download_url = file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
@@ -624,11 +624,11 @@ class LibraryValidator:
             if not self.validate_contents_quiet:
                 return [ERROR_NEW_REPO_IN_WORK]
 
-        if "setup.py.disabled" in files:
-            self.has_setup_py_disabled.add(repo["name"])
+        if "pyproject.toml.disabled" in files:
+            self.has_pyproject_toml_disabled.add(repo["name"])
 
         # if we're only running due to -v, ignore the rest. we only care about
-        # adding in-work repos to the BUNDLE_IGNORE_LIST and if setup.py is
+        # adding in-work repos to the BUNDLE_IGNORE_LIST and if pyproject.toml is
         # disabled
         if self.validate_contents_quiet:
             return []
@@ -699,13 +699,13 @@ class LibraryValidator:
         else:
             errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
-        if "setup.py" in files:
-            file_info = content_list[files.index("setup.py")]
-            errors.extend(self._validate_setup_py(file_info))
-        elif "setup.py.disabled" not in files:
-            errors.append(ERROR_MISSING_SETUP_PY)
+        if "pyproject.toml" in files:
+            file_info = content_list[files.index("pyproject.toml")]
+            errors.extend(self._validate_pyproject_toml(file_info))
+        elif "pyproject.toml.disabled" not in files:
+            errors.append(ERROR_MISSING_PYPROJECT_TOML)
 
-        if repo["name"] not in self.has_setup_py_disabled:
+        if repo["name"] not in self.has_pyproject_toml_disabled:
             if "requirements.txt" in files:
                 file_info = content_list[files.index("requirements.txt")]
                 errors.extend(self._validate_requirements_txt(repo, file_info))
@@ -962,7 +962,8 @@ class LibraryValidator:
                 if issue["state"] == "open":
                     if created > since:
                         insights["new_prs"] += 1
-                        insights["pr_authors"].add(pr_info["user"]["login"])
+                        if pr_info["user"]:
+                            insights["pr_authors"].add(pr_info["user"]["login"])
                     insights["active_prs"] += 1
                 else:
                     merged = datetime.datetime.strptime(
@@ -1009,7 +1010,10 @@ class LibraryValidator:
                         pr_reviews = gh_reqs.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
                             for review in pr_reviews.json():
-                                if review["state"].lower() == "approved":
+                                if (
+                                    review["state"].lower() == "approved"
+                                    and review["user"]
+                                ):
                                     insights["pr_reviewers"].add(
                                         review["user"]["login"]
                                     )
@@ -1021,12 +1025,14 @@ class LibraryValidator:
                 if issue["state"] == "open":
                     if created > since:
                         insights["new_issues"] += 1
-                        insights["issue_authors"].add(issue_info["user"]["login"])
+                        if issue_info["user"]:
+                            insights["issue_authors"].add(issue_info["user"]["login"])
                     insights["active_issues"] += 1
 
                 else:
                     insights["closed_issues"] += 1
-                    insights["issue_closers"].add(issue_info["closed_by"]["login"])
+                    if issue_info["closed_by"]:
+                        insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
         params = {"state": "open", "per_page": 100}
         issues = self.github_get_all_pages(
@@ -1091,7 +1097,7 @@ class LibraryValidator:
         """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
         if (
             repo["name"] in BUNDLE_IGNORE_LIST
-            or repo["name"] in self.has_setup_py_disabled
+            or repo["name"] in self.has_pyproject_toml_disabled
         ):
             return []
         if not (
