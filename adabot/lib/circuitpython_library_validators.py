@@ -10,18 +10,12 @@ errors, across the entire CirtuitPython library ecosystem."""
 import datetime
 import os
 import logging
-import pathlib
 import re
-import subprocess
 import time
-from tempfile import TemporaryDirectory
 
 from packaging.version import parse as pkg_version_parse
 
 import requests
-
-import sh
-from sh.contrib import git
 
 import yaml
 import parse
@@ -1180,7 +1174,6 @@ class LibraryValidator:
 
                     logging.info("Sleeping %s seconds", reset_diff.seconds)
                     time.sleep(reset_diff.seconds + 1)
-
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""
