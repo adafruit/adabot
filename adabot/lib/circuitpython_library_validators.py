@@ -39,6 +39,7 @@ ERROR_README_MISSING_CI_ACTIONS_BADGE = (
     "README CI badge needs to be changed to GitHub Actions"
 )
 ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
+ERROR_TOMLFILE_DOWNLOAD_FAILED = "Failed to download .toml file"
 ERROR_PYFILE_MISSING_STRUCT = (
     ".py file contains reference to import ustruct"
     " without reference to import struct.  See issue "
@@ -79,7 +80,8 @@ ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yaml"
 ERROR_MISSING_PYPROJECT_TOML = "For PyPI compatibility, missing pyproject.toml"
 ERROR_MISSING_PRE_COMMIT_CONFIG = "Missing .pre-commit-config.yaml"
-ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
+ERROR_MISSING_REQUIREMENTS_TXT = "For PyPI compatibility, missing requirements.txt"
+ERROR_MISSING_OPTIONAL_REQUIREMENTS_TXT = "For PyPI compatibility, missing optional_requirements.txt"
 ERROR_MISSING_BLINKA = (
     "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 )
@@ -542,11 +544,7 @@ class LibraryValidator:
             return [ERROR_TOMLFILE_DOWNLOAD_FAILED]
         return []
 
-        errors = []
-
-        return errors
-
-    def _validate_requirements_txt(self, repo, file_info):
+    def _validate_requirements_txt(self, repo, file_info, check_blinka=True):
         """Check requirements.txt for pypi compatibility"""
         download_url = file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
@@ -557,7 +555,7 @@ class LibraryValidator:
         lines = contents.text.split("\n")
         blinka_lines = [l for l in lines if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)]
 
-        if not blinka_lines and repo["name"] not in LIBRARIES_DONT_NEED_BLINKA:
+        if not blinka_lines and repo["name"] not in LIBRARIES_DONT_NEED_BLINKA and check_blinka:
             errors.append(ERROR_MISSING_BLINKA)
         return errors
 
@@ -693,6 +691,11 @@ class LibraryValidator:
                 errors.extend(self._validate_requirements_txt(repo, file_info))
             else:
                 errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
+            if "optional_requirements.txt" in files:
+                file_info = content_list[files.index("optional_requirements.txt")]
+                errors.extend(self._validate_requirements_txt(repo, file_info, check_blinka=False))
+            else:
+                errors.append(ERROR_MISSING_OPTIONAL_REQUIREMENTS_TXT)
 
         # Check for an examples folder.
         dirs = [
