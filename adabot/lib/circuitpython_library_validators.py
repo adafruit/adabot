@@ -304,7 +304,7 @@ class LibraryValidator:
                 "LICENSE",
                 "LICENSES/*",
                 "*.license",
-                "setup.py.disabled",
+                "pyproject.toml.disabled",
                 ".github/workflows/build.yml",
                 ".github/workflows/release.yml",
                 ".pre-commit-config.yaml",
@@ -607,7 +607,7 @@ class LibraryValidator:
             self.has_pyproject_toml_disabled.add(repo["name"])
 
         # if we're only running due to -v, ignore the rest. we only care about
-        # adding in-work repos to the BUNDLE_IGNORE_LIST and if setup.py is
+        # adding in-work repos to the BUNDLE_IGNORE_LIST and if pyproject.toml is
         # disabled
         if self.validate_contents_quiet:
             return []
@@ -947,7 +947,8 @@ class LibraryValidator:
                 if issue["state"] == "open":
                     if created > since:
                         insights["new_prs"] += 1
-                        insights["pr_authors"].add(pr_info["user"]["login"])
+                        if pr_info["user"]:
+                            insights["pr_authors"].add(pr_info["user"]["login"])
                     insights["active_prs"] += 1
                 else:
                     merged = datetime.datetime.strptime(
@@ -994,7 +995,10 @@ class LibraryValidator:
                         pr_reviews = gh_reqs.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
                             for review in pr_reviews.json():
-                                if review["state"].lower() == "approved":
+                                if (
+                                    review["state"].lower() == "approved"
+                                    and review["user"]
+                                ):
                                     insights["pr_reviewers"].add(
                                         review["user"]["login"]
                                     )
@@ -1006,12 +1010,14 @@ class LibraryValidator:
                 if issue["state"] == "open":
                     if created > since:
                         insights["new_issues"] += 1
-                        insights["issue_authors"].add(issue_info["user"]["login"])
+                        if issue_info["user"]:
+                            insights["issue_authors"].add(issue_info["user"]["login"])
                     insights["active_issues"] += 1
 
                 else:
                     insights["closed_issues"] += 1
-                    insights["issue_closers"].add(issue_info["closed_by"]["login"])
+                    if issue_info["closed_by"]:
+                        insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
         params = {"state": "open", "per_page": 100}
         issues = self.github_get_all_pages(
