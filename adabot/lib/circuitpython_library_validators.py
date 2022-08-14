@@ -684,7 +684,6 @@ class LibraryValidator:
         else:
             errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
-        # TODO: Change to pyproject.toml
         if "pyproject.toml" in files:
             file_info = content_list[files.index("pyproject.toml")]
             errors.extend(self._validate_pyproject_toml(file_info))
