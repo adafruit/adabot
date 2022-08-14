@@ -77,7 +77,7 @@ ERROR_MISSING_LINT = "Missing lint config"
 ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yaml"
-ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
+ERROR_MISSING_PYPROJECT_TOML = "For PyPI compatibility, missing pyproject.toml"
 ERROR_MISSING_PRE_COMMIT_CONFIG = "Missing .pre-commit-config.yaml"
 ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
 ERROR_MISSING_BLINKA = (
@@ -187,7 +187,7 @@ class LibraryValidator:
         self._rtd_yaml_base = None
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
-        self.has_setup_py_disabled = set()
+        self.has_pyproject_toml_disabled = set()
         self.keep_repos = keep_repos
         self.rtd_subprojects = None
         self.core_driver_page = None
@@ -534,12 +534,13 @@ class LibraryValidator:
 
         return errors
 
-    def _validate_setup_py(self, file_info):
-        """Check setup.py for pypi compatibility"""
+    def _validate_pyproject_toml(self, file_info):
+        """Check pyproject.toml for pypi compatibility"""
         download_url = file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
-            return [ERROR_PYFILE_DOWNLOAD_FAILED]
+            return [ERROR_TOMLFILE_DOWNLOAD_FAILED]
+        return []
 
         errors = []
 
@@ -604,8 +605,8 @@ class LibraryValidator:
             if not self.validate_contents_quiet:
                 return [ERROR_NEW_REPO_IN_WORK]
 
-        if "setup.py.disabled" in files:
-            self.has_setup_py_disabled.add(repo["name"])
+        if "pyproject.toml.disabled" in files:
+            self.has_pyproject_toml_disabled.add(repo["name"])
 
         # if we're only running due to -v, ignore the rest. we only care about
         # adding in-work repos to the BUNDLE_IGNORE_LIST and if setup.py is
@@ -680,13 +681,13 @@ class LibraryValidator:
             errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
         # TODO: Change to pyproject.toml
-        if "setup.py" in files:
-            file_info = content_list[files.index("setup.py")]
-            errors.extend(self._validate_setup_py(file_info))
-        elif "setup.py.disabled" not in files:
-            errors.append(ERROR_MISSING_SETUP_PY)
+        if "pyproject.toml" in files:
+            file_info = content_list[files.index("pyproject.toml")]
+            errors.extend(self._validate_pyproject_toml(file_info))
+        elif "pyproject.toml.disabled" not in files:
+            errors.append(ERROR_MISSING_PYPROJECT_TOML)
 
-        if repo["name"] not in self.has_setup_py_disabled:
+        if repo["name"] not in self.has_pyproject_toml_disabled:
             if "requirements.txt" in files:
                 file_info = content_list[files.index("requirements.txt")]
                 errors.extend(self._validate_requirements_txt(repo, file_info))
@@ -1072,7 +1073,7 @@ class LibraryValidator:
         """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
         if (
             repo["name"] in BUNDLE_IGNORE_LIST
-            or repo["name"] in self.has_setup_py_disabled
+            or repo["name"] in self.has_pyproject_toml_disabled
         ):
             return []
         if not (
