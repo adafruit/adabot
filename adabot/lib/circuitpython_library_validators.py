@@ -1147,11 +1147,9 @@ class LibraryValidator:
         if not repo["name"].startswith("Adafruit_CircuitPython"):
             return []
 
-        pygh = pygithub.Github(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"])
-
         while True:
             try:
-                lib_repo = pygh.get_repo(repo["full_name"])
+                lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
 
                 if lib_repo.archived:
                     return []
@@ -1168,7 +1166,7 @@ class LibraryValidator:
                     return [ERROR_CI_BUILD]
                 return []
             except pygithub.RateLimitExceededException:
-                core_rate_limit_reset = pygh.get_rate_limit().core.reset
+                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
                 sleep_time = core_rate_limit_reset - datetime.datetime.now()
                 logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
                 time.sleep(sleep_time.seconds)
