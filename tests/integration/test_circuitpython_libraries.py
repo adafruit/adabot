@@ -30,7 +30,7 @@ def test_circuitpython_libraries(monkeypatch, pytestconfig):
     if not pytestconfig.getoption("--use-tokens"):
         print("FDSFSD")
         for funcname in circuitpython_library_validators.TOKEN_FUNCTIONS:
-            monkeypatch.delattr(circuitpython_library_validators, funcname)
+            monkeypatch.delattr(circuitpython_library_validators.LibraryValidator, funcname)
 
     circuitpython_libraries.main(validator="all")
 
@@ -45,7 +45,7 @@ def test_circuitpython_libraries_output_file(monkeypatch, pytestconfig, tmp_path
     # They can't be tested via, so let's remove them and test the others
     if not pytestconfig.getoption("--use-tokens"):
         for funcname  in circuitpython_library_validators.TOKEN_FUNCTIONS:
-            monkeypatch.delattr(circuitpython_library_validators, funcname)
+            monkeypatch.delattr(circuitpython_library_validators.LibraryValidator, funcname)
 
     tmp_output_file = tmp_path / "output_test.txt"
 
