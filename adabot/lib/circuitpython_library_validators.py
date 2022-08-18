@@ -25,7 +25,7 @@ from adabot import github_requests as gh_reqs
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
-GH_INTERFACE = pygithub.Github(os.environ["ADABOT_GITHUB_ACCESS_TOKEN"])
+GH_INTERFACE = pygithub.Github(os.environ.get("ADABOT_GITHUB_ACCESS_TOKEN"))
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -176,6 +176,13 @@ STD_REPO_LABELS = {
     "good first issue": {"color": "7057ff"},
 }
 
+TOKEN_FUNCTIONS = []
+
+def uses_token(func):
+    """Decorator for recording functions that use tokens"""
+    TOKEN_FUNCTIONS.append(func.__name__)
+    return func
+
 
 class LibraryValidator:
     """Class to hold instance variables needed to traverse the calling
@@ -296,7 +303,7 @@ class LibraryValidator:
         since the last release. Only files that drive user-facing changes
         will be considered when flagging a repo as needing a release.
 
-        If 2), categorize by length of time passed since oldest commit after the release,
+        If 2), categorize by length of ti#me passed since oldest commit after the release,
         and return the number of days that have passed since the oldest commit.
         """
 
@@ -802,6 +809,7 @@ class LibraryValidator:
 
         return errors
 
+    @uses_token
     def validate_readthedocs(self, repo):
         """Method to check the status of `repo`'s ReadTheDocs."""
 
@@ -1137,6 +1145,7 @@ class LibraryValidator:
 
         return errors
 
+    @uses_token
     def validate_actions_state(self, repo):
         """Validate if the most recent GitHub Actions run on the default branch
         has passed.
