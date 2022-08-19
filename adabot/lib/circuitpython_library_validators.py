@@ -834,12 +834,21 @@ class LibraryValidator:
             errors.append(ERROR_RTD_ADABOT_MISSING)
 
         # Get the README file contents
-        try:
-            lib_repo = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
-        except pygithub.GithubException:
-            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
-            return errors
-        content_file = lib_repo.get_contents("README.rst")
+        while True:
+            try:
+                lib_repo = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
+                content_file = lib_repo.get_contents("README.rst")
+                break
+            except pygithub.RateLimitExceededException:
+                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
+                sleep_time = core_rate_limit_reset - datetime.datetime.now()
+                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
+                time.sleep(sleep_time.seconds)
+                continue
+            except pygithub.GithubException:
+                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
+                return errors
+                
         readme_text = content_file.decoded_content.decode("utf-8")
 
         # Parse for the ReadTheDocs slug
