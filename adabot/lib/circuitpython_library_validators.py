@@ -848,7 +848,7 @@ class LibraryValidator:
             except pygithub.GithubException:
                 errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
                 return errors
-                
+
         readme_text = content_file.decoded_content.decode("utf-8")
 
         # Parse for the ReadTheDocs slug
@@ -868,10 +868,15 @@ class LibraryValidator:
 
             error_message = json_response.get("detail")
             if error_message:
-                if error_message == "Not found." or not error_message.startswith("Request was throttled."):
+                if error_message == "Not found." or not error_message.startswith(
+                    "Request was throttled."
+                ):
                     errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
                     return errors
-                time_result = parse.search("Request was throttled. Expected available in {throttled:d} seconds.", error_message)
+                time_result = parse.search(
+                    "Request was throttled. Expected available in {throttled:d} seconds.",
+                    error_message,
+                )
                 time.sleep(time_result.named["throttled"] + 3)
                 continue
             break
