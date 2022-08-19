@@ -176,11 +176,11 @@ STD_REPO_LABELS = {
     "good first issue": {"color": "7057ff"},
 }
 
-TOKEN_FUNCTIONS = []
+_TOKEN_FUNCTIONS = []
 
 def uses_token(func):
     """Decorator for recording functions that use tokens"""
-    TOKEN_FUNCTIONS.append(func.__name__)
+    _TOKEN_FUNCTIONS.append(func.__name__)
     return func
 
 
@@ -227,6 +227,12 @@ class LibraryValidator:
                 self._rtd_yaml_base = ""
 
         return self._rtd_yaml_base
+
+    @staticmethod
+    def get_token_methods():
+        """Return a list of method names that require authentication"""
+
+        return _TOKEN_FUNCTIONS
 
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
