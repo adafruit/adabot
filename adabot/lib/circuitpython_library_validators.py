@@ -178,6 +178,7 @@ STD_REPO_LABELS = {
 
 _TOKEN_FUNCTIONS = []
 
+
 def uses_token(func):
     """Decorator for recording functions that use tokens"""
     _TOKEN_FUNCTIONS.append(func.__name__)
