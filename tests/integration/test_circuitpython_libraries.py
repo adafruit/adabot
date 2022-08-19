@@ -28,7 +28,7 @@ def test_circuitpython_libraries(monkeypatch, pytestconfig):
     # Delete specific tests that require repository secrets
     # They can't be tested via, so let's remove them and test the others
     if not pytestconfig.getoption("--use-tokens"):
-        vals = [validator for validator in circuitpython_libraries.default_validators if validator not in circuitpython_library_validators.TOKEN_FUNCTIONS]
+        vals = [validator[0] for validator in circuitpython_libraries.default_validators if validator not in circuitpython_library_validators.TOKEN_FUNCTIONS]
         vals_str = ",".join(vals)
     else:
         vals_str = "all"
@@ -43,7 +43,7 @@ def test_circuitpython_libraries_output_file(monkeypatch, pytestconfig, tmp_path
     # Delete specific tests that require repository secrets
     # They can't be tested via, so let's remove them and test the others
     if not pytestconfig.getoption("--use-tokens"):
-        vals = [validator for validator in circuitpython_libraries.default_validators if validator not in circuitpython_library_validators.TOKEN_FUNCTIONS]
+        vals = [validator[0] for validator in circuitpython_libraries.default_validators if validator not in circuitpython_library_validators.TOKEN_FUNCTIONS]
         vals_str = ",".join(vals)
     else:
         vals_str = "all"
