@@ -47,6 +47,8 @@ def test_circuitpython_libraries_output_file(
 ):
     """Test main funciton of 'circuitpython_libraries.py', with writing an output file."""
 
+    monkeypatch.setattr(common_funcs, "list_repos", mock_list_repos)
+
     # Delete specific tests that require repository secrets
     # They can't be tested via, so let's remove them and test the others
     if not pytestconfig.getoption("--use-tokens"):
