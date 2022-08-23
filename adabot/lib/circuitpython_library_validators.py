@@ -849,12 +849,21 @@ class LibraryValidator:
             errors.append(ERROR_RTD_ADABOT_MISSING)
 
         # Get the README file contents
-        try:
-            lib_repo = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
-        except pygithub.GithubException:
-            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
-            return errors
-        content_file = lib_repo.get_contents("README.rst")
+        while True:
+            try:
+                lib_repo = GH_INTERFACE.get_repo("Adafruit/" + repo["full_name"])
+                content_file = lib_repo.get_contents("README.rst")
+                break
+            except pygithub.RateLimitExceededException:
+                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
+                sleep_time = core_rate_limit_reset - datetime.datetime.now()
+                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
+                time.sleep(sleep_time.seconds)
+                continue
+            except pygithub.GithubException:
+                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
+                return errors
+
         readme_text = content_file.decoded_content.decode("utf-8")
 
         # Parse for the ReadTheDocs slug
@@ -864,12 +873,28 @@ class LibraryValidator:
         rtd_slug: str = search_results.named["slug"]
         rtd_slug = rtd_slug.replace("_", "-", -1)
 
-        # GET the latest documentation build runs
-        url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
-        rtd_token = os.environ["RTD_TOKEN"]
-        headers = {"Authorization": f"token {rtd_token}"}
-        response = requests.get(url, headers=headers)
-        json_response = response.json()
+        while True:
+            # GET the latest documentation build runs
+            url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
+            rtd_token = os.environ["RTD_TOKEN"]
+            headers = {"Authorization": f"token {rtd_token}"}
+            response = requests.get(url, headers=headers)
+            json_response = response.json()
+
+            error_message = json_response.get("detail")
+            if error_message:
+                if error_message == "Not found." or not error_message.startswith(
+                    "Request was throttled."
+                ):
+                    errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
+                    return errors
+                time_result = parse.search(
+                    "Request was throttled. Expected available in {throttled:d} seconds.",
+                    error_message,
+                )
+                time.sleep(time_result.named["throttled"] + 3)
+                continue
+            break
 
         # Return the results of the latest run
         doc_build_results = json_response.get("results")
