@@ -96,7 +96,10 @@ ERROR_WIKI_DISABLED = "Wiki should be disabled"
 ERROR_ONLY_ALLOW_MERGES = "Only allow merges, disallow rebase and squash"
 ERROR_RTD_SUBPROJECT_MISSING = "ReadTheDocs missing as a subproject on CircuitPython"
 ERROR_RTD_ADABOT_MISSING = "ReadTheDocs project missing adabot as owner"
-ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS = "Failed to load RTD build status"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS = "Failed to load RTD build status (General error)"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED = "Failed to load RTD build status (GitHub error)"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_NONLIMITED = "Failed to load RTD build status (RTD error)"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_UNEXPECTED_RETURN = "Failed to load RTD build status (Unknown error)"
 ERROR_RTD_SUBPROJECT_FAILED = "Failed to list CircuitPython subprojects on ReadTheDocs"
 ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or errors"
 ERROR_GITHUB_NO_RELEASE = "Library repository has no releases"
@@ -861,7 +864,7 @@ class LibraryValidator:
                 time.sleep(sleep_time.seconds)
                 continue
             except pygithub.GithubException:
-                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
+                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED)
                 return errors
 
         readme_text = content_file.decoded_content.decode("utf-8")
@@ -886,7 +889,7 @@ class LibraryValidator:
                 if error_message == "Not found." or not error_message.startswith(
                     "Request was throttled."
                 ):
-                    errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
+                    errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_NONLIMITED)
                     return errors
                 time_result = parse.search(
                     "Request was throttled. Expected available in {throttled:d} seconds.",
@@ -899,7 +902,7 @@ class LibraryValidator:
         # Return the results of the latest run
         doc_build_results = json_response.get("results")
         if doc_build_results is None:
-            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS)
+            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_UNEXPECTED_RETURN)
             return errors
         result = doc_build_results[0].get("success")
         time.sleep(3)
