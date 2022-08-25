@@ -1,0 +1,58 @@
+From dba345c8bb9451011550f80ef8da208e14d51817 Mon Sep 17 00:00:00 2001
+From: Alec Delaney <tekktik@gmail.com>
+Date: Wed, 24 Aug 2022 21:18:52 -0400
+Subject: [PATCH] Upgrade to actions/checkout@v3
+
+---
+ .github/workflows/build.yml   | 4 ++--
+ .github/workflows/release.yml | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index cb2f60e..f615bf7 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -30,11 +30,11 @@ jobs:
+       run: |
+         python3 --version
+     - name: Checkout Current Repo
+-      uses: actions/checkout@v1
++      uses: actions/checkout@v3
+       with:
+         submodules: true
+     - name: Checkout tools repo
+-      uses: actions/checkout@v2
++      uses: actions/checkout@v3
+       with:
+         repository: adafruit/actions-ci-circuitpython-libs
+         path: actions-ci
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index f3a0325..7f960bf 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -32,11 +32,11 @@ jobs:
+       run: |
+         python3 --version
+     - name: Checkout Current Repo
+-      uses: actions/checkout@v1
++      uses: actions/checkout@v3
+       with:
+         submodules: true
+     - name: Checkout tools repo
+-      uses: actions/checkout@v2
++      uses: actions/checkout@v3
+       with:
+         repository: adafruit/actions-ci-circuitpython-libs
+         path: actions-ci
+@@ -60,7 +60,7 @@ jobs:
+   upload-pypi:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v1
++    - uses: actions/checkout@v3
+     - name: Check For pyproject.toml
+       id: need-pypi
+       run: |
+-- 
+2.37.2
+
