@@ -702,8 +702,7 @@ class LibraryValidator:
         if "pyproject.toml" in files:
             file_info = content_list[files.index("pyproject.toml")]
             errors.extend(self._validate_pyproject_toml(file_info))
-
-        if "pyproject.toml.disabled" in files:
+        else:
             errors.append(ERROR_MISSING_PYPROJECT_TOML)
 
         if "setup.py" in files:
