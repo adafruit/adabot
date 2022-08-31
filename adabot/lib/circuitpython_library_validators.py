@@ -81,6 +81,7 @@ ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yaml"
 ERROR_MISSING_PYPROJECT_TOML = "For PyPI compatibility, missing pyproject.toml"
 ERROR_MISSING_PRE_COMMIT_CONFIG = "Missing .pre-commit-config.yaml"
 ERROR_MISSING_REQUIREMENTS_TXT = "For PyPI compatibility, missing requirements.txt"
+ERROR_SETUP_PY_EXISTS = "Library uses setup.py, needs to be converted to pyproject.toml"
 ERROR_MISSING_OPTIONAL_REQUIREMENTS_TXT = (
     "For PyPI compatibility, missing optional_requirements.txt"
 )
@@ -704,6 +705,9 @@ class LibraryValidator:
 
         if "pyproject.toml.disabled" in files:
             errors.append(ERROR_MISSING_PYPROJECT_TOML)
+
+        if "setup.py" in files:
+            errors.append(ERROR_SETUP_PY_EXISTS)
 
         if repo["name"] not in self.has_pyproject_toml_disabled:
             if "requirements.txt" in files:
