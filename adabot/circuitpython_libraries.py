@@ -203,7 +203,7 @@ def run_library_checks(validators, kw_args, error_depth):
     ]
     logger.info(
         "  * %s issues not assigned a milestone",
-        len(no_milsestone_issues),
+        len(no_milestone_issues),
     )
     logger.info("")
 
