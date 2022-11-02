@@ -177,6 +177,13 @@ def run_library_checks(validators, kw_args, error_depth):
     logger.info("")
     logger.info("State of CircuitPython + Libraries + Blinka")
 
+    logger.info("")
+    logger.info("**This report contains information from the previous seven days.**")
+    logger.info(
+        "**Any changes (PRs merged, etc.) made today are not included in this report.**"
+    )
+    logger.info("")
+
     logger.info("### Overall")
     print_pr_overview(lib_insights, core_insights, blinka_insights)
     print_issue_overview(lib_insights, core_insights, blinka_insights)
