@@ -15,3 +15,5 @@ parse==1.19.0
 GitPython==3.1.27
 PyGithub==1.55
 typing-extensions~=4.0
+google-auth~=2.13
+google-cloud-bigquery~=3.3
