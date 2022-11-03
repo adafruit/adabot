@@ -512,9 +512,6 @@ if __name__ == "__main__":
         try:
             fetch_bundle(cp_bundle, bundle_dir)
             updates_needed = update_bundle(bundle_dir)
-            import sys
-
-            sys.exit()
             if updates_needed:
                 commit_updates(bundle_dir, updates_needed)
                 push_updates(bundle_dir)
