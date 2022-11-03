@@ -64,6 +64,9 @@ def update_download_stats(bundle_path):
     if not "Adafruit_CircuitPython_Bundle" in bundle_path:
         return
 
+    with open(os.path.join(bundle_path, "circuitpython_library_list.md")) as md_file:
+        lib_list_full = md_file.read()
+
     submodules_list = common_funcs.get_bundle_submodules()
     lib_list_header = [
         "# Adafruit CircuitPython Library Download Stats",
@@ -71,27 +74,39 @@ def update_download_stats(bundle_path):
             "![Blinka With Tux](https://cdn-learn.adafruit.com/assets/assets/000/089/982/"
             "medium640/raspberry_pi_main_image.jpg)  "
         ),
-        "Here is a listing of current Adafruit CircuitPython libraries download statistics.  ",
-        f"There are {len(submodules_list)} libraries available.\n",
+        "### Here is a listing of current Adafruit CircuitPython libraries download statistics.",
+        f"**There are {len(submodules_list)} libraries available.**\n",
         "",
     ]
 
-    submodules_list = common_funcs.get_bundle_submodules()
     submodules_stats = dl_stats.retrieve_pypi_stats(submodules_list)
-    stats_lines = ["| PyPI Package | Downloads in the Last 7 Days |", "| --- | --- |"]
+    stats_lines = [
+        "| Library (PyPI Package) | Downloads in the Last 7 Days |",
+        "| --- | --- |",
+    ]
     total_downloads = 0
     blinka_downloads = 0
     for download_stat in submodules_stats:
         if download_stat.name == "adafruit-blinka":
             blinka_downloads = download_stat.num_downloads
             continue
+        repo_name_comps = download_stat.name.split("-")
+        searchable_repo_name = " ".join(repo_name_comps)
+        try:
+            start_index = lib_list_full.lower().index(searchable_repo_name)
+        except ValueError:
+            continue
+        printable_repo_name = lib_list_full[
+            start_index : start_index + len(searchable_repo_name)
+        ]
         stats_lines.append(
-            f"| {download_stat.name} | {download_stat.num_downloads} downloads |"
+            f"| {printable_repo_name} ({download_stat.name}) | "
+            f"{download_stat.num_downloads} downloads |"
         )
         total_downloads += download_stat.num_downloads
 
-    lib_list_header.append(f"Total Blinka downloads: {blinka_downloads}  ")
-    lib_list_header.append(f"Total PyPI library downloads: {total_downloads}")
+    lib_list_header.append(f"**Total Blinka downloads: {blinka_downloads}**")
+    lib_list_header.append(f"**Total PyPI library downloads: {total_downloads}**")
     lib_list_header.append("")
 
     with open(
@@ -101,8 +116,6 @@ def update_download_stats(bundle_path):
         md_file.write("\n")
         for line in stats_lines:
             md_file.write(line + "\n")
-
-    return
 
 
 # pylint: disable=too-many-locals

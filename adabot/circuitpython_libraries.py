@@ -240,15 +240,15 @@ def run_library_checks(validators, kw_args, error_depth):
         line = line.strip()
         if not line:
             continue
-        if line.startswith("Total PyPI library downloads:"):
-            total_library_pypi_stats = int(line[30:])
+        if line.startswith("**Total Blinka downloads:"):
+            blinka_pypi_downloads = int(line[26:-2])
             continue
-        if line.startswith("Total Blinka downloads:"):
-            blinka_pypi_downloads = int(line[24:])
+        if line.startswith("**Total PyPI library downloads:"):
+            total_library_pypi_stats = int(line[32:-2])
             continue
         if line.startswith("|"):
-            parts = [part.strip() for part in line.split("|")]
-            if parts[0] in ("PyPI Package", "---"):
+            parts = [part.strip() for part in line.split("|") if part.strip()]
+            if parts[0] in ("Library (PyPI Package)", "---"):
                 continue
             lib_stats[parts[0]] = int(parts[1][:-10])
 
