@@ -231,17 +231,16 @@ def run_library_checks(validators, kw_args, error_depth):
         library_pypi_names = [
             repo["name"].replace("_", "-").lower() for repo in common_funcs.list_repos()
         ]
+        library_pypi_stats = []
+        blinka_pypi_stats = None
         total_library_pypi_stats = 0
-        library_pypi_stats = [
-            stat for stat in pypi_stats if stat.name in library_pypi_names
-        ]
-        top_library_pypi_stats = library_pypi_stats[:10]
-        total_library_pypi_stats = 0
-        for stat in library_pypi_stats:
+        for stat in pypi_stats:
+            if stat.name == "adafruit-blinka":
+                blinka_pypi_stats = stat
+            if stat.name in library_pypi_names:
+                library_pypi_stats.append(stat)
             total_library_pypi_stats += stat.num_downloads
-        blinka_pypi_stats = [
-            stat for stat in pypi_stats if stat.name == "adafruit-blinka"
-        ][0]
+        top_library_pypi_stats = library_pypi_stats[:10]
     else:
         pypi_stats = None
 
