@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import sys
+import time
 import traceback
 
 import github as pygithub
@@ -230,27 +231,42 @@ def run_library_checks(validators, kw_args, error_depth):
     logger.info("")
 
     # Get PyPI stats
-    ada_bundle = GH_INTERFACE.get_repo("adafruit/Adafruit_CircuitPython_Bundle")
-    file_contents = ada_bundle.get_contents("circuitpython_library_pypi_stats.md")
-    stats_contents = file_contents.decoded_content.decode("utf-8").split("\n")
-    lib_stats = {}
-    total_library_pypi_stats = 0
-    blinka_pypi_downloads = 0
-    for line in stats_contents:
-        line = line.strip()
-        if not line:
+    have_secrets = False
+    while True:
+        try:
+            ada_bundle = GH_INTERFACE.get_repo("adafruit/Adafruit_CircuitPython_Bundle")
+            file_contents = ada_bundle.get_contents(
+                "circuitpython_library_pypi_stats.md"
+            )
+            stats_contents = file_contents.decoded_content.decode("utf-8").split("\n")
+            lib_stats = {}
+            total_library_pypi_stats = 0
+            blinka_pypi_downloads = 0
+            for line in stats_contents:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("**Total Blinka downloads:"):
+                    blinka_pypi_downloads = int(line[26:-2])
+                    continue
+                if line.startswith("**Total PyPI library downloads:"):
+                    total_library_pypi_stats = int(line[32:-2])
+                    continue
+                if line.startswith("|"):
+                    parts = [part.strip() for part in line.split("|") if part.strip()]
+                    if parts[0] in ("Library (PyPI Package)", "---"):
+                        continue
+                    lib_stats[parts[0]] = int(parts[1][:-10])
+            have_secrets = True
+            break
+        except pygithub.RateLimitExceededException:
+            core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
+            sleep_time = core_rate_limit_reset - datetime.datetime.now()
+            logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
+            time.sleep(sleep_time.seconds)
             continue
-        if line.startswith("**Total Blinka downloads:"):
-            blinka_pypi_downloads = int(line[26:-2])
-            continue
-        if line.startswith("**Total PyPI library downloads:"):
-            total_library_pypi_stats = int(line[32:-2])
-            continue
-        if line.startswith("|"):
-            parts = [part.strip() for part in line.split("|") if part.strip()]
-            if parts[0] in ("Library (PyPI Package)", "---"):
-                continue
-            lib_stats[parts[0]] = int(parts[1][:-10])
+        except pygithub.GithubException:
+            break
 
     logger.info("### Libraries")
     print_pr_overview(lib_insights)
@@ -286,21 +302,27 @@ def run_library_checks(validators, kw_args, error_depth):
     logger.info("")
     logger.info("#### Library PyPI Weekly Download Stats")
     # if pypi_stats:
-    logger.info("* **Total Library Stats**")
-    logger.info(
-        "  * %d PyPI downloads over %d libraries",
-        total_library_pypi_stats,
-        len(lib_stats),
-    )
-    logger.info("* **Top 10 Libraries by PyPI Downloads**")
-    for index, (lib_stat_name, lib_stat_dl) in lib_stats.items():
-        if index == 10:
-            break
+    if have_secrets:
+        logger.info("* **Total Library Stats**")
         logger.info(
-            "  * %s: %d",
-            lib_stat_name,
-            lib_stat_dl,
+            "  * %d PyPI downloads over %d libraries",
+            total_library_pypi_stats,
+            len(lib_stats),
         )
+        logger.info("* **Top 10 Libraries by PyPI Downloads**")
+        for index, (lib_stat_name, lib_stat_dl) in lib_stats.items():
+            if index == 10:
+                break
+            logger.info(
+                "  * %s: %d",
+                lib_stat_name,
+                lib_stat_dl,
+            )
+    else:
+        logger.info(
+            "Secrets unavailable, cannot report PyPI download stats for libraries"
+        )
+        logger.info("*This is normal for CI runs from PRs*")
 
     logger.info("")
     logger.info("#### Library updates in the last seven days:")
@@ -355,10 +377,14 @@ def run_library_checks(validators, kw_args, error_depth):
         .get("adafruit-blinka", {})
         .get("month", "N/A")
     )
-    logger.info(
-        "* PyPI downloads in the last week: %d",
-        blinka_pypi_downloads,
-    )
+    if have_secrets:
+        logger.info(
+            "* PyPI downloads in the last week: %d",
+            blinka_pypi_downloads,
+        )
+    else:
+        logger.info("Secrets unavailable, cannot report PyPI download stats for Blinka")
+        logger.info("*This is normal for CI runs from PRs*")
     logger.info("* Piwheels Downloads in the last month: %s", blinka_dl)
     logger.info("Number of supported boards: %s", blinka_funcs.board_count())
 
