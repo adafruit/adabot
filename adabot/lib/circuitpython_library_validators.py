@@ -1217,7 +1217,7 @@ class LibraryValidator:
                 except pygithub.GithubException:  # This can probably be tightened later
                     # No workflows or runs yet
                     return []
-                if not workflow_runs[0].conclusion:
+                if workflow_runs[0].conclusion != "success":
                     return [ERROR_CI_BUILD]
                 return []
             except pygithub.RateLimitExceededException:
