@@ -134,7 +134,6 @@ ERROR_DRIVERS_PAGE_DOWNLOAD_MISSING_DRIVER = "CircuitPython drivers page missing
 ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
-ERROR_PYLINT_FAILED_LINTING = "Failed PyLint checks"
 ERROR_BLACK_VERSION = "Missing or incorrect Black version in .pre-commit-config.yaml"
 ERROR_REUSE_VERSION = "Missing or incorrect REUSE version in .pre-commit-config.yaml"
 ERROR_PRE_COMMIT_VERSION = (
@@ -252,8 +251,8 @@ class LibraryValidator:
         if not self._pcc_versions:
             pcc_yml_dl_url = (
                 "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
-                "circuitpython/main/%7B%7B%20cookiecutter%20and%20'tmp_repo'%20%7D"
-                "%7D/.pre-commit-config.yaml"
+                "circuitpython/main/%7B%7B%20cookiecutter.__dirname%20%7D%7D/.pre-"
+                "commit-config.yaml"
             )
             pcc_yml = requests.get(pcc_yml_dl_url)
             if pcc_yml.ok:
