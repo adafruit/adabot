@@ -557,7 +557,7 @@ class LibraryValidator:
             errors.append(ERROR_PRE_COMMIT_VERSION)
 
         pylint_repo = "repo: https://github.com/pycqa/pylint"
-        pylint_version = "rev: v2.11.1"
+        pylint_version = "rev: v2.15.5"
 
         if pylint_repo not in text or pylint_version not in text:
             errors.append(ERROR_PYLINT_VERSION)
