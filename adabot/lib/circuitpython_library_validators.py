@@ -8,40 +8,24 @@
 errors, across the entire CirtuitPython library ecosystem."""
 
 import datetime
-from io import StringIO
-import json
+import os
 import logging
-import pathlib
 import re
-from tempfile import TemporaryDirectory
+import time
 
 from packaging.version import parse as pkg_version_parse
 
-from pylint import lint
-from pylint.reporters import JSONReporter
-
 import requests
 
-import sh
-from sh.contrib import git
-
 import yaml
+import parse
 
-from adabot import github_requests as github
+import github as pygithub
+from adabot import github_requests as gh_reqs
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
-
-class CapturedJsonReporter(JSONReporter):
-    """Helper class to stringify PyLint JSON reports."""
-
-    def __init__(self):
-        self._stringio = StringIO()
-        super().__init__(self._stringio)
-
-    def get_result(self):
-        """The current value."""
-        return self._stringio.getvalue()
+GH_INTERFACE = pygithub.Github(os.environ.get("ADABOT_GITHUB_ACCESS_TOKEN"))
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -55,6 +39,7 @@ ERROR_README_MISSING_CI_ACTIONS_BADGE = (
     "README CI badge needs to be changed to GitHub Actions"
 )
 ERROR_PYFILE_DOWNLOAD_FAILED = "Failed to download .py code file"
+ERROR_TOMLFILE_DOWNLOAD_FAILED = "Failed to download .toml file"
 ERROR_PYFILE_MISSING_STRUCT = (
     ".py file contains reference to import ustruct"
     " without reference to import struct.  See issue "
@@ -94,9 +79,13 @@ ERROR_MISSING_LINT = "Missing lint config"
 ERROR_MISSING_CODE_OF_CONDUCT = "Missing CODE_OF_CONDUCT.md"
 ERROR_MISSING_README_RST = "Missing README.rst"
 ERROR_MISSING_READTHEDOCS = "Missing readthedocs.yaml"
-ERROR_MISSING_SETUP_PY = "For pypi compatibility, missing setup.py"
+ERROR_MISSING_PYPROJECT_TOML = "For PyPI compatibility, missing pyproject.toml"
 ERROR_MISSING_PRE_COMMIT_CONFIG = "Missing .pre-commit-config.yaml"
-ERROR_MISSING_REQUIREMENTS_TXT = "For pypi compatibility, missing requirements.txt"
+ERROR_MISSING_REQUIREMENTS_TXT = "For PyPI compatibility, missing requirements.txt"
+ERROR_SETUP_PY_EXISTS = "Library uses setup.py, needs to be converted to pyproject.toml"
+ERROR_MISSING_OPTIONAL_REQUIREMENTS_TXT = (
+    "For PyPI compatibility, missing optional_requirements.txt"
+)
 ERROR_MISSING_BLINKA = (
     "For pypi compatibility, missing Adafruit-Blinka in requirements.txt"
 )
@@ -107,18 +96,22 @@ ERROR_UNABLE_PULL_REPO_DETAILS = "Unable to pull repo details"
 ERRRO_UNABLE_PULL_REPO_EXAMPLES = "Unable to retrieve examples folder contents"
 ERROR_WIKI_DISABLED = "Wiki should be disabled"
 ERROR_ONLY_ALLOW_MERGES = "Only allow merges, disallow rebase and squash"
-ERROR_RTD_SUBPROJECT_FAILED = "Failed to list CircuitPython subprojects on ReadTheDocs"
 ERROR_RTD_SUBPROJECT_MISSING = "ReadTheDocs missing as a subproject on CircuitPython"
 ERROR_RTD_ADABOT_MISSING = "ReadTheDocs project missing adabot as owner"
-ERROR_RTD_VALID_VERSIONS_FAILED = "Failed to fetch ReadTheDocs valid versions"
-ERROR_RTD_FAILED_TO_LOAD_BUILDS = "Unable to load builds webpage"
-ERROR_RTD_FAILED_TO_LOAD_BUILD_INFO = "Failed to load build info"
-ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or errors"
-ERROR_RTD_AUTODOC_FAILED = (
-    "Autodoc failed on ReadTheDocs. (Likely need to automock an import.)"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS = (
+    "Failed to load RTD build status (General error)"
 )
-ERROR_RTD_SPHINX_FAILED = "Sphinx missing files"
-ERROR_GITHUB_RELEASE_FAILED = "Failed to fetch latest release from GitHub"
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED = (
+    "Failed to load RTD build status (GitHub error)"
+)
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_NONLIMITED = (
+    "Failed to load RTD build status (RTD error)"
+)
+ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_UNEXPECTED_RETURN = (
+    "Failed to load RTD build status (Unknown error)"
+)
+ERROR_RTD_SUBPROJECT_FAILED = "Failed to list CircuitPython subprojects on ReadTheDocs"
+ERROR_RTD_OUTPUT_HAS_WARNINGS = "ReadTheDocs latest build has warnings and/or errors"
 ERROR_GITHUB_NO_RELEASE = "Library repository has no releases"
 ERROR_GITHUB_COMMITS_SINCE_LAST_RELEASE_GTM = (
     "Library has new commits since last release over a month ago"
@@ -142,6 +135,13 @@ ERROR_UNABLE_PULL_REPO_DIR = "Unable to pull repository directory"
 ERROR_UNABLE_PULL_REPO_EXAMPLES = "Unable to pull repository examples files"
 ERROR_NOT_ON_PYPI = "Not listed on PyPi for CPython use"
 ERROR_PYLINT_FAILED_LINTING = "Failed PyLint checks"
+ERROR_BLACK_VERSION = "Missing or incorrect Black version in .pre-commit-config.yaml"
+ERROR_REUSE_VERSION = "Missing or incorrect REUSE version in .pre-commit-config.yaml"
+ERROR_PRE_COMMIT_VERSION = (
+    "Missing or incorrect pre-commit version in .pre-commit-config.yaml"
+)
+ERROR_PYLINT_VERSION = "Missing or incorrect pylint version in .pre-commit-config.yaml"
+ERROR_CI_BUILD = "Failed CI build"
 ERROR_NEW_REPO_IN_WORK = "New repo(s) currently in work, and unreleased"
 
 # Temp category for GitHub Actions migration.
@@ -190,6 +190,14 @@ STD_REPO_LABELS = {
     "good first issue": {"color": "7057ff"},
 }
 
+_TOKEN_FUNCTIONS = []
+
+
+def uses_token(func):
+    """Decorator for recording functions that use tokens"""
+    _TOKEN_FUNCTIONS.append(func.__name__)
+    return func
+
 
 class LibraryValidator:
     """Class to hold instance variables needed to traverse the calling
@@ -206,7 +214,7 @@ class LibraryValidator:
         self._pcc_versions = {}
         self.output_file_data = []
         self.validate_contents_quiet = kw_args.get("validate_contents_quiet", False)
-        self.has_setup_py_disabled = set()
+        self.has_pyproject_toml_disabled = set()
         self.keep_repos = keep_repos
         self.rtd_subprojects = None
         self.core_driver_page = None
@@ -219,9 +227,9 @@ class LibraryValidator:
         if self._rtd_yaml_base is None:
             rtd_yml_dl_url = (
                 "https://raw.githubusercontent.com/adafruit/cookiecutter-adafruit-"
-                "circuitpython/main/%7B%7B%20cookiecutter%20and%20'tmp_repo'%20%7D"
-                "%7D/%7B%25%20if%20cookiecutter.sphinx_docs%20in%20%5B'y'%2C%20'yes'"
-                "%5D%20%25%7D.readthedocs.yaml%7B%25%20endif%20%25%7D"
+                "circuitpython/main/%7B%7B%20cookiecutter.__dirname%20%7D%7D/%7B%25"
+                "%20if%20cookiecutter.sphinx_docs%20in%20%5B'y'%2C%20'yes'%5D%20%25"
+                "%7D.readthedocs.yaml%7B%25%20endif%20%25%7D"
             )
             rtd_yml = requests.get(rtd_yml_dl_url)
             if rtd_yml.ok:
@@ -263,6 +271,12 @@ class LibraryValidator:
 
         return self._pcc_versions
 
+    @staticmethod
+    def get_token_methods():
+        """Return a list of method names that require authentication"""
+
+        return _TOKEN_FUNCTIONS
+
     def run_repo_validation(self, repo):
         """Run all the current validation functions on the provided repository and
         return their results as a list of string errors.
@@ -299,7 +313,7 @@ class LibraryValidator:
         if repo_missing_some_keys:
             # only call the API if the passed in `repo` doesn't have what
             # we need.
-            response = github.get("/repos/" + repo["full_name"])
+            response = gh_reqs.get("/repos/" + repo["full_name"])
             if not response.ok:
                 return [ERROR_UNABLE_PULL_REPO_DETAILS]
             repo_fields = response.json()
@@ -332,37 +346,13 @@ class LibraryValidator:
             errors.append(ERROR_ONLY_ALLOW_MERGES)
         return errors
 
-    def validate_actions_state(self, repo):
-        """Validate if the most recent GitHub Actions run on the default branch
-        has passed.
-        Just returns a message stating that the most recent run failed.
-        """
-        if not (
-            repo["owner"]["login"] == "adafruit"
-            and repo["name"].startswith("Adafruit_CircuitPython")
-        ):
-            return []
-
-        actions_params = {"branch": repo["default_branch"]}
-        response = github.get(
-            "/repos/" + repo["full_name"] + "/actions/runs", params=actions_params
-        )
-
-        if not response.ok:
-            return [ERROR_UNABLE_PULL_REPO_DETAILS]
-
-        workflow_runs = response.json()["workflow_runs"]
-        if workflow_runs and workflow_runs[0]["conclusion"] == "failure":
-            return [ERROR_GITHUB_FAILING_ACTIONS]
-        return []
-
     # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
     def validate_release_state(self, repo):
         """Validate if a repo 1) has a release, and 2) if there have been commits
         since the last release. Only files that drive user-facing changes
         will be considered when flagging a repo as needing a release.
 
-        If 2), categorize by length of time passed since oldest commit after the release,
+        If 2), categorize by length of ti#me passed since oldest commit after the release,
         and return the number of days that have passed since the oldest commit.
         """
 
@@ -372,7 +362,7 @@ class LibraryValidator:
                 "LICENSE",
                 "LICENSES/*",
                 "*.license",
-                "setup.py.disabled",
+                "pyproject.toml.disabled",
                 ".github/workflows/build.yml",
                 ".github/workflows/release.yml",
                 ".pre-commit-config.yaml",
@@ -395,7 +385,7 @@ class LibraryValidator:
         if repo["name"] in BUNDLE_IGNORE_LIST:
             return []
 
-        repo_last_release = github.get(
+        repo_last_release = gh_reqs.get(
             "/repos/" + repo["full_name"] + "/releases/latest"
         )
         if not repo_last_release.ok:
@@ -414,7 +404,7 @@ class LibraryValidator:
 
         tag_name = repo_release_json.get("tag_name", "")
         main_branch = repo["default_branch"]
-        compare_tags = github.get(
+        compare_tags = gh_reqs.get(
             f"/repos/{repo['full_name']}/compare/{tag_name}...{main_branch}"
         )
         if not compare_tags.ok:
@@ -568,18 +558,51 @@ class LibraryValidator:
 
         return errors
 
-    def _validate_setup_py(self, file_info):
-        """Check setup.py for pypi compatibility"""
+    def _validate_pre_commit_config_yaml(self, file_info):
         download_url = file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
+        text = contents.text
+
         errors = []
+
+        black_repo = "repo: https://github.com/python/black"
+        black_version = "rev: 22.3.0"
+
+        if black_repo not in text or black_version not in text:
+            errors.append(ERROR_BLACK_VERSION)
+
+        reuse_repo = "repo: https://github.com/fsfe/reuse-tool"
+        reuse_version = "rev: v0.14.0"
+
+        if reuse_repo not in text or reuse_version not in text:
+            errors.append(ERROR_REUSE_VERSION)
+
+        pc_repo = "repo: https://github.com/pre-commit/pre-commit-hooks"
+        pc_version = "rev: v4.2.0"
+
+        if pc_repo not in text or pc_version not in text:
+            errors.append(ERROR_PRE_COMMIT_VERSION)
+
+        pylint_repo = "repo: https://github.com/pycqa/pylint"
+        pylint_version = "rev: v2.11.1"
+
+        if pylint_repo not in text or pylint_version not in text:
+            errors.append(ERROR_PYLINT_VERSION)
 
         return errors
 
-    def _validate_requirements_txt(self, repo, file_info):
+    def _validate_pyproject_toml(self, file_info):
+        """Check pyproject.toml for pypi compatibility"""
+        download_url = file_info["download_url"]
+        contents = requests.get(download_url, timeout=30)
+        if not contents.ok:
+            return [ERROR_TOMLFILE_DOWNLOAD_FAILED]
+        return []
+
+    def _validate_requirements_txt(self, repo, file_info, check_blinka=True):
         """Check requirements.txt for pypi compatibility"""
         download_url = file_info["download_url"]
         contents = requests.get(download_url, timeout=30)
@@ -590,7 +613,11 @@ class LibraryValidator:
         lines = contents.text.split("\n")
         blinka_lines = [l for l in lines if re.match(r"[\s]*Adafruit-Blinka[\s]*", l)]
 
-        if not blinka_lines and repo["name"] not in LIBRARIES_DONT_NEED_BLINKA:
+        if (
+            not blinka_lines
+            and repo["name"] not in LIBRARIES_DONT_NEED_BLINKA
+            and check_blinka
+        ):
             errors.append(ERROR_MISSING_BLINKA)
         return errors
 
@@ -610,7 +637,7 @@ class LibraryValidator:
         if repo["name"] == BUNDLE_REPO_NAME:
             return []
 
-        content_list = github.get("/repos/" + repo["full_name"] + "/contents/")
+        content_list = gh_reqs.get("/repos/" + repo["full_name"] + "/contents/")
         empty_repo = False
         if not content_list.ok:
             # Empty repos return:
@@ -638,11 +665,11 @@ class LibraryValidator:
             if not self.validate_contents_quiet:
                 return [ERROR_NEW_REPO_IN_WORK]
 
-        if "setup.py.disabled" in files:
-            self.has_setup_py_disabled.add(repo["name"])
+        if "pyproject.toml.disabled" in files:
+            self.has_pyproject_toml_disabled.add(repo["name"])
 
         # if we're only running due to -v, ignore the rest. we only care about
-        # adding in-work repos to the BUNDLE_IGNORE_LIST and if setup.py is
+        # adding in-work repos to the BUNDLE_IGNORE_LIST and if pyproject.toml is
         # disabled
         if self.validate_contents_quiet:
             return []
@@ -678,7 +705,7 @@ class LibraryValidator:
 
             if build_yml_url:
                 build_yml_url = build_yml_url + "/workflows/build.yml"
-                response = github.get(build_yml_url)
+                response = gh_reqs.get(build_yml_url)
                 if response.ok:
                     actions_build_info = response.json()
 
@@ -730,18 +757,28 @@ class LibraryValidator:
         else:
             errors.append(ERROR_MISSING_PRE_COMMIT_CONFIG)
 
-        if "setup.py" in files:
-            file_info = content_list[files.index("setup.py")]
-            errors.extend(self._validate_setup_py(file_info))
-        elif "setup.py.disabled" not in files:
-            errors.append(ERROR_MISSING_SETUP_PY)
+        if "pyproject.toml" in files:
+            file_info = content_list[files.index("pyproject.toml")]
+            errors.extend(self._validate_pyproject_toml(file_info))
+        else:
+            errors.append(ERROR_MISSING_PYPROJECT_TOML)
 
-        if repo["name"] not in self.has_setup_py_disabled:
+        if "setup.py" in files:
+            errors.append(ERROR_SETUP_PY_EXISTS)
+
+        if repo["name"] not in self.has_pyproject_toml_disabled:
             if "requirements.txt" in files:
                 file_info = content_list[files.index("requirements.txt")]
                 errors.extend(self._validate_requirements_txt(repo, file_info))
             else:
                 errors.append(ERROR_MISSING_REQUIREMENTS_TXT)
+            if "optional_requirements.txt" in files:
+                file_info = content_list[files.index("optional_requirements.txt")]
+                errors.extend(
+                    self._validate_requirements_txt(repo, file_info, check_blinka=False)
+                )
+            else:
+                errors.append(ERROR_MISSING_OPTIONAL_REQUIREMENTS_TXT)
 
         # Check for an examples folder.
         dirs = [
@@ -754,7 +791,7 @@ class LibraryValidator:
             while dirs:
                 # loop through the results to ensure we capture files
                 # in subfolders, and add any files in the current directory
-                result = github.get(dirs.pop(0))
+                result = gh_reqs.get(dirs.pop(0))
                 if not result.ok:
                     errors.append(ERROR_UNABLE_PULL_REPO_EXAMPLES)
                     break
@@ -822,7 +859,7 @@ class LibraryValidator:
         for adir in dirs:
             if re_str.fullmatch(adir):
                 # retrieve the files in that directory
-                dir_file_list = github.get(
+                dir_file_list = gh_reqs.get(
                     "/repos/" + repo["full_name"] + "/contents/" + adir
                 )
                 if not dir_file_list.ok:
@@ -841,8 +878,10 @@ class LibraryValidator:
 
         return errors
 
+    @uses_token
     def validate_readthedocs(self, repo):
-        """Method to check the health of `repo`'s ReadTheDocs."""
+        """Method to check the status of `repo`'s ReadTheDocs."""
+
         if not (
             repo["owner"]["login"] == "adafruit"
             and repo["name"].startswith("Adafruit_CircuitPython")
@@ -861,7 +900,6 @@ class LibraryValidator:
                 self.rtd_subprojects[
                     common_funcs.sanitize_url(subproject["repo"])
                 ] = subproject
-
         repo_url = common_funcs.sanitize_url(repo["clone_url"])
         if repo_url not in self.rtd_subprojects:
             return [ERROR_RTD_SUBPROJECT_MISSING]
@@ -872,81 +910,63 @@ class LibraryValidator:
         if 105398 not in subproject["users"]:
             errors.append(ERROR_RTD_ADABOT_MISSING)
 
-        valid_versions = requests.get(
-            "https://readthedocs.org/api/v2/project/{}/active_versions/".format(
-                subproject["id"]
-            ),
-            timeout=15,
-        )
-        if not valid_versions.ok:
-            errors.append(ERROR_RTD_VALID_VERSIONS_FAILED)
-        else:
-            valid_versions = valid_versions.json()
-            latest_release = github.get(
-                "/repos/{}/releases/latest".format(repo["full_name"])
-            )
-            if not latest_release.ok:
-                errors.append(ERROR_GITHUB_RELEASE_FAILED)
-            # disabling this for now, since it is ignored and always fails
-            # else:
-            #    if (
-            #       latest_release.json()["tag_name"] not in
-            #       [tag["verbose_name"] for tag in valid_versions["versions"]]
-            #   ):
-            #        errors.append(ERROR_RTD_MISSING_LATEST_RELEASE)
+        # Get the README file contents
+        while True:
+            try:
+                lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
+                content_file = lib_repo.get_contents("README.rst")
+                break
+            except pygithub.RateLimitExceededException:
+                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
+                sleep_time = core_rate_limit_reset - datetime.datetime.now()
+                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
+                time.sleep(sleep_time.seconds)
+                continue
+            except pygithub.GithubException:
+                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED)
+                return errors
 
-        # There is no API which gives access to a list of builds for a project so we parse the html
-        # webpage.
-        builds_webpage = requests.get(
-            "https://readthedocs.org/projects/{}/builds/".format(subproject["slug"]),
-            timeout=15,
-        )
-        # pylint: disable=too-many-nested-blocks
-        # TODO: look into reducing the number of nested blocks.
-        if not builds_webpage.ok:
-            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILDS)
-        else:
-            for line in builds_webpage.text.split("\n"):
-                if '<div id="build-' in line:
-                    build_id = line.split('"')[1][len("build-") :]
-                # We only validate the most recent, latest build. So, break when the first "version
-                # latest" found. Its in the page after the build id.
-                if "version latest" in line:
-                    break
-            build_info = requests.get(
-                "https://readthedocs.org/api/v2/build/{}/".format(build_id), timeout=15
-            )
-            if not build_info.ok:
-                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_INFO)
-            else:
-                build_info = build_info.json()
-                output_ok = True
-                autodoc_ok = True
-                sphinx_ok = True
-                for command in build_info["commands"]:
-                    if command["command"].endswith("_build/html"):
-                        for line in command["output"].split("\n"):
-                            if "... " in line:
-                                _, line = line.split("... ")
-                            if "WARNING" in line or "ERROR" in line:
-                                if not line.startswith(("WARNING", "ERROR")):
-                                    line = line.split(" ", 1)[1]
-                                if not line.startswith(RTD_IGNORE_NOTICES):
-                                    output_ok = False
-                            elif line.startswith("ImportError"):
-                                autodoc_ok = False
-                            elif line.startswith("sphinx.errors") or line.startswith(
-                                "SphinxError"
-                            ):
-                                sphinx_ok = False
-                        break
-                if not output_ok:
-                    errors.append(ERROR_RTD_OUTPUT_HAS_WARNINGS)
-                if not autodoc_ok:
-                    errors.append(ERROR_RTD_AUTODOC_FAILED)
-                if not sphinx_ok:
-                    errors.append(ERROR_RTD_SPHINX_FAILED)
+        readme_text = content_file.decoded_content.decode("utf-8")
 
+        # Parse for the ReadTheDocs slug
+        search_results: parse.Result = parse.search(
+            "https://readthedocs.org/projects/{slug:S}/badge", readme_text
+        )
+        rtd_slug: str = search_results.named["slug"]
+        rtd_slug = rtd_slug.replace("_", "-", -1)
+
+        while True:
+            # GET the latest documentation build runs
+            url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
+            rtd_token = os.environ["RTD_TOKEN"]
+            headers = {"Authorization": f"token {rtd_token}"}
+            response = requests.get(url, headers=headers)
+            json_response = response.json()
+
+            error_message = json_response.get("detail")
+            if error_message:
+                if error_message == "Not found." or not error_message.startswith(
+                    "Request was throttled."
+                ):
+                    errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_NONLIMITED)
+                    return errors
+                time_result = parse.search(
+                    "Request was throttled. Expected available in {throttled:d} seconds.",
+                    error_message,
+                )
+                time.sleep(time_result.named["throttled"] + 3)
+                continue
+            break
+
+        # Return the results of the latest run
+        doc_build_results = json_response.get("results")
+        if doc_build_results is None:
+            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_RTD_UNEXPECTED_RETURN)
+            return errors
+        result = doc_build_results[0].get("success")
+        time.sleep(3)
+        if not result:
+            errors.append(ERROR_RTD_OUTPUT_HAS_WARNINGS)
         return errors
 
     def validate_core_driver_page(self, repo):
@@ -988,7 +1008,7 @@ class LibraryValidator:
     def github_get_all_pages(self, url, params):
         """Retrieves all paginated results from the GitHub `url`."""
         results = []
-        response = github.get(url, params=params)
+        response = gh_reqs.get(url, params=params)
 
         if not response.ok:
             self.output_file_data.append(f"Github request failed: {url}")
@@ -998,7 +1018,7 @@ class LibraryValidator:
             results.extend(response.json())
 
             if response.links.get("next"):
-                response = github.get(response.links["next"]["url"])
+                response = gh_reqs.get(response.links["next"]["url"])
             else:
                 break
 
@@ -1031,12 +1051,13 @@ class LibraryValidator:
                 issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
             )
             if "pull_request" in issue:
-                pr_info = github.get(issue["pull_request"]["url"])
+                pr_info = gh_reqs.get(issue["pull_request"]["url"])
                 pr_info = pr_info.json()
                 if issue["state"] == "open":
                     if created > since:
                         insights["new_prs"] += 1
-                        insights["pr_authors"].add(pr_info["user"]["login"])
+                        if pr_info["user"]:
+                            insights["pr_authors"].add(pr_info["user"]["login"])
                     insights["active_prs"] += 1
                 else:
                     merged = datetime.datetime.strptime(
@@ -1068,7 +1089,7 @@ class LibraryValidator:
 
                         pr_author = pr_info["user"]["login"]
                         if pr_author == "weblate":
-                            pr_commits = github.get(str(pr_info["url"]) + "/commits")
+                            pr_commits = gh_reqs.get(str(pr_info["url"]) + "/commits")
                             if pr_commits.ok:
                                 for commit in pr_commits.json():
                                     author = commit.get("author")
@@ -1080,27 +1101,32 @@ class LibraryValidator:
                             insights["pr_merged_authors"].add(pr_info["user"]["login"])
 
                         insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
-                        pr_reviews = github.get(str(pr_info["url"]) + "/reviews")
+                        pr_reviews = gh_reqs.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
                             for review in pr_reviews.json():
-                                if review["state"].lower() == "approved":
+                                if (
+                                    review["state"].lower() == "approved"
+                                    and review["user"]
+                                ):
                                     insights["pr_reviewers"].add(
                                         review["user"]["login"]
                                     )
                     else:
                         insights["closed_prs"] += 1
             else:
-                issue_info = github.get(issue["url"])
+                issue_info = gh_reqs.get(issue["url"])
                 issue_info = issue_info.json()
                 if issue["state"] == "open":
                     if created > since:
                         insights["new_issues"] += 1
-                        insights["issue_authors"].add(issue_info["user"]["login"])
+                        if issue_info["user"]:
+                            insights["issue_authors"].add(issue_info["user"]["login"])
                     insights["active_issues"] += 1
 
                 else:
                     insights["closed_issues"] += 1
-                    insights["issue_closers"].add(issue_info["closed_by"]["login"])
+                    if issue_info["closed_by"]:
+                        insights["issue_closers"].add(issue_info["closed_by"]["login"])
 
         params = {"state": "open", "per_page": 100}
         issues = self.github_get_all_pages(
@@ -1149,7 +1175,7 @@ class LibraryValidator:
         # get milestones for core repo
         if repo["name"] == "circuitpython":
             params = {"state": "open"}
-            response = github.get(
+            response = gh_reqs.get(
                 "/repos/adafruit/circuitpython/milestones", params=params
             )
             if not response.ok:
@@ -1165,7 +1191,7 @@ class LibraryValidator:
         """prints a list of Adafruit_CircuitPython libraries that are in pypi"""
         if (
             repo["name"] in BUNDLE_IGNORE_LIST
-            or repo["name"] in self.has_setup_py_disabled
+            or repo["name"] in self.has_pyproject_toml_disabled
         ):
             return []
         if not (
@@ -1179,7 +1205,7 @@ class LibraryValidator:
 
     def validate_labels(self, repo):
         """ensures the repo has the standard labels available"""
-        response = github.get("/repos/" + repo["full_name"] + "/labels")
+        response = gh_reqs.get("/repos/" + repo["full_name"] + "/labels")
         if not response.ok:
             # replace 'output_handler' with ERROR_OUTPUT_HANDLER
             self.output_file_data.append(
@@ -1194,7 +1220,7 @@ class LibraryValidator:
         has_all_labels = True
         for label, info in STD_REPO_LABELS.items():
             if not label in repo_labels:
-                response = github.post(
+                response = gh_reqs.post(
                     "/repos/" + repo["full_name"] + "/labels",
                     json={"name": label, "color": info["color"]},
                 )
@@ -1213,71 +1239,39 @@ class LibraryValidator:
 
         return errors
 
-    def validate_passes_linting(self, repo):
-        """Clones the repo and runs pylint on the Python files"""
+    @uses_token
+    def validate_actions_state(self, repo):
+        """Validate if the most recent GitHub Actions run on the default branch
+        has passed.
+        Just returns a message stating that the most recent run failed.
+        """
+
         if not repo["name"].startswith("Adafruit_CircuitPython"):
             return []
 
-        ignored_py_files = ["setup.py", "conf.py"]
-
-        desination_type = TemporaryDirectory
-        if self.keep_repos:
-            desination_type = pathlib.Path("repos").absolute
-
-        with desination_type() as tempdir:
-            repo_dir = pathlib.Path(tempdir) / repo["name"]
+        while True:
             try:
-                if not repo_dir.exists():
-                    git.clone("--depth=1", repo["clone_url"], repo_dir)
-            except sh.ErrorReturnCode as err:
-                self.output_file_data.append(
-                    f"Failed to clone repo for linting: {repo['full_name']}\n {err.stderr}"
-                )
-                return [ERROR_OUTPUT_HANDLER]
+                lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
 
-            if self.keep_repos and (repo_dir / ".pylint-ok").exists():
-                return []
+                if lib_repo.archived:
+                    return []
 
-            for file in repo_dir.rglob("*.py"):
-                if file.name in ignored_py_files or str(file.parent).endswith(
-                    "examples"
-                ):
-                    continue
-
-                pylint_args = [str(file)]
-                if (repo_dir / ".pylintrc").exists():
-                    pylint_args += [f"--rcfile={str(repo_dir / '.pylintrc')}"]
-
-                reporter = CapturedJsonReporter()
-
-                logging.debug("Running pylint on %s", file)
-
-                lint.Run(pylint_args, reporter=reporter, exit=False)
-                pylint_stderr = ""
-                pylint_stdout = reporter.get_result()
-
-                if pylint_stderr:
-                    self.output_file_data.append(
-                        f"PyLint error ({repo['name']}): '{pylint_stderr}'"
-                    )
-                    return [ERROR_OUTPUT_HANDLER]
+                arg_dict = {"branch": lib_repo.default_branch}
 
                 try:
-                    pylint_result = json.loads(pylint_stdout)
-                except json.JSONDecodeError as json_err:
-                    self.output_file_data.append(
-                        f"PyLint output JSONDecodeError: {json_err.msg}"
-                    )
-                    return [ERROR_OUTPUT_HANDLER]
-
-                if pylint_result:
-                    return [ERROR_PYLINT_FAILED_LINTING]
-
-            if self.keep_repos:
-                with open(repo_dir / ".pylint-ok", "w") as pylint_ok:
-                    pylint_ok.write("".join(pylint_result))
-
-        return []
+                    workflow = lib_repo.get_workflow("build.yml")
+                    workflow_runs = workflow.get_runs(**arg_dict)
+                except pygithub.GithubException:  # This can probably be tightened later
+                    # No workflows or runs yet
+                    return []
+                if not workflow_runs[0].conclusion:
+                    return [ERROR_CI_BUILD]
+                return []
+            except pygithub.RateLimitExceededException:
+                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
+                sleep_time = core_rate_limit_reset - datetime.datetime.now()
+                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
+                time.sleep(sleep_time.seconds)
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""
