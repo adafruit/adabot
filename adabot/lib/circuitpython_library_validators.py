@@ -991,9 +991,7 @@ class LibraryValidator:
 
         repo_short_name = repo["name"][len("Adafruit_CircuitPython_") :].lower()
         full_url = (
-            "https://circuitpython.readthedocs.io/projects/"
-            + repo_short_name
-            + "/en/latest/"
+            "https://docs.circuitpython.org/projects/" + repo_short_name + "/en/latest/"
         )
         full_url_dashes = full_url.replace("_", "-")
         if (
