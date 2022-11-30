@@ -249,7 +249,9 @@ def run_library_checks(validators, kw_args, error_depth):
                 if line.startswith("| Adafruit Blinka (adafruit-blinka) |"):
                     blinka_pypi_downloads = int(line[38:-2])
                     continue
-                if line.startswith("**Total PyPI library downloads in the last 7 days:"):
+                if line.startswith(
+                    "**Total PyPI library downloads in the last 7 days:"
+                ):
                     total_library_pypi_stats = int(line[51:-4])
                     continue
                 if line.startswith("|"):
