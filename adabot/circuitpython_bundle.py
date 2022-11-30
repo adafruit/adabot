@@ -105,17 +105,35 @@ def update_download_stats(bundle_path):
         )
         total_downloads += download_stat.num_downloads
 
-    lib_list_header.append(f"**Total Blinka downloads: {blinka_downloads}**")
-    lib_list_header.append(f"**Total PyPI library downloads: {total_downloads}**")
+    lib_list_header.append(f"**Total PyPI library downloads: {total_downloads}**  ")
     lib_list_header.append("")
 
     with open(
         os.path.join(bundle_path, "circuitpython_library_pypi_stats.md"), "w"
     ) as md_file:
+
+        # Write headers
         md_file.write("\n".join(lib_list_header))
         md_file.write("\n")
+
+        # Write library stats table
         for line in stats_lines:
             md_file.write(line + "\n")
+
+        # Write Blika intro text
+        md_file.write("\n")
+        md_file.write("## Blinka\n")
+        md_file.write("\n")
+        md_file.write(
+            "Blinka is our CircuitPython compatibility layer for MicroPython "
+            "and single board computers such as the Raspberry Pi.\n"
+        )
+
+        # Write Blinka stats table
+        md_file.write("\n")
+        md_file.write("| Blinka (PyPI Package) | Downloads in the Last 7 Days |\n")
+        md_file.write("| --- | --- |\n")
+        md_file.write(f"| Adafruit Blinka (adafruit-blinka) | {blinka_downloads} |\n")
 
 
 # pylint: disable=too-many-locals
