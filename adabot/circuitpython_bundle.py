@@ -71,8 +71,8 @@ def update_download_stats(bundle_path):
     lib_list_header = [
         "# Adafruit CircuitPython Library Download Stats",
         (
-            "![Blinka With Tux](https://cdn-learn.adafruit.com/assets/assets/000/089/982/"
-            "medium640/raspberry_pi_main_image.jpg)  "
+            "![Blinka With Tux](https://raw.githubusercontent.com/tekktrik/adabot/"
+            "dev/update-file-bundle/assets/BlinkaTux.jpg)  "
         ),
         "### Here is a listing of current Adafruit CircuitPython libraries download statistics.",
         f"**There are {len(submodules_list)} libraries available.**\n",
@@ -188,8 +188,8 @@ def check_lib_links_md(bundle_path):
     lib_list_header = [
         "# Adafruit CircuitPython Libraries",
         (
-            "![Blinka Reading](https://raw.githubusercontent.com/adafruit/circuitpython-weekly-"
-            "newsletter/gh-pages/assets/archives/22_1023blinka.png)  "
+            "![Blinka Reading](https://raw.githubusercontent.com/tekktrik/adabot/"
+            "dev/update-file-bundle/assets/BlinkaBook.png)  "
         ),
         "Here is a listing of current Adafruit CircuitPython Libraries.  ",
         f"There are {lib_count} libraries available.\n",
