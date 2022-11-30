@@ -105,7 +105,7 @@ def update_download_stats(bundle_path):
         )
         total_downloads += download_stat.num_downloads
 
-    lib_list_header.append(f"**Total PyPI library downloads: {total_downloads}**  ")
+    lib_list_header.append(f"**Total PyPI library downloads in the last 7 days: {total_downloads}**  ")
     lib_list_header.append("")
 
     with open(
