@@ -125,9 +125,9 @@ def update_download_stats(bundle_path):
         md_file.write("## Blinka\n")
         md_file.write("\n")
         md_file.write(
-            "Blinka is our CircuitPython compatibility layer for MicroPython "
-            "and single board computers such as the Raspberry Pi.\n"
+            "Blinka is our CircuitPython compatibility layer for MicroPython\n"
         )
+        md_file.write("and single board computers such as the Raspberry Pi.\n")
 
         # Write Blinka stats table
         md_file.write("\n")
