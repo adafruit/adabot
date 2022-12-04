@@ -317,7 +317,7 @@ def run_library_checks(validators, kw_args, error_depth):
             len(lib_stats),
         )
         logger.info("* **Top 10 Libraries by PyPI Downloads**")
-        for index, (lib_stat_name, lib_stat_dl) in lib_stats.items():
+        for index, (lib_stat_name, lib_stat_dl) in enumerate(lib_stats.items()):
             if index == 10:
                 break
             logger.info(
