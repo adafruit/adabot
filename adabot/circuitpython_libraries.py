@@ -242,6 +242,7 @@ def run_library_checks(validators, kw_args, error_depth):
             lib_stats = {}
             total_library_pypi_stats = 0
             blinka_pypi_downloads = 0
+            in_lib_stats = False
             for line in stats_contents:
                 line = line.strip()
                 if not line:
@@ -257,8 +258,12 @@ def run_library_checks(validators, kw_args, error_depth):
                 if line.startswith("|"):
                     parts = [part.strip() for part in line.split("|") if part.strip()]
                     if parts[0] in ("Library (PyPI Package)", "---"):
+                        in_lib_stats = True
                         continue
-                    lib_stats[parts[0]] = int(parts[1][:-10])
+                    if in_lib_stats:
+                        lib_stats[parts[0]] = int(parts[1][:-10])
+                else:
+                    in_lib_stats = False
             have_secrets = True
             break
         except pygithub.RateLimitExceededException:
