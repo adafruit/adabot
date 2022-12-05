@@ -253,7 +253,7 @@ def run_library_checks(validators, kw_args, error_depth):
                 if line.startswith(
                     "**Total PyPI library downloads in the last 7 days:"
                 ):
-                    total_library_pypi_stats = int(line[51:-4])
+                    total_library_pypi_stats = int(line[51:-2])
                     continue
                 if line.startswith("|"):
                     parts = [part.strip() for part in line.split("|") if part.strip()]
