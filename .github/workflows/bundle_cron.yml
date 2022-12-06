@@ -56,5 +56,7 @@ jobs:
         ADABOT_GITHUB_USER: ${{ secrets.ADABOT_GITHUB_USER }}
         ADABOT_GITHUB_ACCESS_TOKEN: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
         REDIS_PORT: ${{ job.services.redis.ports[6379] }}
+        BIGQUERY_PRIVATE_KEY: ${{ secrets.BIGQUERY_PRIVATE_KEY }}
+        BIGQUERY_CLIENT_EMAIL: ${{ secrets.BIGQUERY_CLIENT_EMAIL }}
       run: |
         python3 -u -m adabot.circuitpython_bundle
