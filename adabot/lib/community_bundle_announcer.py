@@ -56,16 +56,17 @@ def get_community_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
                         x.strip(",") for x in relevant_line.split(" ")[2:]
                     ]
                     for lib in lib_components:
-                        comps = parse.parse("[{name:S}]({link:S})", lib)
-                        link: str = parse.search("{repo:S}/releases", comps["link"])[
-                            "repo"
-                        ]
-                    update_set = (
-                        updated_libs
-                        if relevant_line.startswith("Updated libraries")
-                        else new_libs
-                    )
-                    update_set.add((comps["name"], link))
+                        comps = parse.parse("[{name:S}]({link_comp:S})", lib)
+                        link: str = parse.search(
+                            "{link:S}/releases", comps["link_comp"]
+                        )["link"]
+                        full_name = parse.search(
+                            "https://github.com/{full_name:S}", link
+                        )["full_name"]
+                    if relevant_line.startswith("Updated libraries"):
+                        updated_libs.add((full_name, link))
+                    else:
+                        new_libs.add((full_name, link))
             return (new_libs, updated_libs)
 
         except pygithub.RateLimitExceededException:
