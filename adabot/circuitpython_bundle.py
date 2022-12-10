@@ -62,7 +62,7 @@ def update_download_stats(bundle_path):
     Updates the downloads stats for all the libraries
     """
     if not "Adafruit_CircuitPython_Bundle" in bundle_path:
-        return
+        return False
 
     with open(os.path.join(bundle_path, "circuitpython_library_list.md")) as md_file:
         lib_list_full = md_file.read()
@@ -136,6 +136,8 @@ def update_download_stats(bundle_path):
         md_file.write("| Blinka (PyPI Package) | Downloads in the Last 7 Days |\n")
         md_file.write("| --- | --- |\n")
         md_file.write(f"| Adafruit Blinka (adafruit-blinka) | {blinka_downloads} |\n")
+
+    return True
 
 
 # pylint: disable=too-many-locals
@@ -319,18 +321,18 @@ def update_bundle(bundle_path):
                 ),
             )
         )
-    update_download_stats(bundle_path)
-    updates.append(
-        (
+    if update_download_stats(bundle_path):
+        updates.append(
             (
-                "https://github.com/adafruit/Adafruit_CircuitPython_Bundle/"
-                "circuitpython_library_list.md"
-            ),
-            "NA",
-            "NA",
-            "  > Updated download stats for the libraries",
+                (
+                    "https://github.com/adafruit/Adafruit_CircuitPython_Bundle/"
+                    "circuitpython_library_list.md"
+                ),
+                "NA",
+                "NA",
+                "  > Updated download stats for the libraries",
+            )
         )
-    )
 
     return updates
 
