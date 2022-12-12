@@ -23,6 +23,7 @@ from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 from adabot.lib import blinka_funcs
+from adabot.lib import community_bundle_announcer
 from adabot import circuitpython_library_download_stats as dl_stats
 
 GH_INTERFACE = pygithub.Github(os.environ.get("ADABOT_GITHUB_ACCESS_TOKEN"))
@@ -340,6 +341,19 @@ def run_library_checks(validators, kw_args, error_depth):
     if len(updated_libs) != 0:
         logger.info("* **Updated Libraries**")
         for title, link in updated_libs.items():
+            logger.info("  * [%s](%s)", title, link)
+
+    (
+        new_community_libs,
+        updated_community_libs,
+    ) = community_bundle_announcer.get_community_bundle_updates()
+    if len(new_community_libs) != 0:
+        logger.info("* **New Community Libraries**")
+        for title, link in new_community_libs:
+            logger.info("  * [%s](%s)", title, link)
+    if len(updated_community_libs) != 0:
+        logger.info("* **Updated Community Libraries**")
+        for title, link in updated_community_libs:
             logger.info("  * [%s](%s)", title, link)
 
     if len(validators) != 0:
