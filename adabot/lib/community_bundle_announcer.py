@@ -75,6 +75,9 @@ def get_community_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
             logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
             time.sleep(sleep_time.seconds)
             continue
+        except pygithub.GithubException:
+            # Secrets may not be available or error occurred - just skip
+            return (set(), set())
 
 
 if __name__ == "__main__":
