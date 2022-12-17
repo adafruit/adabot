@@ -1142,7 +1142,7 @@ class LibraryValidator:
             if "pull_request" in issue:
                 pull_request = gh_reqs.get(
                     f"/repos/{repo['full_name']}/pulls/{issue['id']}"
-                )
+                ).json()
                 pr_link = "{0} (Open {1} days)".format(
                     issue["pull_request"]["html_url"], days_open.days
                 )
