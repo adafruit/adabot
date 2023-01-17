@@ -25,14 +25,17 @@ RepoResult: TypeAlias = Tuple[str, str]
 """(Submodule Name, Full Repo Name)"""
 
 
-def get_community_bundle_updates():
+def get_community_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
+    """Get new and updated libraries in the Community Bundle"""
     return get_bundle_updates("adafruit/CircuitPython_Community_Bundle")
 
 
-def get_adafruit_bundle_updates():
+def get_adafruit_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
+    """Get new and updated libraries in the Adafruit Bundle"""
     return get_bundle_updates("adafruit/Adafruit_CircuitPython_Bundle")
 
 
+# pylint: disable=too-many-locals
 def get_bundle_updates(full_repo_name: str) -> Tuple[Set[RepoResult], Set[RepoResult]]:
     """
     Get the updates to the Community Bundle.
@@ -92,9 +95,13 @@ if __name__ == "__main__":
     for new_adafruit_lib in adafruit_results[0]:
         print(f"New libraries: {new_adafruit_lib[0]} { {new_adafruit_lib[1]} }")
     for updated_adafruit_lib in adafruit_results[1]:
-        print(f"Updated libraries: {updated_adafruit_lib[0]} { {updated_adafruit_lib[1]} }")
+        print(
+            f"Updated libraries: {updated_adafruit_lib[0]} { {updated_adafruit_lib[1]} }"
+        )
     print("-----")
     for new_community_lib in community_results[0]:
         print(f"New libraries: {new_community_lib[0]} { {new_community_lib[1]} }")
     for updated_community_lib in community_results[1]:
-        print(f"Updated libraries: {updated_community_lib[0]} { {updated_community_lib[1]} }")
+        print(
+            f"Updated libraries: {updated_community_lib[0]} { {updated_community_lib[1]} }"
+        )
