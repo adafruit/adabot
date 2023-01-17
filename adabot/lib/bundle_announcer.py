@@ -26,6 +26,17 @@ RepoResult: TypeAlias = Tuple[str, str]
 
 
 def get_community_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
+    """Get new and updated libraries in the Community Bundle"""
+    return get_bundle_updates("adafruit/CircuitPython_Community_Bundle")
+
+
+def get_adafruit_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
+    """Get new and updated libraries in the Adafruit Bundle"""
+    return get_bundle_updates("adafruit/Adafruit_CircuitPython_Bundle")
+
+
+# pylint: disable=too-many-locals
+def get_bundle_updates(full_repo_name: str) -> Tuple[Set[RepoResult], Set[RepoResult]]:
     """
     Get the updates to the Community Bundle.
 
@@ -33,9 +44,7 @@ def get_community_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
     """
     while True:
         try:
-            repository = GH_INTERFACE.get_repo(
-                "adafruit/CircuitPython_Community_Bundle"
-            )
+            repository = GH_INTERFACE.get_repo(full_repo_name)
             seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
             recent_releases = [
                 release
@@ -81,8 +90,18 @@ def get_community_bundle_updates() -> Tuple[Set[RepoResult], Set[RepoResult]]:
 
 
 if __name__ == "__main__":
-    results = get_community_bundle_updates()
-    for new_lib in results[0]:
-        print(f"New libraries: {new_lib[0]} { {new_lib[1]} }")
-    for updated_lib in results[1]:
-        print(f"New libraries: {updated_lib[0]} { {updated_lib[1]} }")
+    adafruit_results = get_adafruit_bundle_updates()
+    community_results = get_community_bundle_updates()
+    for new_adafruit_lib in adafruit_results[0]:
+        print(f"New libraries: {new_adafruit_lib[0]} { {new_adafruit_lib[1]} }")
+    for updated_adafruit_lib in adafruit_results[1]:
+        print(
+            f"Updated libraries: {updated_adafruit_lib[0]} { {updated_adafruit_lib[1]} }"
+        )
+    print("-----")
+    for new_community_lib in community_results[0]:
+        print(f"New libraries: {new_community_lib[0]} { {new_community_lib[1]} }")
+    for updated_community_lib in community_results[1]:
+        print(
+            f"Updated libraries: {updated_community_lib[0]} { {updated_community_lib[1]} }"
+        )
