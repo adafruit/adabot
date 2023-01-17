@@ -23,7 +23,7 @@ from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 from adabot.lib import blinka_funcs
-from adabot.lib import community_bundle_announcer
+from adabot.lib import bundle_announcer
 from adabot import circuitpython_library_download_stats as dl_stats
 
 GH_INTERFACE = pygithub.Github(os.environ.get("ADABOT_GITHUB_ACCESS_TOKEN"))
@@ -124,8 +124,6 @@ def run_library_checks(validators, kw_args, error_depth):
     repo_needs_work = []
     since = datetime.datetime.now() - datetime.timedelta(days=7)
     repos_by_error = {}
-    new_libs = {}
-    updated_libs = {}
 
     validator = cirpy_lib_vals.LibraryValidator(
         validators, bundle_submodules, latest_pylint, **kw_args
@@ -171,14 +169,6 @@ def run_library_checks(validators, kw_args, error_depth):
                 if error == cirpy_lib_vals.ERROR_OUTPUT_HANDLER:
                     logger.info(", ".join(validator.output_file_data))
                     validator.output_file_data.clear()
-
-        # get a list of new & updated libraries for the last week
-        if repo["name"] != "Adafruit_CircuitPython_Bundle":
-            check_releases = common_funcs.is_new_or_updated(repo)
-            if check_releases == "new":
-                new_libs[repo["name"]] = repo["html_url"]
-            elif check_releases == "updated":
-                updated_libs[repo["name"]] = repo["html_url"]
 
     logger.info("")
     logger.info("State of CircuitPython + Libraries + Blinka")
@@ -332,21 +322,23 @@ def run_library_checks(validators, kw_args, error_depth):
         )
         logger.info("*This is normal for CI runs from PRs*")
 
+    new_libs, updated_libs = bundle_announcer.get_adafruit_bundle_updates()
+
     logger.info("")
     logger.info("#### Library updates in the last seven days:")
     if len(new_libs) != 0:
         logger.info("* **New Libraries**")
-        for title, link in new_libs.items():
+        for title, link in new_libs:
             logger.info("  * [%s](%s)", title, link)
     if len(updated_libs) != 0:
         logger.info("* **Updated Libraries**")
-        for title, link in updated_libs.items():
+        for title, link in updated_libs:
             logger.info("  * [%s](%s)", title, link)
 
     (
         new_community_libs,
         updated_community_libs,
-    ) = community_bundle_announcer.get_community_bundle_updates()
+    ) = bundle_announcer.get_community_bundle_updates()
     if len(new_community_libs) != 0:
         logger.info("* **New Community Libraries**")
         for title, link in new_community_libs:
