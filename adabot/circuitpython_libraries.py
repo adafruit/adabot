@@ -323,30 +323,23 @@ def run_library_checks(validators, kw_args, error_depth):
         logger.info("*This is normal for CI runs from PRs*")
 
     new_libs, updated_libs = bundle_announcer.get_adafruit_bundle_updates()
-
-    logger.info("")
-    logger.info("#### Library updates in the last seven days:")
-    if len(new_libs) != 0:
-        logger.info("* **New Libraries**")
-        for title, link in new_libs:
-            logger.info("  * [%s](%s)", title, link)
-    if len(updated_libs) != 0:
-        logger.info("* **Updated Libraries**")
-        for title, link in updated_libs:
-            logger.info("  * [%s](%s)", title, link)
-
     (
         new_community_libs,
         updated_community_libs,
     ) = bundle_announcer.get_community_bundle_updates()
-    if len(new_community_libs) != 0:
-        logger.info("* **New Community Libraries**")
-        for title, link in new_community_libs:
-            logger.info("  * [%s](%s)", title, link)
-    if len(updated_community_libs) != 0:
-        logger.info("* **Updated Community Libraries**")
-        for title, link in updated_community_libs:
-            logger.info("  * [%s](%s)", title, link)
+
+    logger.info("")
+    logger.info("#### Library updates in the last seven days:")
+    if new_libs or new_community_libs:
+        logger.info("* **New Libraries**")
+        for new_lib_category in (new_libs, new_community_libs):
+            for title, link in new_lib_category:
+                logger.info("  * [%s](%s)", title, link)
+    if updated_libs or updated_community_libs:
+        logger.info("* **Updated Libraries**")
+        for updated_lib_category in (updated_libs, updated_community_libs):
+            for title, link in updated_lib_category:
+                logger.info("  * [%s](%s)", title, link)
 
     if len(validators) != 0:
         lib_repos = []
