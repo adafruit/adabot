@@ -10,7 +10,7 @@ on:
 
 jobs:
   check-repo-owner:
-    # This job is so the entire workflow will end successfully anRTD_TOKEN=2ea9359aa13b070ca91abbd96a71bbb4cf1654e0d give some
+    # This job is so the entire workflow will end successfully and give some
     # output to explain why it hasn't run on a non-Adafruit fork.
     runs-on: ubuntu-latest
     steps:
