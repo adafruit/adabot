@@ -10,7 +10,7 @@ on:
 
 jobs:
   check-repo-owner:
-    # This job is so the entire workflow will end successfully and give some
+    # This job is so the entire workflow will end successfully anRTD_TOKEN=2ea9359aa13b070ca91abbd96a71bbb4cf1654e0d give some
     # output to explain why it hasn't run on a non-Adafruit fork.
     runs-on: ubuntu-latest
     steps:
@@ -33,18 +33,14 @@ jobs:
           - 6379/tcp
         options: --entrypoint redis-server
     steps:
-    - name: Dump GitHub context
-      env:
-        GITHUB_CONTEXT: ${{ toJson(github) }}
-      run: echo "$GITHUB_CONTEXT"
     - name: Set up Python 3.9
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: 3.9
     - name: Versions
       run: |
         python3 --version
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Install deps

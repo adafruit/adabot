@@ -26,11 +26,7 @@ jobs:
     # default branches).
     if: ${{ (github.repository_owner == 'adafruit') }}
     steps:
-    - name: Dump GitHub context
-      env:
-        GITHUB_CONTEXT: ${{ toJson(github) }}
-      run: echo "$GITHUB_CONTEXT"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         repository: ${{ github.repository_owner }}/Adafruit_Learning_System_Guides
         token: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
