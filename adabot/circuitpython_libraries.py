@@ -332,19 +332,13 @@ def run_library_checks(validators, kw_args, error_depth):
     logger.info("#### Library updates in the last seven days:")
     if new_libs or new_community_libs:
         logger.info("* **New Libraries**")
-        if new_libs:
-            for title, link in new_libs:
-                logger.info("  * [%s](%s)", title, link)
-        if new_community_libs:
-            for title, link in new_community_libs:
+        for new_lib_category in (new_libs, new_community_libs):
+            for title, link in new_lib_category:
                 logger.info("  * [%s](%s)", title, link)
     if updated_libs or updated_community_libs:
         logger.info("* **Updated Libraries**")
-        if updated_libs:
-            for title, link in updated_libs:
-                logger.info("  * [%s](%s)", title, link)
-        if updated_community_libs:
-            for title, link in updated_community_libs:
+        for updated_lib_category in (updated_libs, updated_community_libs):
+            for title, link in updated_lib_category:
                 logger.info("  * [%s](%s)", title, link)
 
     if len(validators) != 0:
