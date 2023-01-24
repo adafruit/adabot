@@ -51,9 +51,9 @@ jobs:
       - name: Set Date Variable
         id: today
         run: |
-          echo ::set-output name=date::$(
+          echo date=$(
           date +%Y%m%d
-          )
+          ) >> $GITHUB_OUTPUT
       - name: Run adabot.circuitpython_libraries
         env:
           # LIB_CHECK_CP_FILE is for circuitpython_libraries.py output
