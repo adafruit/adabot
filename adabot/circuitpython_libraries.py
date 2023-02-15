@@ -217,9 +217,6 @@ def run_library_checks(validators, kw_args, error_depth):
     #  - GitHub API has been broken, due to the number of release artifacts
     #  - Release asset delivery is being moved to AWS CloudFront/S3
     # print_circuitpython_dl_stats()
-    logger.info("* Core download stats available at https://circuitpython.org/stats")
-
-    logger.info("")
 
     # Get PyPI stats
     have_secrets = False
