@@ -7,7 +7,7 @@ packaging==20.3
 pylint==2.11.1
 pytest
 pyyaml==5.4.1
-redis==4.5.3
+redis==4.5.4
 requests==2.25.1
 sh==1.12.14
 requests-cache==0.5.2
