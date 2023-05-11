@@ -91,7 +91,7 @@ def run_gh_rest_rerun(
             arg_dict["actor"] = user
         if branch is not None:
             arg_dict["branch"] = branch
-        workflow: Workflow = lib_repo.get_workflow_run(workflow_filename)
+        workflow: Workflow = lib_repo.get_workflow(workflow_filename)
         latest_run: WorkflowRun = workflow.get_runs(**arg_dict)[0]
         latest_run.rerun()
         return True
@@ -202,6 +202,7 @@ def check_build_statuses(
     workflow_filename: Optional[str] = "build.yml",
     *,
     debug: bool = False,
+    local_folder: str = "",
 ) -> list[RemoteLibFunc_IterResult[bool]]:
     """Checks all the libraries in the Adafruit CircuitPython Bundle to get the
     latest build status with the requested information
@@ -223,6 +224,7 @@ def check_build_statuses(
     return iter_remote_bundle_with_func(
         gh_token,
         [(check_build_status, (user, branch, workflow_filename), {"debug": debug})],
+        local_folder=local_folder,
     )
 
 
@@ -234,6 +236,7 @@ def rerun_workflows(
     rerun_level: int = 0,
     *,
     debug: bool = False,
+    local_folder: str = "",
 ) -> list[RemoteLibFunc_IterResult[bool]]:
     """Reruns the CI of all the libraries in the Adafruit CircuitPython Bundle.
 
@@ -262,6 +265,7 @@ def rerun_workflows(
                 {"debug": debug},
             )
         ],
+        local_folder=local_folder,
     )
 
 
@@ -330,6 +334,14 @@ if __name__ == "__main__":
         default=0,
         help="Level to rerun CI workflows (0 = none, 1 = failed, 2 = all)",
     )
+    parser.add_argument(
+        "--local-folder",
+        metavar="L",
+        type=str,
+        dest="local_folder",
+        default="",
+        help="An additional folder to check and run"
+    )
 
     args = parser.parse_args()
 
@@ -343,6 +355,7 @@ if __name__ == "__main__":
             args.workflow,
             args.rerun_level,
             debug=args.debug,
+            local_folder=args.local_folder
         )
         if args.debug:
             print("Waiting 10 minutes to allow workflows to finish running...")
@@ -351,7 +364,7 @@ if __name__ == "__main__":
     if args.debug:
         print("Checking workflows statuses...")
     results = check_build_statuses(
-        args.gh_token, args.user, args.branch, args.workflow, debug=args.debug
+        args.gh_token, args.user, args.branch, args.workflow, debug=args.debug, local_folder=args.local_folder
     )
 
     fail_list = [
