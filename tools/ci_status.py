@@ -147,6 +147,7 @@ def check_build_status(
         return None
 
 
+# pylint: disable=too-many-arguments
 def rerun_workflow(
     lib_repo: Repository,
     user: Optional[str] = None,

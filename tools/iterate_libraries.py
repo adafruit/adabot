@@ -18,7 +18,7 @@ import os
 import glob
 import pathlib
 from collections.abc import Sequence, Iterable
-from typing import TypeVar, Any, Callable, Union, List
+from typing import TypeVar, Any, Union, List
 from typing_extensions import TypeAlias
 import parse
 from github import Github
@@ -114,13 +114,16 @@ def iter_local_bundle_with_func(
         # Enter each library in the bundle
         for library_path in libraries_path_list:
 
-            iterated.add(os.path.split(library_path).lower())
+            iterated.add(os.path.split(library_path)[1].lower())
             func_results = perform_func(library_path, func_workflow)
 
             results.append((library_path, func_results))
 
     if local_folder:
-        additional = set(glob.glob(os.path.join(local_folder, "*")))
+        additional = {
+            os.path.split(pathname)[1].lower()
+            for pathname in glob.glob(os.path.join(local_folder, "*"))
+        }
         diff = additional.difference(iterated)
         for unused in diff:
             unused_func_results = perform_func(unused, func_workflow)
