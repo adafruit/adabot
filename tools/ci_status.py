@@ -342,7 +342,7 @@ if __name__ == "__main__":
         type=str,
         dest="local_folder",
         default="",
-        help="An additional folder to check and run"
+        help="An additional folder to check and run",
     )
 
     args = parser.parse_args()
@@ -357,7 +357,7 @@ if __name__ == "__main__":
             args.workflow,
             args.rerun_level,
             debug=args.debug,
-            local_folder=args.local_folder
+            local_folder=args.local_folder,
         )
         if args.debug:
             print("Waiting 10 minutes to allow workflows to finish running...")
@@ -366,7 +366,12 @@ if __name__ == "__main__":
     if args.debug:
         print("Checking workflows statuses...")
     results = check_build_statuses(
-        args.gh_token, args.user, args.branch, args.workflow, debug=args.debug, local_folder=args.local_folder
+        args.gh_token,
+        args.user,
+        args.branch,
+        args.workflow,
+        debug=args.debug,
+        local_folder=args.local_folder,
     )
 
     fail_list = [

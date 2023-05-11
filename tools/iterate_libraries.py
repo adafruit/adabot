@@ -66,7 +66,10 @@ function(s)"""
 _BUNDLE_BRANCHES = ("drivers", "helpers")
 
 
-def perform_func(item: Any, func_workflow: Union[RemoteLibFunc_IterInstruction, LocalLibFunc_IterInstruction]) -> Union[List[RemoteLibFunc_IterResult], List[LocalLibFunc_IterResult]]:
+def perform_func(
+    item: Any,
+    func_workflow: Union[RemoteLibFunc_IterInstruction, LocalLibFunc_IterInstruction],
+) -> Union[List[RemoteLibFunc_IterResult], List[LocalLibFunc_IterResult]]:
     """
     Perform the given function
     """
@@ -79,7 +82,9 @@ def perform_func(item: Any, func_workflow: Union[RemoteLibFunc_IterInstruction, 
 
 def iter_local_bundle_with_func(
     bundle_path: StrPath,
-    func_workflow: Iterable[LocalLibFunc_IterInstruction], *, local_folder: str = "",
+    func_workflow: Iterable[LocalLibFunc_IterInstruction],
+    *,
+    local_folder: str = "",
 ) -> list[LocalLibFunc_IterResult]:
     """Iterate through the libraries and run a given function with the
     provided arguments
@@ -126,7 +131,10 @@ def iter_local_bundle_with_func(
 
 # pylint: disable=too-many-locals
 def iter_remote_bundle_with_func(
-    gh_token: str, func_workflow: RemoteLibFunc_IterInstruction, *, local_folder: str = "",
+    gh_token: str,
+    func_workflow: RemoteLibFunc_IterInstruction,
+    *,
+    local_folder: str = "",
 ) -> list[RemoteLibFunc_IterResult]:
     """Iterate through the remote bundle, accessing each library's git repo
     using the GitHub RESTful API (specifically using ``PyGithub``)
@@ -172,7 +180,9 @@ def iter_remote_bundle_with_func(
             results.append((repo, func_results))
 
     if local_folder:
-        additional = {path.name.lower() for path in pathlib.Path(local_folder).glob("*")}
+        additional = {
+            path.name.lower() for path in pathlib.Path(local_folder).glob("*")
+        }
         diff = additional.difference(iterated)
         for unused in diff:
             unused_repo = github_client.get_repo(f"adafruit/{unused}")
