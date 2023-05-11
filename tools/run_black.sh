@@ -8,6 +8,7 @@ cd .libraries
 for repo in *; do
     cd ../.gitlibs
     git clone https://github.com/adafruit/$repo.git
+for repo in .libraries/*; do
     cd $repo
     pre-commit run --all-files
     git add -A
