@@ -216,6 +216,7 @@ def check_build_statuses(
         provided, any workflow name is acceptable; the defail is `"build.yml"`
     :param bool debug: Whether debug statements should be printed to
         the standard output
+    :param str local_folder: A path to a local folder containing extra repositories
     :return: A list of tuples containing paired Repoistory objects and build
         statuses
     :rtype: list
@@ -251,6 +252,7 @@ def rerun_workflows(
         1 = failed, 2 = all)
     :param bool debug: Whether debug statements should be printed to
         the standard output
+    :param str local_folder: A path to a local folder containing extra repositories
     :return: A list of tuples containing paired Repoistory objects and build
         statuses
     :rtype: list
