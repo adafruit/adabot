@@ -272,6 +272,45 @@ def rerun_workflows(
     )
 
 
+def rerun_workflows(
+    gh_token: str,
+    user: Optional[str] = None,
+    branch: Optional[str] = "main",
+    workflow_filename: Optional[str] = "build.yml",
+    rerun_level: int = 0,
+    *,
+    debug: bool = False,
+) -> list[RemoteLibFunc_IterResult[bool]]:
+    """Reruns the CI of all the libraries in the Adafruit CircuitPython Bundle.
+
+    :param str gh_token: The Github token to be used for with the Github API
+    :param str|None user: The user that triggered the run; if `None` is
+        provided, any user is acceptable
+    :param str|None branch: The branch name to specifically check; if `None` is
+        provided, all branches are allowed; this is the default
+    :param str|None workflow_filename: The filename of the workflow; if `None` is
+        provided, any workflow name is acceptable; the defail is `"build.yml"`
+    :param int rerun_level: The level at which reruns should occur (0 = none,
+        1 = failed, 2 = all)
+    :param bool debug: Whether debug statements should be printed to
+        the standard output
+    :return: A list of tuples containing paired Repoistory objects and build
+        statuses
+    :rtype: list
+    """
+
+    return iter_remote_bundle_with_func(
+        gh_token,
+        [
+            (
+                rerun_workflow,
+                (user, branch, workflow_filename, rerun_level),
+                {"debug": debug},
+            )
+        ],
+    )
+
+
 def save_build_statuses(
     build_results: list[RemoteLibFunc_IterResult[bool]],
     failures_filepath: StrPath = "failures.txt",
