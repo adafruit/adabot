@@ -280,6 +280,7 @@ def rerun_workflows(
     rerun_level: int = 0,
     *,
     debug: bool = False,
+    local_folder: str = "",
 ) -> list[RemoteLibFunc_IterResult[bool]]:
     """Reruns the CI of all the libraries in the Adafruit CircuitPython Bundle.
 
@@ -308,6 +309,7 @@ def rerun_workflows(
                 {"debug": debug},
             )
         ],
+        local_folder=local_folder,
     )
 
 
