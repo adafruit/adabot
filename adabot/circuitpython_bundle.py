@@ -72,7 +72,7 @@ def update_download_stats(bundle_path):
         "# Adafruit CircuitPython Library Download Stats",
         (
             "![Blinka On Computer](https://raw.githubusercontent.com/adafruit/"
-            "Adafruit_CircuitPython_Bundle/assets/BlinkaComputer.png)  "
+            "Adafruit_CircuitPython_Bundle/main/assets/BlinkaComputer.png)  "
         ),
         "### Here is a listing of current Adafruit CircuitPython libraries download statistics.",
         f"**There are {len(submodules_list)} libraries available.**\n",
@@ -193,7 +193,7 @@ def check_lib_links_md(bundle_path):
         "# Adafruit CircuitPython Libraries",
         (
             "![Blinka Reading](https://raw.githubusercontent.com/adafruit/"
-            "Adafruit_CircuitPython_Bundle/assets/BlinkaBook.png)  "
+            "Adafruit_CircuitPython_Bundle/main/assets/BlinkaBook.png)  "
         ),
         "Here is a listing of current Adafruit CircuitPython Libraries.  ",
         f"There are {lib_count} libraries available.\n",
