@@ -208,7 +208,7 @@ def run_library_checks(validators, kw_args, error_depth):
         item for item in no_milestone_items if "pull_request" not in item
     ]
     logger.info(
-        "  * %s issues not assigned a milestone",
+        " * %s issues not assigned a milestone",
         len(no_milestone_issues),
     )
     logger.info("")
