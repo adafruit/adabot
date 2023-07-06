@@ -113,7 +113,6 @@ def update_download_stats(bundle_path):
     with open(
         os.path.join(bundle_path, "circuitpython_library_pypi_stats.md"), "w"
     ) as md_file:
-
         # Write headers
         md_file.write("\n".join(lib_list_header))
         md_file.write("\n")

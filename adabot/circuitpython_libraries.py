@@ -93,6 +93,7 @@ blinka_repos = [
     "Adafruit_Python_Extended_Bus",
 ]
 
+
 # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 def run_library_checks(validators, kw_args, error_depth):
     """runs the various library checking functions"""
