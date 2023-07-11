@@ -113,7 +113,6 @@ def update_download_stats(bundle_path):
     with open(
         os.path.join(bundle_path, "circuitpython_library_pypi_stats.md"), "w"
     ) as md_file:
-
         # Write headers
         md_file.write("\n".join(lib_list_header))
         md_file.write("\n")
@@ -285,6 +284,7 @@ def update_bundle(bundle_path):
     status = StringIO()
     git.status("--short", _out=status)
     updates = []
+    release_required = False
     status = status.getvalue().strip()
     if status:
         for status_line in status.split("\n"):
@@ -305,6 +305,7 @@ def update_bundle(bundle_path):
             url = repo_remote_url(directory)
             summary = "\n".join(diff_lines[1:-1])
             updates.append((url[:-4], old_commit, new_commit, summary))
+            release_required = True
     os.chdir(working_directory)
     lib_list_updates = check_lib_links_md(bundle_path)
     if lib_list_updates:
@@ -321,6 +322,7 @@ def update_bundle(bundle_path):
                 ),
             )
         )
+        release_required = True
     if update_download_stats(bundle_path):
         updates.append(
             (
@@ -334,7 +336,7 @@ def update_bundle(bundle_path):
             )
         )
 
-    return updates
+    return updates, release_required
 
 
 def commit_updates(bundle_path, update_info):
@@ -546,9 +548,9 @@ if __name__ == "__main__":
         bundle_dir = os.path.join(bundles_dir, cp_bundle)
         try:
             fetch_bundle(cp_bundle, bundle_dir)
-            updates_needed = update_bundle(bundle_dir)
-            if updates_needed:
-                commit_updates(bundle_dir, updates_needed)
+            updates, release_required = update_bundle(bundle_dir)
+            if release_required:
+                commit_updates(bundle_dir, updates)
                 push_updates(bundle_dir)
             new_release(cp_bundle, bundle_dir)
         except RuntimeError as e:

@@ -107,13 +107,11 @@ def iter_local_bundle_with_func(
 
     # Loop through each bundle branch
     for branch_name in _BUNDLE_BRANCHES:
-
         libraries_glob_path = os.path.join(bundle_path, "libraries", branch_name, "*")
         libraries_path_list = glob.glob(libraries_glob_path)
 
         # Enter each library in the bundle
         for library_path in libraries_path_list:
-
             iterated.add(os.path.split(library_path)[1].lower())
             func_results = perform_func(library_path, func_workflow)
 
@@ -164,13 +162,11 @@ def iter_remote_bundle_with_func(
 
     # Loop through each bundle branch
     for branch_name in _BUNDLE_BRANCHES:
-
         branch_repos_path = "/".join(("libraries", branch_name))
         branch_repos: list[ContentFile] = bundle_repo.get_contents(branch_repos_path)
 
         # Enter each library in the bundle
         for repo_file in branch_repos:
-
             repo_name_result: parse.Result = parse.search(
                 "repos/adafruit/{repo_name:w}/", repo_file.git_url
             )

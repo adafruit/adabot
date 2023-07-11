@@ -295,7 +295,6 @@ def save_build_statuses(
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(
         description="Check the CI status of the Bundle libraries"
     )
