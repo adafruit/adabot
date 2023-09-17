@@ -6,6 +6,8 @@ name: Run Daily Reports
 
 on:
   schedule:
+    # The actor (github.actor) that runs the cron job may be the user who created the cron job
+    # initially. It does not appear to be settable via a secret or environment variable.
     - cron: 15 5 * * *
   workflow_dispatch:
 
