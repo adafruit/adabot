@@ -24,11 +24,11 @@ git submodule foreach "python ../../../copy_release_making_files.py;python run_o
 
 ## Notes
 
-Scripts and instructions are written to assume Python3 is installed and accessible to all users with the `python`. 
+Scripts and instructions are written to assume Python3 is installed and accessible to all users with the `python`.
 
 If you run `python` and do not see the Python 3 REPL then you need to:
 
-1. Install Python3 
+1. Install Python3
 2. If necessary, Make a symbolic link or shortcut that allows `python` to point to `python3`
 
 Use a virtual environment if you are in a context where Python 2 exists so that inside your venv `python` will point to the venv rather than the systedm Py2.
