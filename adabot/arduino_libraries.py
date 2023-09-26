@@ -8,7 +8,7 @@ import argparse
 import logging
 import sys
 import traceback
-
+import semver
 import requests
 
 from adabot import github_requests as gh_reqs
@@ -125,23 +125,22 @@ def validate_library_properties(repo):
     lines = lib_prop_file.text.split("\n")
     for line in lines:
         if "version" in line:
-            lib_version = line[len("version=") :]
+            lib_version = str(line[len("version=") :]).strip()
             break
 
     get_latest_release = gh_reqs.get(
         "/repos/adafruit/" + repo["name"] + "/releases/latest"
     )
+    release_tag = "None"
     if get_latest_release.ok:
         response = get_latest_release.json()
         if "tag_name" in response:
             release_tag = response["tag_name"]
         if "message" in response:
-            if response["message"] == "Not Found":
-                release_tag = "None"
-            else:
+            if response["message"] != "Not Found":
                 release_tag = "Unknown"
 
-    if lib_version and release_tag:
+    if lib_version:
         return [release_tag, lib_version]
 
     return None
@@ -205,6 +204,7 @@ def validate_example(repo):
 
 
 # pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
 def run_arduino_lib_checks():
     """Run necessary functions and outout the results."""
     logger.info("Running Arduino Library Checks")
@@ -217,38 +217,81 @@ def run_arduino_lib_checks():
         ["  ----", "-----------", "--------------------------"],
     ]
     needs_release_list = [
-        ["  Repo", "Latest Release", "Commits Behind"],
-        ["  ----", "--------------", "--------------"],
+        ["  Repo", "Latest Release", "Commits Behind", "Comparison"],
+        ["  ----", "--------------", "--------------", "----------"],
     ]
-    needs_registration_list = [["  Repo"], ["  ----"]]
+    needs_registration_list = [
+        ["  Repo", "Latest Changes"],
+        ["  ----", "--------------"],
+    ]
     missing_actions_list = [["  Repo"], ["  ----"]]
-    missing_library_properties_list = [["  Repo"], ["  ----"]]
+    missing_library_properties_list = [
+        ["  Repo", "Latest Changes"],
+        ["  ----", "--------------"],
+    ]
+
+    no_examples = [
+        ["  Repo", "Latest Changes"],
+        ["  ----", "--------------"],
+    ]
 
     for repo in repo_list:
         have_examples = validate_example(repo)
         if not have_examples:
-            # not a library
+            # not a library, probably worth rechecking that it's got no library.properties file
+            no_examples.append(
+                ["  " + str(repo["name"] or repo["clone_url"]), repo["updated_at"]]
+            )
             continue
 
         entry = {"name": repo["name"]}
 
         lib_check = validate_library_properties(repo)
         if not lib_check:
-            missing_library_properties_list.append(["  " + str(repo["name"])])
+            missing_library_properties_list.append(
+                ["  " + str(repo["name"]), repo["updated_at"]]
+            )
             continue
 
-        # print(repo['clone_url'])
-        needs_registration = False
+        if lib_check[0] in ("None", "Unknown"):
+            compare_url = (
+                str(repo["html_url"]) + "/compare/" + repo["default_branch"] + "...HEAD"
+            )
+            needs_release_list.append(
+                ["  " + str(repo["name"]), "*None*", repo["updated_at"], compare_url]
+            )
+            continue
+
+        if lib_check[0] != lib_check[1]:
+            failed_lib_prop.append(
+                [
+                    "  " + str((repo["name"] or repo["clone_url"])),
+                    lib_check[0],
+                    lib_check[1],
+                ]
+            )
+            continue
+
         for lib in adafruit_library_index:
             if (repo["clone_url"] == lib["repository"]) or (
                 repo["html_url"] == lib["website"]
             ):
-                entry["arduino_version"] = lib["version"]  # found it!
-                break
-        else:
-            needs_registration = True
-        if needs_registration:
-            needs_registration_list.append(["  " + str(repo["name"])])
+                if (  # pylint: disable=too-many-boolean-expressions
+                    "arduino_version" not in entry
+                    or not entry["arduino_version"]
+                    or (
+                        entry["arduino_version"]
+                        and semver.parse(entry["arduino_version"])
+                        and semver.parse(lib["version"])
+                        and semver.compare(entry["arduino_version"], lib["version"]) < 0
+                    )
+                ):
+                    entry["arduino_version"] = lib["version"]
+
+        if "arduino_version" not in entry or not entry["arduino_version"]:
+            needs_registration_list.append(
+                ["  " + str(repo["name"]), repo["updated_at"]]
+            )
 
         entry["release"] = lib_check[0]
         entry["version"] = lib_check[1]
@@ -257,8 +300,16 @@ def run_arduino_lib_checks():
         needs_release = validate_release_state(repo)
         entry["needs_release"] = needs_release
         if needs_release:
+            compare_url = (
+                str(repo["html_url"]) + "/compare/" + needs_release[0] + "...HEAD"
+            )
             needs_release_list.append(
-                ["  " + str(repo["name"]), needs_release[0], needs_release[1]]
+                [
+                    "  " + str(repo["name"]),
+                    needs_release[0],
+                    needs_release[1],
+                    compare_url,
+                ]
             )
 
         missing_actions = not validate_actions(repo)
@@ -270,6 +321,12 @@ def run_arduino_lib_checks():
 
     for entry in all_libraries:
         logging.info(entry)
+
+    if len(no_examples) > 2:
+        print_list_output(
+            "Repos with no examples (considered non-libraries): ({})",
+            no_examples,
+        )
 
     if len(failed_lib_prop) > 2:
         print_list_output(

@@ -23,7 +23,7 @@ Debian/Ubuntu Dependencies
 
     sudo apt-get update # make sure you have the latest packages
     sudo apt-get upgrade # make sure already installed packages are latest
-    sudo apt-get install git python3 python3-venv python3-pip screen
+    sudo apt-get install git python3 python3-venv python3-pip screen celery
 
 Adabot
 ++++++++++
