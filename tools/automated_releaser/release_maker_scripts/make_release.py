@@ -6,19 +6,24 @@
 make a new release using the gh cli
 """
 import subprocess
-from get_release_info import get_release_info
 
-RELEASE_TITLE = "Fix RTD Theme Issue"
+config = {"RELEASE_TITLE": ""}
 
 
-def make_release():
+def make_release(new_tag, logger):
     """
     Make the release
     """
     # pylint: disable=line-too-long
-    release_info = get_release_info()
+
+    while config["RELEASE_TITLE"] == "":
+        config["RELEASE_TITLE"] = input("Enter a Release Title: ")
+
     result = subprocess.getoutput(
-        f"gh release create {release_info['new_tag']} -F release_notes.md -t '{release_info['new_tag']} - {RELEASE_TITLE}'"
+        f"gh release create {new_tag} -F release_notes.md -t '{new_tag} - {config['RELEASE_TITLE']}'"
     )
 
-    print(result)
+    if logger is not None:
+        logger.info(result)
+    else:
+        print(result)

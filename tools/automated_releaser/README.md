@@ -10,17 +10,23 @@
 
 To run the release automation:
 
-First set the `RELEASE_TITLE` variable inside of `release_maker_scripts/make_release.py` to something appropriate for the new release.
 
-Then run:
+
+## Steps to Run
+1. Clone the library bundle and download all submodules. `clone_bundle.sh` can be used for this
+2. Copy the following files / folders into the root of the bundle:
+   - `release_maker_scripts/`
+   - `copy_release_making_files.py`
+   - `list_submodules.py`
+   - `remove_submodules.py`
+3. Set the `RELEASE_TITLE` config dictionary value inside of `release_maker_scripts/make_release.py` to something
+appropriate for the new release. If you skip this step you'll be prompted for a title on each library needing a release.
+4. From the root of `Adafruit_CircuitPython_Bundle` run:
 ```
 git submodule foreach "python ../../../copy_release_making_files.py;python run_on_each.py"
 ```
 
-You can redirect the output to a log file like this:
-```
-git submodule foreach "python ../../../copy_release_making_files.py;python run_on_each.py" > automation_log.txt
-```
+The file `automated_releaser.log` will be created in the root of the bundle and contain log messages generated while the process runs.
 
 ## Notes
 
@@ -31,7 +37,7 @@ If you run `python` and do not see the Python 3 REPL then you need to:
 1. Install Python3
 2. If necessary, Make a symbolic link or shortcut that allows `python` to point to `python3`
 
-Use a virtual environment if you are in a context where Python 2 exists so that inside your venv `python` will point to the venv rather than the systedm Py2.
+Use a virtual environment if you are in a context where Python 2 exists so that inside your venv `python` will point to the venv rather than the systems instance of Py2.
 
 ## Steps to run on subset:
 
