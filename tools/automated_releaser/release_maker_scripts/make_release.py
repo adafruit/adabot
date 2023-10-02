@@ -7,6 +7,8 @@ make a new release using the gh cli
 """
 import subprocess
 
+# Empty RELEASE_TITLE will prompt to ask for a title for each release.
+# Set a value here if you want to use the same string for the title of all releases
 config = {"RELEASE_TITLE": ""}
 
 
