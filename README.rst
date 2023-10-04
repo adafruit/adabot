@@ -190,6 +190,7 @@ These are the steps for that process:
 5. Run these commands to update all submodules
 
 .. code-block:: shell
+
     git submodule sync --quiet --recursive
     git submodule update --init
 
