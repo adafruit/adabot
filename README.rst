@@ -170,22 +170,22 @@ web interface.
 To use it:
 
 1. Clone the adabot repo locally and open a terminal inside of it
-2. Run `pip install .` in the root of Adabot repo to install it via pip
+2. Run ``pip install .`` in the root of Adabot repo to install it via pip
 3. Clone the library repo locally
-4. `cd` into the library repo
-5. run `python -m adabot.circuitpython_library_release`
+4. ``cd`` into the library repo
+5. run ``python -m adabot.circuitpython_library_release``
 6. Answer the prompts for new tag name and title.
 
-This utility can be used in conjunction with `git submodule foreach` inside of the
+This utility can be used in conjunction with ``git submodule foreach`` inside of the
 CircuitPython Library Bundle.
 
 These are the steps for that process:
 
 1. Clone the adabot repo locally and open a terminal inside of it
 2. If you want to use the same title for all libraries (i.e. due to a patch rollout)
-   then modify the `RELEASE_TITLE` dictionary value at the top
-   of `adabot/circuitpython_library_release.py`
-3. Run `pip install .` in the root of Adabot repo to install it via pip
+   then modify the ``RELEASE_TITLE`` dictionary value at the top
+   of ``adabot/circuitpython_library_release.py``
+3. Run ``pip install .`` in the root of Adabot repo to install it via pip
 4. Clone the Library Bundle repo and open a terminal inside of it
 5. Run these commands to update all submodules
 
@@ -195,7 +195,7 @@ These are the steps for that process:
     git submodule update --init
 
 
-6. Run `git submodule foreach 'python -m adabot.circuitpython_library_release'`
+6. Run ``git submodule foreach 'python -m adabot.circuitpython_library_release'``
 
 
 
