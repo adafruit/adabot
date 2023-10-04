@@ -193,6 +193,7 @@ These are the steps for that process:
     git submodule sync --quiet --recursive
     git submodule update --init
 
+
 6. Run `git submodule foreach 'python -m adabot.circuitpython_library_release'`
 
 
