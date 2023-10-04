@@ -188,9 +188,11 @@ These are the steps for that process:
 3. Run `pip install .` in the root of Adabot repo to install it via pip
 4. Clone the Library Bundle repo and open a terminal inside of it
 5. Run these commands to update all submodules
+
 .. code-block:: shell
     git submodule sync --quiet --recursive
     git submodule update --init
+
 6. Run `git submodule foreach 'python -m adabot.circuitpython_library_release'`
 
 
