@@ -35,6 +35,9 @@ classifiers = [
 ]
 dynamic = ["dependencies", "optional-dependencies"]
 
+[project.scripts]
+adabot-release = "adabot.circuitpython_library_release:main_cli"
+
 [tool.setuptools]
 packages = ["adabot"]
 

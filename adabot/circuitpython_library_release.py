@@ -150,7 +150,26 @@ def get_release_info():
     }
 
 
-if __name__ == "__main__":
+def get_compare_url(tag_name):
+    """
+    Get the URL to the GitHub compare page for the latest release compared
+    to current main.
+    """
+    remote_url = subprocess.getoutput("git ls-remote --get-url origin")
+    if not remote_url.startswith("https"):
+        remote_url = subprocess.getoutput("git ls-remote --get-url adafruit")
+
+    if not remote_url.startswith("https"):
+        return "Sorry, Unknown Remotes"
+
+    compare_url = remote_url.replace(".git", f"/compare/{tag_name}...main")
+    return compare_url
+
+
+def main_cli():
+    """
+    Main CLI entry point
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -167,6 +186,7 @@ if __name__ == "__main__":
         Returns the choice inputted by the user.
         """
         print("This library needs a new release. Please select a choice:")
+        print(f"Changes: {get_compare_url(release_info['current_tag'])}")
         print(
             f"1. *default* Bump Patch, new tag would be: {release_info['new_tag_patch']}"
         )
@@ -210,3 +230,7 @@ if __name__ == "__main__":
 
     else:
         logging.info("No new commits since last release, skipping")
+
+
+if __name__ == "__main__":
+    main_cli()
