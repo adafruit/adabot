@@ -140,7 +140,6 @@ def get_release_info():
     result = subprocess.getoutput("gh release list -L 1 | awk 2")
     createdAt = result.split("\t")[-1]
     tag = result.split("\t")[-2]
-    logging.info(tag)
     return {
         "current_tag": tag,
         "new_tag_patch": bump_patch(tag),
