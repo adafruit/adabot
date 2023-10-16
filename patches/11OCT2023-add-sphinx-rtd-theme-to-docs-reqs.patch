@@ -1,0 +1,21 @@
+From 364a28bd7385e1df0f2faf0b8cec5764b096bacc Mon Sep 17 00:00:00 2001
+From: foamyguy <foamyguy@gmail.com>
+Date: Mon, 16 Oct 2023 09:55:57 -0500
+Subject: [PATCH] add sphinx-rtd-theme to docs/reqs.txt
+
+---
+ docs/requirements.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/docs/requirements.txt b/docs/requirements.txt
+index 797aa04..9ccaf8e 100644
+--- a/docs/requirements.txt
++++ b/docs/requirements.txt
+@@ -4,3 +4,4 @@
+ 
+ sphinx>=4.0.0
+ sphinxcontrib-jquery
++sphinx-rtd-theme
+-- 
+2.34.1
+
