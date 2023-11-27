@@ -26,7 +26,7 @@ from adabot.lib import blinka_funcs
 from adabot.lib import bundle_announcer
 from adabot import circuitpython_library_download_stats as dl_stats
 
-GH_INTERFACE = pygithub.Github(os.environ.get("ADABOT_GITHUB_ACCESS_TOKEN"))
+from .gh_interface import GH_INTERFACE
 
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(stream=sys.stdout)
@@ -221,48 +221,38 @@ def run_library_checks(validators, kw_args, error_depth):
 
     # Get PyPI stats
     have_secrets = False
-    while True:
-        try:
-            ada_bundle = GH_INTERFACE.get_repo("adafruit/Adafruit_CircuitPython_Bundle")
-            file_contents = ada_bundle.get_contents(
-                "circuitpython_library_pypi_stats.md"
-            )
-            stats_contents = file_contents.decoded_content.decode("utf-8").split("\n")
-            lib_stats = {}
-            total_library_pypi_stats = 0
-            blinka_pypi_downloads = 0
-            in_lib_stats = False
-            for line in stats_contents:
-                line = line.strip()
-                if not line:
-                    continue
-                if line.startswith("| Adafruit Blinka (adafruit-blinka) |"):
-                    blinka_pypi_downloads = int(line[38:-2])
-                    continue
-                if line.startswith(
-                    "**Total PyPI library downloads in the last 7 days:"
-                ):
-                    total_library_pypi_stats = int(line[51:-2])
-                    continue
-                if line.startswith("|"):
-                    parts = [part.strip() for part in line.split("|") if part.strip()]
-                    if parts[0] in ("Library (PyPI Package)", "---"):
-                        in_lib_stats = True
-                        continue
-                    if in_lib_stats:
-                        lib_stats[parts[0]] = int(parts[1][:-10])
-                else:
-                    in_lib_stats = False
-            have_secrets = True
-            break
-        except pygithub.RateLimitExceededException:
-            core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
-            sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
-            logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-            time.sleep(sleep_time.seconds)
+
+    ada_bundle = GH_INTERFACE.get_repo("adafruit/Adafruit_CircuitPython_Bundle")
+    file_contents = ada_bundle.get_contents(
+        "circuitpython_library_pypi_stats.md"
+    )
+    stats_contents = file_contents.decoded_content.decode("utf-8").split("\n")
+    lib_stats = {}
+    total_library_pypi_stats = 0
+    blinka_pypi_downloads = 0
+    in_lib_stats = False
+    for line in stats_contents:
+        line = line.strip()
+        if not line:
             continue
-        except pygithub.GithubException:
-            break
+        if line.startswith("| Adafruit Blinka (adafruit-blinka) |"):
+            blinka_pypi_downloads = int(line[38:-2])
+            continue
+        if line.startswith(
+            "**Total PyPI library downloads in the last 7 days:"
+        ):
+            total_library_pypi_stats = int(line[51:-2])
+            continue
+        if line.startswith("|"):
+            parts = [part.strip() for part in line.split("|") if part.strip()]
+            if parts[0] in ("Library (PyPI Package)", "---"):
+                in_lib_stats = True
+                continue
+            if in_lib_stats:
+                lib_stats[parts[0]] = int(parts[1][:-10])
+        else:
+            in_lib_stats = False
+    have_secrets = True
 
     logger.info("### Libraries")
     print_pr_overview(lib_insights)

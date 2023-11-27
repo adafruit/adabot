@@ -25,7 +25,7 @@ from adabot import github_requests as gh_reqs
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
-GH_INTERFACE = pygithub.Github(os.environ.get("ADABOT_GITHUB_ACCESS_TOKEN"))
+from ..gh_interface import GH_INTERFACE
 
 
 # Define constants for error strings to make checking against them more robust:
@@ -909,20 +909,12 @@ class LibraryValidator:
             errors.append(ERROR_RTD_ADABOT_MISSING)
 
         # Get the README file contents
-        while True:
-            try:
-                lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
-                content_file = lib_repo.get_contents("README.rst")
-                break
-            except pygithub.RateLimitExceededException:
-                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
-                sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
-                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-                time.sleep(sleep_time.seconds)
-                continue
-            except pygithub.GithubException:
-                errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED)
-                return errors
+        try:
+            lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
+            content_file = lib_repo.get_contents("README.rst")
+        except pygithub.GithubException:
+            errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED)
+            return errors
 
         readme_text = content_file.decoded_content.decode("utf-8")
 
@@ -1250,34 +1242,27 @@ class LibraryValidator:
         if not repo["name"].startswith("Adafruit_CircuitPython"):
             return []
 
-        while True:
-            try:
-                lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
+        lib_repo = GH_INTERFACE.get_repo(repo["full_name"])
 
-                if lib_repo.archived:
-                    return []
+        if lib_repo.archived:
+            return []
 
-                arg_dict = {"branch": lib_repo.default_branch}
+        arg_dict = {"branch": lib_repo.default_branch}
 
-                try:
-                    workflow = lib_repo.get_workflow("build.yml")
-                    workflow_runs = workflow.get_runs(**arg_dict)
-                except pygithub.GithubException:  # This can probably be tightened later
-                    # No workflows or runs yet
-                    return []
-                try:
-                    if workflow_runs[0].conclusion != "success":
-                        return [ERROR_CI_BUILD]
-                except IndexError:
-                    # The CI hasn't run yet, so empty list of workflow runs returned
-                    # This doesn't indicate a failure, so skip it
-                    pass
-                return []
-            except pygithub.RateLimitExceededException:
-                core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
-                sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
-                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-                time.sleep(sleep_time.seconds)
+        try:
+            workflow = lib_repo.get_workflow("build.yml")
+            workflow_runs = workflow.get_runs(**arg_dict)
+        except pygithub.GithubException:  # This can probably be tightened later
+            # No workflows or runs yet
+            return []
+        try:
+            if workflow_runs[0].conclusion != "success":
+                return [ERROR_CI_BUILD]
+        except IndexError:
+            # The CI hasn't run yet, so empty list of workflow runs returned
+            # This doesn't indicate a failure, so skip it
+            pass
+        return []
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""
