@@ -9,7 +9,6 @@ errors, across the entire CirtuitPython library ecosystem."""
 
 import datetime
 import os
-import logging
 import re
 import time
 

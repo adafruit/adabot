@@ -9,13 +9,9 @@ import argparse
 import datetime
 import inspect
 import logging
-import os
 import re
 import sys
-import time
 import traceback
-
-import github as pygithub
 
 from adabot import github_requests as gh_reqs
 from adabot import pypi_requests as pypi
@@ -223,9 +219,7 @@ def run_library_checks(validators, kw_args, error_depth):
     have_secrets = False
 
     ada_bundle = GH_INTERFACE.get_repo("adafruit/Adafruit_CircuitPython_Bundle")
-    file_contents = ada_bundle.get_contents(
-        "circuitpython_library_pypi_stats.md"
-    )
+    file_contents = ada_bundle.get_contents("circuitpython_library_pypi_stats.md")
     stats_contents = file_contents.decoded_content.decode("utf-8").split("\n")
     lib_stats = {}
     total_library_pypi_stats = 0
@@ -238,9 +232,7 @@ def run_library_checks(validators, kw_args, error_depth):
         if line.startswith("| Adafruit Blinka (adafruit-blinka) |"):
             blinka_pypi_downloads = int(line[38:-2])
             continue
-        if line.startswith(
-            "**Total PyPI library downloads in the last 7 days:"
-        ):
+        if line.startswith("**Total PyPI library downloads in the last 7 days:"):
             total_library_pypi_stats = int(line[51:-2])
             continue
         if line.startswith("|"):

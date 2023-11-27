@@ -10,9 +10,6 @@ on the automated release.
 """
 
 import datetime
-import logging
-import os
-import time
 from typing import Tuple, Set
 from typing_extensions import TypeAlias
 
@@ -60,17 +57,15 @@ def get_bundle_updates(full_repo_name: str) -> Tuple[Set[RepoResult], Set[RepoRe
                 or line.startswith("New libraries:")
             ]
             for relevant_line in relevant_lines:
-                lib_components = [
-                    x.strip(",") for x in relevant_line.split(" ")[2:]
-                ]
+                lib_components = [x.strip(",") for x in relevant_line.split(" ")[2:]]
                 for lib in lib_components:
                     comps = parse.parse("[{name:S}]({link_comp:S})", lib)
-                    link: str = parse.search(
-                        "{link:S}/releases", comps["link_comp"]
-                    )["link"]
-                    full_name = parse.search(
-                        "https://github.com/{full_name:S}", link
-                    )["full_name"]
+                    link: str = parse.search("{link:S}/releases", comps["link_comp"])[
+                        "link"
+                    ]
+                    full_name = parse.search("https://github.com/{full_name:S}", link)[
+                        "full_name"
+                    ]
                 if relevant_line.startswith("Updated libraries"):
                     updated_libs.add((full_name, link))
                 else:
