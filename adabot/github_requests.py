@@ -101,8 +101,12 @@ def request(method, url, **kwargs):
             logging.warning("Rate Limit will reset at: %s", rate_limit_reset)
             reset_diff = rate_limit_reset - datetime.datetime.now()
 
-            logging.info("Sleeping %s seconds", reset_diff.seconds)
-            time.sleep(reset_diff.seconds + 1)
+            sleep_seconds = reset_diff.total_seconds() + 60
+            logging.info("Sleeping %s seconds", sleep_seconds)
+            if sleep_seconds > 3600:
+                sleep_seconds = 3600
+                print("limiting sleep time to 3600 seconds")
+            time.sleep(sleep_seconds)
 
     return response
 

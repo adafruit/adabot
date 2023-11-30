@@ -917,8 +917,21 @@ class LibraryValidator:
             except pygithub.RateLimitExceededException:
                 core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
                 sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
-                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-                time.sleep(sleep_time.seconds)
+                logging.warning(
+                    "Rate Limit will reset at: %s, sleeping %s",
+                    core_rate_limit_reset,
+                    sleep_time,
+                )
+                logging.warning(
+                    "now=%s utcnow=%s",
+                    datetime.datetime.now(),
+                    datetime.datetime.utcnow(),
+                )
+                sleep_seconds = sleep_time.total_seconds() + 60
+                if sleep_seconds > 3600:
+                    sleep_seconds = 3600
+                    print("limiting sleep time to 3600 seconds")
+                time.sleep(sleep_seconds)
                 continue
             except pygithub.GithubException:
                 errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED)
@@ -1276,8 +1289,21 @@ class LibraryValidator:
             except pygithub.RateLimitExceededException:
                 core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
                 sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
-                logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-                time.sleep(sleep_time.seconds)
+                logging.warning(
+                    "now=%s utcnow=%s",
+                    datetime.datetime.now(),
+                    datetime.datetime.utcnow(),
+                )
+                logging.warning(
+                    "Rate Limit will reset at: %s, sleeping %s + skew",
+                    core_rate_limit_reset,
+                    sleep_time,
+                )
+                sleep_seconds = sleep_time.total_seconds() + 60
+                if sleep_seconds > 3600:
+                    sleep_seconds = 3600
+                    print("limiting sleep time to 3600 seconds")
+                time.sleep(sleep_seconds)
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""
