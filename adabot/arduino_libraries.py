@@ -11,7 +11,7 @@ import traceback
 
 import requests
 
-from adabot import github_requests as gh_reqs
+from adabot import github_requests as gh_reqs, REQUESTS_TIMEOUT
 
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(stream=sys.stdout)
@@ -87,7 +87,7 @@ def is_arduino_library(repo):
         + "/"
         + repo["default_branch"]
         + "/library.properties",
-        timeout=30,
+        timeout=REQUESTS_TIMEOUT,
     )
     return lib_prop_file.ok
 
@@ -118,7 +118,7 @@ def validate_library_properties(repo):
         + "/"
         + repo["default_branch"]
         + "/library.properties",
-        timeout=30,
+        timeout=REQUESTS_TIMEOUT,
     )
     if not lib_prop_file.ok:
         # print("{} skipped".format(repo["name"]))
@@ -196,7 +196,7 @@ def validate_actions(repo):
         + "/"
         + repo["default_branch"]
         + "/.github/workflows/githubci.yml",
-        timeout=30,
+        timeout=REQUESTS_TIMEOUT,
     )
     return repo_has_actions.ok
 
@@ -313,7 +313,8 @@ def main(verbosity=1, output_file=None):  # pylint: disable=missing-function-doc
 
     try:
         reply = requests.get(
-            "http://downloads.arduino.cc/libraries/library_index.json", timeout=30
+            "http://downloads.arduino.cc/libraries/library_index.json",
+            timeout=REQUESTS_TIMEOUT,
         )
         if not reply.ok:
             logging.error(

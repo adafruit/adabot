@@ -21,7 +21,7 @@ import yaml
 import parse
 
 import github as pygithub
-from adabot import github_requests as gh_reqs
+from adabot import github_requests as gh_reqs, REQUESTS_TIMEOUT
 from adabot.lib import common_funcs
 from adabot.lib import assign_hacktober_label as hacktober
 
@@ -231,7 +231,7 @@ class LibraryValidator:
                 "%20if%20cookiecutter.sphinx_docs%20in%20%5B'y'%2C%20'yes'%5D%20%25"
                 "%7D.readthedocs.yaml%7B%25%20endif%20%25%7D"
             )
-            rtd_yml = requests.get(rtd_yml_dl_url, timeout=30)
+            rtd_yml = requests.get(rtd_yml_dl_url, timeout=REQUESTS_TIMEOUT)
             if rtd_yml.ok:
                 try:
                     self._rtd_yaml_base = yaml.safe_load(rtd_yml.text)
@@ -255,7 +255,7 @@ class LibraryValidator:
                 "circuitpython/main/%7B%7B%20cookiecutter.__dirname%20%7D%7D/.pre-"
                 "commit-config.yaml"
             )
-            pcc_yml = requests.get(pcc_yml_dl_url, timeout=30)
+            pcc_yml = requests.get(pcc_yml_dl_url, timeout=REQUESTS_TIMEOUT)
             if pcc_yml.ok:
                 try:
                     pcc_yaml_base = yaml.safe_load(pcc_yml.text)
@@ -464,7 +464,7 @@ class LibraryValidator:
     def _validate_readme(self, download_url):
         # We use requests because file contents are hosted by
         # githubusercontent.com, not the API domain.
-        contents = requests.get(download_url, timeout=30)
+        contents = requests.get(download_url, timeout=REQUESTS_TIMEOUT)
         if not contents.ok:
             return [ERROR_README_DOWNLOAD_FAILED]
 
@@ -510,7 +510,7 @@ class LibraryValidator:
         """
         # We use requests because file contents are hosted by
         # githubusercontent.com, not the API domain.
-        contents = requests.get(download_url, timeout=30)
+        contents = requests.get(download_url, timeout=REQUESTS_TIMEOUT)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -548,7 +548,7 @@ class LibraryValidator:
         """
 
         download_url = actions_build_info["download_url"]
-        contents = requests.get(download_url, timeout=30)
+        contents = requests.get(download_url, timeout=REQUESTS_TIMEOUT)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -558,7 +558,7 @@ class LibraryValidator:
 
     def _validate_pre_commit_config_yaml(self, file_info):
         download_url = file_info["download_url"]
-        contents = requests.get(download_url, timeout=30)
+        contents = requests.get(download_url, timeout=REQUESTS_TIMEOUT)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -595,7 +595,7 @@ class LibraryValidator:
     def _validate_pyproject_toml(self, file_info):
         """Check pyproject.toml for pypi compatibility"""
         download_url = file_info["download_url"]
-        contents = requests.get(download_url, timeout=30)
+        contents = requests.get(download_url, timeout=REQUESTS_TIMEOUT)
         if not contents.ok:
             return [ERROR_TOMLFILE_DOWNLOAD_FAILED]
         return []
@@ -603,7 +603,7 @@ class LibraryValidator:
     def _validate_requirements_txt(self, repo, file_info, check_blinka=True):
         """Check requirements.txt for pypi compatibility"""
         download_url = file_info["download_url"]
-        contents = requests.get(download_url, timeout=30)
+        contents = requests.get(download_url, timeout=REQUESTS_TIMEOUT)
         if not contents.ok:
             return [ERROR_PYFILE_DOWNLOAD_FAILED]
 
@@ -718,7 +718,9 @@ class LibraryValidator:
                 if ".readthedocs.yaml" in files:
                     filename = ".readthedocs.yaml"
                 file_info = content_list[files.index(filename)]
-                rtd_contents = requests.get(file_info["download_url"], timeout=30)
+                rtd_contents = requests.get(
+                    file_info["download_url"], timeout=REQUESTS_TIMEOUT
+                )
                 if rtd_contents.ok:
                     try:
                         rtd_yml = yaml.safe_load(rtd_contents.text)
@@ -736,7 +738,9 @@ class LibraryValidator:
             if len(self._pcc_versions) or self.pcc_versions != "":
                 filename = ".pre-commit-config.yaml"
                 file_info = content_list[files.index(filename)]
-                pcc_contents = requests.get(file_info["download_url"], timeout=30)
+                pcc_contents = requests.get(
+                    file_info["download_url"], timeout=REQUESTS_TIMEOUT
+                )
                 if pcc_contents.ok:
                     try:
                         pcc_yml = yaml.safe_load(pcc_contents.text)
@@ -938,7 +942,7 @@ class LibraryValidator:
             url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
             rtd_token = os.environ["RTD_TOKEN"]
             headers = {"Authorization": f"token {rtd_token}"}
-            response = requests.get(url, headers=headers, timeout=30)
+            response = requests.get(url, headers=headers, timeout=REQUESTS_TIMEOUT)
             json_response = response.json()
 
             error_message = json_response.get("detail")
