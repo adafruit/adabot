@@ -54,9 +54,9 @@ def compare(git_file: str, token: Optional[str] = None) -> list:
             headers = CaseInsensitiveDict()
             headers["Authorization"] = f"token {token}"
 
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=headers, timeout=30)
         else:
-            resp = requests.get(url)
+            resp = requests.get(url, timeout=30)
 
         if resp.status_code != 200:
             print(name)

@@ -73,7 +73,7 @@ def get_open_issues(repo):
         )
 
         if response.links.get("next"):
-            response = requests.get(response.links["next"]["url"])
+            response = requests.get(response.links["next"]["url"], timeout=30)
         else:
             break
 

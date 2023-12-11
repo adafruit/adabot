@@ -231,7 +231,7 @@ class LibraryValidator:
                 "%20if%20cookiecutter.sphinx_docs%20in%20%5B'y'%2C%20'yes'%5D%20%25"
                 "%7D.readthedocs.yaml%7B%25%20endif%20%25%7D"
             )
-            rtd_yml = requests.get(rtd_yml_dl_url)
+            rtd_yml = requests.get(rtd_yml_dl_url, timeout=30)
             if rtd_yml.ok:
                 try:
                     self._rtd_yaml_base = yaml.safe_load(rtd_yml.text)
@@ -255,7 +255,7 @@ class LibraryValidator:
                 "circuitpython/main/%7B%7B%20cookiecutter.__dirname%20%7D%7D/.pre-"
                 "commit-config.yaml"
             )
-            pcc_yml = requests.get(pcc_yml_dl_url)
+            pcc_yml = requests.get(pcc_yml_dl_url, timeout=30)
             if pcc_yml.ok:
                 try:
                     pcc_yaml_base = yaml.safe_load(pcc_yml.text)
@@ -718,7 +718,7 @@ class LibraryValidator:
                 if ".readthedocs.yaml" in files:
                     filename = ".readthedocs.yaml"
                 file_info = content_list[files.index(filename)]
-                rtd_contents = requests.get(file_info["download_url"])
+                rtd_contents = requests.get(file_info["download_url"], timeout=30)
                 if rtd_contents.ok:
                     try:
                         rtd_yml = yaml.safe_load(rtd_contents.text)
@@ -736,7 +736,7 @@ class LibraryValidator:
             if len(self._pcc_versions) or self.pcc_versions != "":
                 filename = ".pre-commit-config.yaml"
                 file_info = content_list[files.index(filename)]
-                pcc_contents = requests.get(file_info["download_url"])
+                pcc_contents = requests.get(file_info["download_url"], timeout=30)
                 if pcc_contents.ok:
                     try:
                         pcc_yml = yaml.safe_load(pcc_contents.text)
@@ -938,7 +938,7 @@ class LibraryValidator:
             url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
             rtd_token = os.environ["RTD_TOKEN"]
             headers = {"Authorization": f"token {rtd_token}"}
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=30)
             json_response = response.json()
 
             error_message = json_response.get("detail")

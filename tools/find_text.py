@@ -129,7 +129,7 @@ print(f"Repos found: {len(all_repos)}")
 
 for repo in all_repos:
     INFO = "getting {} for: {}".format(FILE, repo["name"])
-    response = requests.get(URL_TEMPLATE.format(repo["name"], FILE))
+    response = requests.get(URL_TEMPLATE.format(repo["name"], FILE), timeout=30)
     result = []
     if response.status_code == 404:
         RESULTS["file_not_found"].append(repo["html_url"])

@@ -86,7 +86,8 @@ def is_arduino_library(repo):
         + repo["name"]
         + "/"
         + repo["default_branch"]
-        + "/library.properties"
+        + "/library.properties",
+        timeout=30,
     )
     return lib_prop_file.ok
 
@@ -116,7 +117,8 @@ def validate_library_properties(repo):
         + repo["name"]
         + "/"
         + repo["default_branch"]
-        + "/library.properties"
+        + "/library.properties",
+        timeout=30,
     )
     if not lib_prop_file.ok:
         # print("{} skipped".format(repo["name"]))
@@ -193,7 +195,8 @@ def validate_actions(repo):
         + repo["name"]
         + "/"
         + repo["default_branch"]
-        + "/.github/workflows/githubci.yml"
+        + "/.github/workflows/githubci.yml",
+        timeout=30,
     )
     return repo_has_actions.ok
 
@@ -309,7 +312,9 @@ def main(verbosity=1, output_file=None):  # pylint: disable=missing-function-doc
         logger.setLevel("CRITICAL")
 
     try:
-        reply = requests.get("http://downloads.arduino.cc/libraries/library_index.json")
+        reply = requests.get(
+            "http://downloads.arduino.cc/libraries/library_index.json", timeout=30
+        )
         if not reply.ok:
             logging.error(
                 "Could not fetch http://downloads.arduino.cc/libraries/library_index.json"

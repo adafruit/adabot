@@ -60,7 +60,7 @@ PIWHEELS_PACKAGES_URL = "https://www.piwheels.org/packages.json"
 def retrieve_piwheels_stats():
     """Get data dump of piwheels download stats"""
     stats = {}
-    response = requests.get(PIWHEELS_PACKAGES_URL)
+    response = requests.get(PIWHEELS_PACKAGES_URL, timeout=30)
     if response.ok:
         packages = response.json()
         stats = {

@@ -64,7 +64,7 @@ def check_docs_status(
     # GET the latest documentation build runs
     url = f"https://readthedocs.org/api/v3/projects/{rtd_slug}/builds/"
     headers = {"Authorization": f"token {rtd_token}"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
     json_response: dict[str, Any] = response.json()
 
     # Return the results of the latest run
