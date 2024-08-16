@@ -26,17 +26,16 @@ jobs:
     # Its necessary to do this here, since 'schedule' events cannot (currently)
     # be limited (they run on all forks' default branches).
     if: startswith(github.repository, 'adafruit/')
-    services:
-      redis:
-        image: redis
-        ports:
-          - 6379/tcp
-        options: --entrypoint redis-server
     steps:
-    - name: Set up Python 3.9
+    - name: Set up Python 3.12
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: 3.12
+    - name: Load contributor cache
+      uses: actions/cache@v4
+      with:
+        key: "contributor-cache"
+        path: "contributors.json"
     - name: Versions
       run: |
         python3 --version
