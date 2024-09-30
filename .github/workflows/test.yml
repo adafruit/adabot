@@ -52,4 +52,4 @@ jobs:
         RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
         REDIS_PORT: ${{ job.services.redis.ports[6379] }}
       run: |
-        python3 -u -m pytest
+        python3 -u -m pytest -s
