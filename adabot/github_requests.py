@@ -64,6 +64,8 @@ def request(method, url, **kwargs):
             _fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs)
         )
         from_cache = getattr(response, "from_cache", False)
+        print(f"headers: {response.headers}")
+        print(f"content: {response.content}")
         remaining = int(response.headers.get("X-RateLimit-Remaining", 0))
         logging.debug(
             "GET %s %s status=%s",
