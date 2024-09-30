@@ -16,12 +16,12 @@ def mock_list_repos():
     return [github_requests.get("/repos/adafruit/Adafruit_NeoPixel").json()]
 
 
-def test_adafruit_libraries(monkeypatch):
+def test_adafruit_libraries(monkeypatch, capsys):
     """Test main arduino_libraries function, without writing an output file."""
 
     monkeypatch.setattr(arduino_libraries, "list_repos", mock_list_repos)
-
-    arduino_libraries.main()
+    with capsys.disabled():
+        arduino_libraries.main()
 
 
 # pylint: disable=invalid-name
