@@ -73,6 +73,12 @@ def request(method, url, **kwargs):
             f"{'(cache)' if from_cache else '(%d remaining)' % remaining}",
             response.status_code,
         )
+        print(
+            "GET %s %s status=%s",
+            url,
+            f"{'(cache)' if from_cache else '(%d remaining)' % remaining}",
+            response.status_code,
+        )
     except requests.RequestException:
         exception_text = traceback.format_exc()
         if "ADABOT_GITHUB_ACCESS_TOKEN" in os.environ:
