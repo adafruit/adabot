@@ -64,6 +64,7 @@ def request(method, url, **kwargs):
             _fix_url(url), timeout=TIMEOUT, **_fix_kwargs(kwargs)
         )
         from_cache = getattr(response, "from_cache", False)
+        print(f"from_cache ? {from_cache}")
         print(f"headers: {response.headers}")
         print(f"content: {response.content}")
         print(f"X-RateLimit-Remaining header found ? {'X-RateLimit-Remaining' in response.headers}")
