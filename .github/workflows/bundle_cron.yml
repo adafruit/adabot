@@ -7,6 +7,7 @@ name: Update Bundles
 on:
   schedule:
     - cron: 0 5 * * *
+  workflow_dispatch:
 
 jobs:
   check-repo-owner:
@@ -50,7 +51,6 @@ jobs:
         ADABOT_EMAIL: ${{ secrets.ADABOT_EMAIL }}
         ADABOT_GITHUB_USER: ${{ secrets.ADABOT_GITHUB_USER }}
         ADABOT_GITHUB_ACCESS_TOKEN: ${{ secrets.ADABOT_GITHUB_ACCESS_TOKEN }}
-        REDIS_PORT: ${{ job.services.redis.ports[6379] }}
         BIGQUERY_PRIVATE_KEY: ${{ secrets.BIGQUERY_PRIVATE_KEY }}
         BIGQUERY_CLIENT_EMAIL: ${{ secrets.BIGQUERY_CLIENT_EMAIL }}
       run: |
