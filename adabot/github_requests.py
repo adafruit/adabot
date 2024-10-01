@@ -66,7 +66,9 @@ def request(method, url, **kwargs):
         from_cache = getattr(response, "from_cache", False)
         print(f"headers: {response.headers}")
         print(f"content: {response.content}")
+        print(f"X-RateLimit-Remaining header found ? {'X-RateLimit-Remaining' in response.headers}")
         remaining = int(response.headers.get("X-RateLimit-Remaining", 0))
+        print(f"remaining value: {remaining}")
         logging.debug(
             "GET %s %s status=%s",
             url,
