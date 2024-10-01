@@ -25,6 +25,8 @@ from adabot import circuitpython_library_download_stats as dl_stats
 
 BUNDLES = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
 
+CONTRIBUTOR_CACHE = {}
+
 
 def fetch_bundle(bundle, bundle_path):
     """Clones `bundle` to `bundle_path`"""
@@ -549,8 +551,6 @@ if __name__ == "__main__":
     contributor_cache_fn = pathlib.Path("contributors.json").resolve()
     if contributor_cache_fn.exists():
         CONTRIBUTOR_CACHE = json.loads(contributor_cache_fn.read_text())
-    else:
-        CONTRIBUTOR_CACHE = {}
 
     bundles_dir = os.path.abspath(".bundles")
     if "GITHUB_WORKSPACE" in os.environ:
