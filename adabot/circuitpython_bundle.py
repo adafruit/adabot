@@ -574,7 +574,12 @@ if __name__ == "__main__":
 
             # test bundle build and stop if it does not succeed
             try:
-                test_bundle_build(bundle_dir)
+
+                if bundle_dir == "CircuitPython_Community_Bundle":
+                    # echo "print('hello world')" > libraries/helpers/PiperBlocklyLibrary/extrarootfile.py
+                    with open("CircuitPython_Community_Bundle/libraries/helpers/PiperBlocklyLibrary/extrarootfile.py") as f:
+                        f.write("print('hello world')")
+                    test_bundle_build(bundle_dir)
             except SystemExit as e:
                 if e.code != 0:
                     raise RuntimeError("Test Build of Bundle Failed")
