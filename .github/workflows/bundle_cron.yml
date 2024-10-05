@@ -21,8 +21,37 @@ jobs:
         run: |
           echo "This workflow will only run if Adafruit is the repository owner."
           echo "Repository owner is Adafruit: $OWNER_IS_ADAFRUIT"
+  test-bundle-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Versions
+        run: |
+          python3 --version
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+      - name: Test Building Community Bundle
+        run: |
+          git clone --recurse-submodules https://github.com/adafruit/CircuitPython_Community_Bundle.git
+          cd CircuitPython_Community_Bundle
+          circuitpython-build-bundles --filename_prefix test-community-bundle --library_location libraries --library_depth 2
+      - name: Test Building Adafruit Bundle
+        run: |
+          git clone --recurse-submodules https://github.com/adafruit/Adafruit_CircuitPython_Bundle.git
+          cd Adafruit_CircuitPython_Bundle
+          circuitpython-build-bundles --filename_prefix test-adafruit-bundle --library_location libraries --library_depth 2
+
   update-bundles:
     runs-on: ubuntu-latest
+    # Only run if test-bundle-builds succeeds
+    needs: test-bundle-builds
     # Only run the build on Adafruit's repository. Forks won't have the secrets.
     # Its necessary to do this here, since 'schedule' events cannot (currently)
     # be limited (they run on all forks' default branches).
