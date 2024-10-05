@@ -591,5 +591,6 @@ if __name__ == "__main__":
         except RuntimeError as e:
             print("Failed to update and release:", cp_bundle)
             print(e)
+            raise e
         finally:
             contributor_cache_fn.write_text(json.dumps(CONTRIBUTOR_CACHE))
