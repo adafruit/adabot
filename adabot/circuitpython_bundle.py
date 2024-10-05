@@ -6,7 +6,7 @@
     If updates are found the bundle is updated, updates are pushed to the
     remote, and a new release is made.
 """
-
+import contextlib
 from datetime import date
 from io import StringIO
 import json
@@ -16,6 +16,7 @@ import shlex
 import subprocess
 
 import sh
+from circuitpython_build_tools.scripts.build_bundles import build_bundles
 from sh.contrib import git
 
 from adabot import github_requests as gh_reqs
@@ -419,6 +420,15 @@ def add_contributors(master_list, additions):
         master_list[contributor] += additions[contributor]
 
 
+def test_bundle_build(bundle_dir):
+    with contextlib.chdir(bundle_dir):
+        build_bundles([
+            "--filename_prefix", "test-build-bundle",
+            "--library_location", "libraries",
+            "--library_depth", "2"],
+
+            standalone_mode=False)
+
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def new_release(bundle, bundle_path):
     """Creates a new release for `bundle`."""
@@ -561,10 +571,18 @@ if __name__ == "__main__":
         try:
             fetch_bundle(cp_bundle, bundle_dir)
             updates, release_required = update_bundle(bundle_dir)
-            if release_required:
-                commit_updates(bundle_dir, updates)
-                push_updates(bundle_dir)
-            new_release(cp_bundle, bundle_dir)
+
+            # test bundle build and stop if it does not succeed
+            try:
+                test_bundle_build(bundle_dir)
+            except SystemExit as e:
+                if e.code != 0:
+                    raise RuntimeError("Test Build of Bundle Failed")
+
+            # if release_required:
+            #     commit_updates(bundle_dir, updates)
+            #     push_updates(bundle_dir)
+            # new_release(cp_bundle, bundle_dir)
         except RuntimeError as e:
             print("Failed to update and release:", cp_bundle)
             print(e)
