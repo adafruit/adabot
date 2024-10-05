@@ -6,29 +6,27 @@
     If updates are found the bundle is updated, updates are pushed to the
     remote, and a new release is made.
 """
-
+import contextlib
 from datetime import date
 from io import StringIO
+import json
 import os
+import pathlib
 import shlex
 import subprocess
 
-import redis as redis_py
-
 import sh
+from circuitpython_build_tools.scripts.build_bundles import build_bundles
 from sh.contrib import git
 
 from adabot import github_requests as gh_reqs
 from adabot.lib import common_funcs
 from adabot import circuitpython_library_download_stats as dl_stats
 
-REDIS = None
-if "GITHUB_WORKSPACE" in os.environ:
-    REDIS = redis_py.StrictRedis(port=os.environ["REDIS_PORT"])
-else:
-    REDIS = redis_py.StrictRedis()
 
 BUNDLES = ["Adafruit_CircuitPython_Bundle", "CircuitPython_Community_Bundle"]
+
+CONTRIBUTOR_CACHE = {}
 
 
 def fetch_bundle(bundle, bundle_path):
@@ -380,20 +378,17 @@ def get_contributors(repo, commit_range):
         return contributors
     for log_line in output.split("\n"):
         sha, author_email, committer_email = log_line.split(",")
-        author = REDIS.get("github_username:" + author_email)
-        committer = REDIS.get("github_username:" + committer_email)
+        author = CONTRIBUTOR_CACHE.get("github_username:" + author_email, None)
+        committer = CONTRIBUTOR_CACHE.get("github_username:" + committer_email, None)
         if not author or not committer:
             github_commit_info = gh_reqs.get("/repos/" + repo + "/commits/" + sha)
             github_commit_info = github_commit_info.json()
             if github_commit_info["author"]:
                 author = github_commit_info["author"]["login"]
-                REDIS.set("github_username:" + author_email, author)
+                CONTRIBUTOR_CACHE["github_username:" + author_email] = author
             if github_commit_info["committer"]:
                 committer = github_commit_info["committer"]["login"]
-                REDIS.set("github_username:" + committer_email, committer)
-        else:
-            author = author.decode("utf-8")
-            committer = committer.decode("utf-8")
+                CONTRIBUTOR_CACHE["github_username:" + committer_email] = committer
 
         if committer_email == "noreply@github.com":
             committer = None
@@ -423,6 +418,26 @@ def add_contributors(master_list, additions):
         if contributor not in master_list:
             master_list[contributor] = 0
         master_list[contributor] += additions[contributor]
+
+
+def test_bundle_build(bundle_dir):
+    """
+    Attempts to build the bundle at the given location.
+    Returns exit code 0 if success.
+    Returns exit code >0 if failed to build.
+    """
+    with contextlib.chdir(bundle_dir):
+        build_bundles(
+            [
+                "--filename_prefix",
+                "test-build-bundle",
+                "--library_location",
+                "libraries",
+                "--library_depth",
+                "2",
+            ],
+            standalone_mode=False,
+        )
 
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
@@ -506,7 +521,7 @@ def new_release(bundle, bundle_path):
     release_description.append(
         "The libraries in each release are compiled for all recent major versions of CircuitPython."
         " Please download the one that matches the major version of your CircuitPython. For example"
-        ", if you are running 8.2.6 you should download the `8.x` bundle.\n"
+        ", if you are running 9.1.1 you should download the `9.x` bundle.\n"
     )
 
     release_description.append(
@@ -554,6 +569,10 @@ def new_release(bundle, bundle_path):
 
 
 if __name__ == "__main__":
+    contributor_cache_fn = pathlib.Path("contributors.json").resolve()
+    if contributor_cache_fn.exists():
+        CONTRIBUTOR_CACHE = json.loads(contributor_cache_fn.read_text())
+
     bundles_dir = os.path.abspath(".bundles")
     if "GITHUB_WORKSPACE" in os.environ:
         git.config("--global", "user.name", "adabot")
@@ -563,6 +582,13 @@ if __name__ == "__main__":
         try:
             fetch_bundle(cp_bundle, bundle_dir)
             updates, release_required = update_bundle(bundle_dir)
+
+            # test bundle build and stop if it does not succeed
+            try:
+                test_bundle_build(bundle_dir)
+            except SystemExit as e:
+                if e.code != 0:
+                    raise RuntimeError("Test Build of Bundle Failed") from e
             if release_required:
                 commit_updates(bundle_dir, updates)
                 push_updates(bundle_dir)
@@ -570,3 +596,6 @@ if __name__ == "__main__":
         except RuntimeError as e:
             print("Failed to update and release:", cp_bundle)
             print(e)
+            raise e
+        finally:
+            contributor_cache_fn.write_text(json.dumps(CONTRIBUTOR_CACHE))
