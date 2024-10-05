@@ -577,7 +577,7 @@ if __name__ == "__main__":
 
                 if cp_bundle == "CircuitPython_Community_Bundle":
                     # echo "print('hello world')" > libraries/helpers/PiperBlocklyLibrary/extrarootfile.py
-                    with open(os.path.join(bundle_dir, "libraries/helpers/PiperBlocklyLibrary/extrarootfile.py")) as f:
+                    with open(os.path.join(bundle_dir, "libraries/helpers/PiperBlocklyLibrary/extrarootfile.py"), "w") as f:
                         f.write("print('hello world')")
                     test_bundle_build(bundle_dir)
             except SystemExit as e:
