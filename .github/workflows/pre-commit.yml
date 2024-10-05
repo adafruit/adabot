@@ -10,10 +10,10 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python 3.9
+    - name: Set up Python 3
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: 3
     - name: Versions
       run: |
         python3 --version
