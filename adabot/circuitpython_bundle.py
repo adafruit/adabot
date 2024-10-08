@@ -423,8 +423,8 @@ def add_contributors(master_list, additions):
 def test_bundle_build(bundle_dir):
     """
     Attempts to build the bundle at the given location.
-    Returns exit code 0 if success.
-    Returns exit code >0 if failed to build.
+    Raises system exit status 0 if successful.
+    Raises system exit status >0 if failed to build.
     """
     with contextlib.chdir(bundle_dir):
         build_bundles(
