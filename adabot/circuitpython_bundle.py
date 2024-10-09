@@ -352,8 +352,7 @@ def commit_updates(bundle_path, update_info):
             )
         )
     message = "\n\n".join(message)
-    git.add(".")
-    git.commit(message=message)
+    git.commit("-a", message=message)
     os.chdir(working_directory)
 
 
