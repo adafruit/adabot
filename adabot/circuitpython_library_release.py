@@ -156,10 +156,11 @@ def main_cli():
     )
 
     parser = argparse.ArgumentParser(
-        prog='adabot.circuitpython_library_release',
-        description='Create GitHub releases for CircuitPython Library projects if they '
-                    'contain commits newer than the most recent release.')
-    parser.add_argument('-t', '--title')
+        prog="adabot.circuitpython_library_release",
+        description="Create GitHub releases for CircuitPython Library projects if they "
+        "contain commits newer than the most recent release.",
+    )
+    parser.add_argument("-t", "--title")
     args = parser.parse_args()
     if args.title is not None:
         config["RELEASE_TITLE"] = args.title
