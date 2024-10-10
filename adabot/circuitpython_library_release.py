@@ -10,7 +10,6 @@ import subprocess
 import logging
 from datetime import datetime
 import toml
-from jinja2 import Template
 
 # Empty RELEASE_TITLE will prompt to ask for a title for each release.
 # Set a value here if you want to use the same string for the title of all releases
