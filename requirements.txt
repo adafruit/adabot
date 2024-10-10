@@ -18,4 +18,3 @@ typing-extensions~=4.0
 google-auth~=2.13
 google-cloud-bigquery~=3.3
 toml
-jinja2
