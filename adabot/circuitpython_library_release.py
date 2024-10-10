@@ -46,32 +46,32 @@ def make_release(new_tag, logger, test_run=False):
         )
 
 
-def create_release_notes(pypi_name):
+def create_release_notes(shorthand_name, changes_url):
     """
     render the release notes into a md file.
     """
     # pylint: disable=line-too-long
-    RELEASE_NOTES_TEMPLATE = """To use in CircuitPython, simply install the [Adafruit CircuitPython Bundle](https://circuitpython.org/libraries).
+    RELEASE_NOTES_TEMPLATE = """Changes: {{ changes_url }}
 
-To use in CPython, `pip3 install {{ pypi_name }}`.
+To use in CircuitPython, simply install the [Adafruit CircuitPython Bundle](https://circuitpython.org/libraries).
 
-Read the [docs](https://circuitpython.readthedocs.io/projects/{{ pypi_name }}/en/latest/) for info on how to use it."""
+To use in CPython, `pip3 install adafruit-circuitpython-{{ shorthand_name }}`.
+
+Read the [docs](https://circuitpython.readthedocs.io/projects/{{ shorthand_name }}/en/latest/) for info on how to use it."""
 
     release_notes_template = Template(RELEASE_NOTES_TEMPLATE)
 
-    _rendered_template_text = release_notes_template.render(pypi_name=pypi_name)
+    _rendered_template_text = release_notes_template.render(
+        shorthand_name=shorthand_name, changes_url=changes_url
+    )
 
     with open("release_notes.md", "w") as f:
         f.write(_rendered_template_text)
 
 
-if __name__ == "__main__":
-    create_release_notes("testrepo")
-
-
-def get_pypi_name():
+def get_shorthand_name():
     """
-    return the shorthand pypi project name
+    return the shorthand project name used for pypi, docs, etc.
     """
     data = toml.load("pyproject.toml")
 
@@ -149,7 +149,7 @@ def get_release_info():
     }
 
 
-def get_compare_url(tag_name):
+def get_compare_url(tag_name, compare_to_tag_name="main"):
     """
     Get the URL to the GitHub compare page for the latest release compared
     to current main.
@@ -161,7 +161,9 @@ def get_compare_url(tag_name):
     if not remote_url.startswith("https"):
         return "Sorry, Unknown Remotes"
 
-    compare_url = remote_url.replace(".git", f"/compare/{tag_name}...main")
+    compare_url = remote_url.replace(
+        ".git", f"/compare/{tag_name}...{compare_to_tag_name}"
+    )
     return compare_url
 
 
@@ -210,19 +212,34 @@ def main_cli():
             logging.info(
                 "Making a new release with tag: %s", release_info["new_tag_patch"]
             )
-            create_release_notes(get_pypi_name())
+            create_release_notes(
+                get_shorthand_name(),
+                get_compare_url(
+                    release_info["current_tag"], release_info["new_tag_patch"]
+                ),
+            )
             make_release(release_info["new_tag_patch"], logging)
         elif choice == "2":
             logging.info(
                 "Making a new release with tag: %s", release_info["new_tag_minor"]
             )
-            create_release_notes(get_pypi_name())
+            create_release_notes(
+                get_shorthand_name(),
+                get_compare_url(
+                    release_info["current_tag"], release_info["new_tag_minor"]
+                ),
+            )
             make_release(release_info["new_tag_minor"], logging)
         elif choice == "3":
             logging.info(
                 "Making a new release with tag: %s", release_info["new_tag_major"]
             )
-            create_release_notes(get_pypi_name())
+            create_release_notes(
+                get_shorthand_name(),
+                get_compare_url(
+                    release_info["current_tag"], release_info["new_tag_major"]
+                ),
+            )
             make_release(release_info["new_tag_major"], logging)
         elif choice == "4":
             logging.info("Skipping release.")
