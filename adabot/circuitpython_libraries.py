@@ -232,7 +232,7 @@ def run_library_checks(validators, kw_args, error_depth):
         "* Adafruit Libraries: %s Community Libraries: %s (Total: %s)",
         len(bundle_submodules),
         community_library_count,
-        len(bundle_submodules) + community_bundle_submodules,
+        len(bundle_submodules) + int(community_bundle_submodules),
     )
     print_pr_overview(lib_insights)
     logger.info("  * Merged pull requests:")
