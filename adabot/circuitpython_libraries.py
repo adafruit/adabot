@@ -17,7 +17,7 @@ import traceback
 import github as pygithub
 import requests
 
-from adabot import github_requests as gh_reqs
+from adabot import github_requests as gh_reqs, REQUESTS_TIMEOUT
 from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
@@ -224,7 +224,7 @@ def run_library_checks(validators, kw_args, error_depth):
     resp = requests.get(
         "https://raw.githubusercontent.com/adafruit/"
         "CircuitPython_Community_Bundle/main/.gitmodules",
-        timeout=30,
+        timeout=REQUESTS_TIMEOUT,
     )
     community_bundle_submodules = resp.text
     community_library_count = community_bundle_submodules.count("submodule")

@@ -892,7 +892,8 @@ class LibraryValidator:
             return []
         if not self.rtd_subprojects:
             rtd_response = requests.get(
-                "https://readthedocs.org/api/v2/project/74557/subprojects/", timeout=15
+                "https://readthedocs.org/api/v2/project/74557/subprojects/",
+                timeout=REQUESTS_TIMEOUT,
             )
             if not rtd_response.ok:
                 return [ERROR_RTD_SUBPROJECT_FAILED]
@@ -985,7 +986,7 @@ class LibraryValidator:
                     "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/"
                     "main/docs/drivers.rst"
                 ),
-                timeout=15,
+                timeout=REQUESTS_TIMEOUT,
             )
             if not driver_page.ok:
                 return [ERROR_DRIVERS_PAGE_DOWNLOAD_FAILED]
