@@ -12,7 +12,7 @@ import datetime
 import os
 import re
 import requests
-from adabot import github_requests as gh_reqs
+from adabot import github_requests as gh_reqs, REQUESTS_TIMEOUT
 from adabot import pypi_requests as pypi
 
 CORE_REPO_URL = "/repos/adafruit/circuitpython"
@@ -96,7 +96,7 @@ def get_bundle_submodules():
     # master branch of the bundle is the canonical source of the bundle release.
     result = requests.get(
         "https://raw.githubusercontent.com/adafruit/Adafruit_CircuitPython_Bundle/main/.gitmodules",
-        timeout=15,
+        timeout=REQUESTS_TIMEOUT,
     )
     if result.status_code != 200:
         # output_handler("Failed to access bundle .gitmodules file from GitHub!", quiet=True)
