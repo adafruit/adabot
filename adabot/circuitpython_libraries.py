@@ -21,7 +21,6 @@ from adabot import github_requests as gh_reqs
 from adabot import pypi_requests as pypi
 from adabot.lib import circuitpython_library_validators as cirpy_lib_vals
 from adabot.lib import common_funcs
-from adabot.lib import assign_hacktober_label as hacktober
 from adabot.lib import blinka_funcs
 from adabot.lib import bundle_announcer
 from adabot import circuitpython_library_download_stats as dl_stats
@@ -567,20 +566,6 @@ def print_issue_overview(*insights):
         new_issues,
         len(issue_authors),
     )
-
-    # print Hacktoberfest labels changes if its Hacktober
-    in_season, season_action = hacktober.is_hacktober_season()
-    if in_season:
-        hacktober_changes = ""
-        if season_action == "add":
-            hacktober_changes = "* Assigned Hacktoberfest label to {} issues.".format(
-                sum([x["hacktober_assigned"] for x in insights])
-            )
-        elif season_action == "remove":
-            hacktober_changes += "* Removed Hacktoberfest label from {} issues.".format(
-                sum([x["hacktober_removed"] for x in insights])
-            )
-        logger.info(hacktober_changes)
 
 
 # pylint: disable=too-many-branches
