@@ -220,7 +220,9 @@ def get_docs_link(bundle_path, submodule):
         with open(f"{bundle_path}/{submodule[1]['path']}/README.rst", "r") as readme:
             lines = readme.read().split("\n")
         for i in range(10):
-            if "target" in lines[i] and "readthedocs" in lines[i]:
+            if "target" in lines[i] and (
+                "readthedocs" in lines[i] or "docs.circuitpython.org" in lines[i]
+            ):
                 return lines[i].replace("    :target: ", "")
         return None
     except FileNotFoundError:
