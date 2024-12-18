@@ -790,8 +790,8 @@ class LibraryValidator:
         examples_list = []
         if dirs:
 
-            lib_name_start = repo["name"].rfind("CircuitPython_") + len("CircuitPython_")
-            lib_name = repo["name"][lib_name_start:].lower()
+            lns = repo["name"].rfind("CircuitPython_") + len("CircuitPython_")
+            lib_name = repo["name"][lns:].lower()
             while dirs:
                 # loop through the results to ensure we capture files
                 # in subfolders, and add any files in the current directory
@@ -804,12 +804,16 @@ class LibraryValidator:
                     if x["type"] == "dir":
                         if x["name"].startswith(lib_name):
                             continue
-                        if x["name"].replace("_", "").startswith(lib_name.replace("_", "")):
+                        if (
+                            x["name"]
+                            .replace("_", "")
+                            .startswith(lib_name.replace("_", ""))
+                        ):
                             continue
                         dirs.append(x["url"])
                     elif x["type"] == "file":
                         examples_list.append(x)
-                
+
             if len(examples_list) < 1:
                 errors.append(ERROR_MISSING_EXAMPLE_FILES)
             else:
