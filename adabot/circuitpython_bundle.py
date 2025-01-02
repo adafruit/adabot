@@ -145,8 +145,10 @@ def check_lib_links_md(bundle_path):
     bundle = None
     if "Adafruit_CircuitPython_Bundle" in bundle_path:
         bundle = "adafruit"
+        listfile_name = "circuitpython_library_list.md"
     elif "CircuitPython_Community_Bundle" in bundle_path:
         bundle = "community"
+        listfile_name = "circuitpython_community_auto_library_list.md"
     else:
         return []
     submodules_list = sorted(
@@ -158,7 +160,7 @@ def check_lib_links_md(bundle_path):
     # used to generate commit message by comparing new libs to current list
     try:
         with open(
-            os.path.join(bundle_path, "circuitpython_library_list.md"), "r"
+            os.path.join(bundle_path, listfile_name), "r"
         ) as lib_list:
             read_lines = lib_list.read().splitlines()
     except OSError:
@@ -203,7 +205,7 @@ def check_lib_links_md(bundle_path):
     ]
 
     with open(
-        os.path.join(bundle_path, "circuitpython_library_list.md"), "w"
+        os.path.join(bundle_path, listfile_name), "w"
     ) as md_file:
         md_file.write("\n".join(lib_list_header))
         for line in sorted(write_drivers):
