@@ -269,6 +269,16 @@ def repo_remote_url(repo_path):
 
 def update_bundle(bundle_path):
     """Process all libraries in the bundle, and update their version if necessary."""
+
+    if (
+        "Adafruit_CircuitPython_Bundle" not in bundle_path
+        and "CircuitPython_Community_Bundle" not in bundle_path
+    ):
+        raise ValueError(
+            "bundle_path must be for "
+            "Adafruit_CircuitPython_Bundle or CircuitPython_Community_Bundle"
+        )
+
     working_directory = os.path.abspath(os.getcwd())
     os.chdir(bundle_path)
     git.submodule("foreach", "git", "fetch")
@@ -312,12 +322,15 @@ def update_bundle(bundle_path):
     os.chdir(working_directory)
     lib_list_updates = check_lib_links_md(bundle_path)
     if lib_list_updates:
+        if "Adafruit_CircuitPython_Bundle" in bundle_path:
+            listfile_name = "circuitpython_library_list.md"
+            bundle_url = "https://github.com/adafruit/Adafruit_CircuitPython_Bundle/"
+        elif "CircuitPython_Community_Bundle" in bundle_path:
+            listfile_name = "circuitpython_community_auto_library_list.md"
+            bundle_url = "https://github.com/adafruit/CircuitPython_Community_Bundle/"
         updates.append(
             (
-                (
-                    "https://github.com/adafruit/Adafruit_CircuitPython_Bundle/"
-                    "circuitpython_library_list.md"
-                ),
+                f"{bundle_url}{listfile_name}",  # pylint: disable=possibly-used-before-assignment
                 "NA",
                 "NA",
                 "  > Added the following libraries: {}".format(
@@ -326,18 +339,6 @@ def update_bundle(bundle_path):
             )
         )
         release_required = True
-    if update_download_stats(bundle_path):
-        updates.append(
-            (
-                (
-                    "https://github.com/adafruit/Adafruit_CircuitPython_Bundle/"
-                    "circuitpython_library_list.md"
-                ),
-                "NA",
-                "NA",
-                "  > Updated download stats for the libraries",
-            )
-        )
 
     return updates, release_required
 
