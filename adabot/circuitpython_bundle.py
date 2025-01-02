@@ -140,14 +140,19 @@ def update_download_stats(bundle_path):
 # pylint: disable=too-many-locals
 def check_lib_links_md(bundle_path):
     """Checks and updates the `circuitpython_library_list` Markdown document
-    located in the Adafruit CircuitPython Bundle.
+    located in the Adafruit CircuitPython Bundle and Community Bundle.
     """
-    if not "Adafruit_CircuitPython_Bundle" in bundle_path:
+    bundle = None
+    if "Adafruit_CircuitPython_Bundle" in bundle_path:
+        bundle = "adafruit"
+    elif "CircuitPython_Community_Bundle" in bundle_path:
+        bundle = "community"
+    else:
         return []
     submodules_list = sorted(
-        common_funcs.get_bundle_submodules(), key=lambda module: module[1]["path"]
+        common_funcs.get_bundle_submodules(bundle=bundle),
+        key=lambda module: module[1]["path"],
     )
-    submodules_list = common_funcs.get_bundle_submodules()
 
     lib_count = len(submodules_list)
     # used to generate commit message by comparing new libs to current list
