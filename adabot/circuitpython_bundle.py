@@ -159,9 +159,7 @@ def check_lib_links_md(bundle_path):
     lib_count = len(submodules_list)
     # used to generate commit message by comparing new libs to current list
     try:
-        with open(
-            os.path.join(bundle_path, listfile_name), "r"
-        ) as lib_list:
+        with open(os.path.join(bundle_path, listfile_name), "r") as lib_list:
             read_lines = lib_list.read().splitlines()
     except OSError:
         read_lines = []
@@ -204,9 +202,7 @@ def check_lib_links_md(bundle_path):
         "## Drivers:\n",
     ]
 
-    with open(
-        os.path.join(bundle_path, listfile_name), "w"
-    ) as md_file:
+    with open(os.path.join(bundle_path, listfile_name), "w") as md_file:
         md_file.write("\n".join(lib_list_header))
         for line in sorted(write_drivers):
             md_file.write(line + "\n")
