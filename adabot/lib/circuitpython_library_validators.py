@@ -790,8 +790,10 @@ class LibraryValidator:
         examples_list = []
         if dirs:
 
-            lns = repo["name"].rfind("CircuitPython_") + len("CircuitPython_")
-            lib_name = repo["name"][lns:].lower()
+            lib_name_start = repo["name"].rfind("CircuitPython_") + len(
+                "CircuitPython_"
+            )
+            lib_name = repo["name"][lib_name_start:].lower()
             while dirs:
                 # loop through the results to ensure we capture files
                 # in subfolders, and add any files in the current directory
