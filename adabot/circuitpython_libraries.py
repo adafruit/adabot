@@ -86,10 +86,10 @@ blinka_repos = [
     "Adafruit_Blinka",
     "Adafruit_Blinka_bleio",
     "Adafruit_Blinka_Displayio",
-    "Adafruit_Python_PlatformDetect",
-    "Adafruit_Python_PureIO",
     "Adafruit_Blinka_PyPortal",
     "Adafruit_Python_Extended_Bus",
+    "Adafruit_Python_PlatformDetect",
+    "Adafruit_Python_PureIO",
 ]
 
 
