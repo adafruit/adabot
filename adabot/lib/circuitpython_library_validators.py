@@ -935,7 +935,8 @@ class LibraryValidator:
                 core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
                 sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
                 logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-                time.sleep(sleep_time.seconds)
+                # wait maximum of 62 minutes
+                time.sleep(min(sleep_time.seconds, 62 * 60))
                 continue
             except pygithub.GithubException:
                 errors.append(ERROR_RTD_FAILED_TO_LOAD_BUILD_STATUS_GH_NONLIMITED)
@@ -1295,7 +1296,8 @@ class LibraryValidator:
                 core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
                 sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
                 logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-                time.sleep(sleep_time.seconds)
+                # wait maximum of 62 minutes
+                time.sleep(min(sleep_time.seconds, 62 * 60))
 
     def validate_default_branch(self, repo):
         """Makes sure that the default branch is main"""

@@ -82,7 +82,8 @@ def get_bundle_updates(full_repo_name: str) -> Tuple[Set[RepoResult], Set[RepoRe
             core_rate_limit_reset = GH_INTERFACE.get_rate_limit().core.reset
             sleep_time = core_rate_limit_reset - datetime.datetime.utcnow()
             logging.warning("Rate Limit will reset at: %s", core_rate_limit_reset)
-            time.sleep(sleep_time.seconds)
+            # wait maximum of 62 minutes
+            time.sleep(min(sleep_time.seconds, 62 * 60))
             continue
         except pygithub.GithubException:
             # Secrets may not be available or error occurred - just skip
