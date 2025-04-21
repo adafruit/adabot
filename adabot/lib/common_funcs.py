@@ -19,6 +19,7 @@ CORE_REPO_URL = "/repos/adafruit/circuitpython"
 
 MAXIMUM_RATE_LIMIT_DELAY = 62 * 60  # 62 minutes
 
+
 def parse_gitmodules(input_text):
     # pylint: disable=anomalous-backslash-in-string
     """Parse a .gitmodules file and return a list of all the git submodules
