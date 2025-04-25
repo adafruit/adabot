@@ -74,6 +74,7 @@ def _safe_response_json(self):
         logging.warning("%s", exception_text)
     return {}
 
+
 def request(method, url, **kwargs):
     """Processes request for `url`."""
     try:
