@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: 3
     - name: Versions
       run: |
         python3 --version
     - name: Checkout Current Repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
     - name: Pip install requirements
       run: |
         pip install --force-reinstall -r requirements.txt
