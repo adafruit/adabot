@@ -1,0 +1,45 @@
+From 6dfdbcbca10e34c81fb5a2a52041e6223c330ccc Mon Sep 17 00:00:00 2001
+From: Alec Delaney <tekktrik@gmail.com>
+Date: Thu, 19 Mar 2026 20:47:49 -0400
+Subject: [PATCH] Update pre-commit hooks, license specification
+
+---
+ .pre-commit-config.yaml | 6 +++---
+ pyproject.toml          | 3 +--
+ 2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/.pre-commit-config.yaml b/.pre-commit-config.yaml
+index f27b786..1ea750c 100644
+--- a/.pre-commit-config.yaml
++++ b/.pre-commit-config.yaml
+@@ -7,3 +7,3 @@ repos:
+   - repo: https://github.com/pre-commit/pre-commit-hooks
+-    rev: v4.5.0
++    rev: v6.0.0
+     hooks:
+@@ -13,3 +13,3 @@ repos:
+   - repo: https://github.com/astral-sh/ruff-pre-commit
+-    rev: v0.3.4
++    rev: v0.15.7
+     hooks:
+@@ -19,3 +19,3 @@ repos:
+   - repo: https://github.com/fsfe/reuse-tool
+-    rev: v3.0.1
++    rev: v6.2.0
+     hooks:
+diff --git a/pyproject.toml b/pyproject.toml
+index 2092d51..4b354dd 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -32,3 +32,3 @@ keywords = [
+ ]
+-license = {text = "MIT"}
++license = "MIT"
+ classifiers = [
+@@ -38,3 +38,2 @@ classifiers = [
+     "Topic :: System :: Hardware",
+-    "License :: OSI Approved :: MIT License",
+     "Programming Language :: Python :: 3",
+-- 
+2.53.0
+
