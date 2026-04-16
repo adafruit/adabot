@@ -14,6 +14,7 @@ import os
 import pathlib
 import shlex
 import subprocess
+import sys
 
 import sh
 from circuitpython_build_tools.scripts.build_bundles import build_bundles
@@ -39,19 +40,28 @@ def fetch_bundle(bundle, bundle_path):
                 + os.environ["ADABOT_GITHUB_ACCESS_TOKEN"]
                 + "@github.com/adafruit/"
             )
-            git.clone("-o", "adafruit", git_url + bundle + ".git", bundle_path)
+            git.clone(
+                "-o",
+                "adafruit",
+                git_url + bundle + ".git",
+                bundle_path,
+                _out=sys.stdout,
+                _err=sys.stderr,
+            )
         else:
             git.clone(
                 "-o",
                 "adafruit",
                 "https://github.com/adafruit/" + bundle + ".git",
                 bundle_path,
+                _out=sys.stdout,
+                _err=sys.stderr,
             )
     working_directory = os.getcwd()
     os.chdir(bundle_path)
     git.pull()
-    git.submodule("init")
-    git.submodule("update")
+    git.submodule("init", _out=sys.stdout, _err=sys.stderr)
+    git.submodule("update", _out=sys.stdout, _err=sys.stderr)
     os.chdir(working_directory)
 
 
