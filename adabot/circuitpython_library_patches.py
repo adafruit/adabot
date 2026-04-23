@@ -231,6 +231,7 @@ def commit_local_changes(repo_directory, patch_filepath, repo_name, patch):
         return False
 
     try:
+        git.add(".")
         git.commit("-a", "-m", message)
     except sh.ErrorReturnCode as err:
         apply_errors.append(
