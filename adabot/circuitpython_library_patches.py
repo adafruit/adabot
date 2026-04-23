@@ -183,6 +183,7 @@ def apply_patch(
                         message = '"' + line[(line.find("]") + 2) :] + '"'
                         break
             try:
+                git.add(".")
                 git.commit("-a", "-m", message)
             except sh.ErrorReturnCode as err:
                 apply_errors.append(
