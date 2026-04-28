@@ -62,9 +62,26 @@ cli_parser.add_argument(
 )
 cli_parser.add_argument(
     "--dry-run",
-    help="Accomplishes a dry run of patches, without applying" " them.",
+    help="Apply patches locally but do not commit or push them.",
     action="store_true",
     dest="dry_run",
+)
+cli_parser.add_argument(
+    "--commit-changes",
+    help="Commit any local changes in each previously cloned library"
+    " using the [PATCH] message from the referenced patch (requires '-p')."
+    " Does not clone, apply, or push. Intended to be run after '--dry-run'"
+    " and any manual edits.",
+    action="store_true",
+    dest="commit_changes",
+)
+cli_parser.add_argument(
+    "--push-changes",
+    help="Push existing commits in each previously cloned library."
+    " Does not clone, apply, or commit. Intended to be run after"
+    " '--commit-changes'.",
+    action="store_true",
+    dest="push_changes",
 )
 cli_parser.add_argument(
     "--local",
@@ -117,11 +134,19 @@ def get_patches(run_local):
     return return_list
 
 # pylint: disable=too-many-arguments
-def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
+def apply_patch(
+    repo_directory,
+    patch_filepath,
+    repo,
+    patch,
+    flags,
+    use_apply,
+    dry_run=False,
+):
     """Apply the `patch` in `patch_filepath` to the `repo` in
-    `repo_directory` using git am or git apply. The commit
-    with the user running the script (adabot if credentials are set
-    for that).
+    `repo_directory` using git am or git apply. When `dry_run` is
+    true the patch is applied to the working tree only, not committed
+    or pushed.
 
     When `use_apply` is true, the `--apply` flag is automatically added
     to ensure that any passed flags that turn off apply (e.g. `--check`)
@@ -130,7 +155,7 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
     if not os.getcwd() == repo_directory:
         os.chdir(repo_directory)
 
-    if not use_apply:
+    if not use_apply and not dry_run:
         try:
             git.am(flags, patch_filepath)
         except sh.ErrorReturnCode as err:
@@ -151,23 +176,84 @@ def apply_patch(repo_directory, patch_filepath, repo, patch, flags, use_apply):
             )
             return False
 
-        with open(patch_filepath) as patchfile:
-            for line in patchfile:
-                if "[PATCH]" in line:
-                    message = '"' + line[(line.find("]") + 2) :] + '"'
-                    break
-        try:
-            git.commit("-a", "-m", message)
-        except sh.ErrorReturnCode as err:
-            apply_errors.append(
-                dict(repo_name=repo, patch_name=patch, error=err.stderr)
-            )
-            return False
+        if not dry_run:
+            with open(patch_filepath) as patchfile:
+                for line in patchfile:
+                    if "[PATCH]" in line:
+                        message = '"' + line[(line.find("]") + 2) :] + '"'
+                        break
+            try:
+                git.add(".")
+                git.commit("-a", "-m", message)
+            except sh.ErrorReturnCode as err:
+                apply_errors.append(
+                    dict(repo_name=repo, patch_name=patch, error=err.stderr)
+                )
+                return False
+
+    if dry_run:
+        return True
 
     try:
         git.push()
     except sh.ErrorReturnCode as err:
         apply_errors.append(dict(repo_name=repo, patch_name=patch, error=err.stderr))
+        return False
+    return True
+
+
+def commit_local_changes(repo_directory, patch_filepath, repo_name, patch):
+    """Commit any local changes in `repo_directory` using the [PATCH]
+    message from `patch_filepath`. Mirrors the commit logic used by
+    `apply_patch` for the `--use-apply` path.
+    """
+    if not os.getcwd() == repo_directory:
+        os.chdir(repo_directory)
+
+    # Skip if there is nothing to commit.
+    status = git.status("--porcelain").stdout.strip()
+    if not status:
+        return None
+
+    message = None
+    with open(patch_filepath) as patchfile:
+        for line in patchfile:
+            if "[PATCH]" in line:
+                message = '"' + line[(line.find("]") + 2) :] + '"'
+                break
+    if message is None:
+        apply_errors.append(
+            dict(
+                repo_name=repo_name,
+                patch_name=patch,
+                error=b"No [PATCH] line found in patch file.",
+            )
+        )
+        return False
+
+    try:
+        git.add(".")
+        git.commit("-a", "-m", message)
+    except sh.ErrorReturnCode as err:
+        apply_errors.append(
+            dict(repo_name=repo_name, patch_name=patch, error=err.stderr)
+        )
+        return False
+    return True
+
+
+def push_local_commits(repo_directory, repo_name):
+    """Push existing commits in `repo_directory`. Mirrors the push
+    logic used by `apply_patch`.
+    """
+    if not os.getcwd() == repo_directory:
+        os.chdir(repo_directory)
+    try:
+        git.push()
+    except sh.ErrorReturnCode as err:
+        apply_errors.append(
+            dict(repo_name=repo_name, patch_name="", error=err.stderr)
+        )
         return False
     return True
 
@@ -246,29 +332,41 @@ def check_patches(repo, patches, flags, use_apply, dry_run):
                 )
             )
 
-        if run_apply and not dry_run:
+        if run_apply:
             result = apply_patch(
-                repo_directory, patch_filepath, repo["name"], patch, flags, use_apply
+                repo_directory,
+                patch_filepath,
+                repo["name"],
+                patch,
+                flags,
+                use_apply,
+                dry_run,
             )
             if result:
                 applied += 1
             else:
                 failed += 1
-        elif run_apply and dry_run:
-            applied += 1
 
     return [applied, skipped, failed]
 
 
 if __name__ == "__main__":
     cli_args = cli_parser.parse_args()
+
+    mode_flags = [cli_args.dry_run, cli_args.commit_changes, cli_args.push_changes]
+    if sum(bool(m) for m in mode_flags) > 1:
+        raise RuntimeError(
+            "'--dry-run', '--commit-changes', and '--push-changes' are"
+            " mutually exclusive."
+        )
+
     if cli_args.run_local:
-        if cli_args.dry_run or cli_args.list:
+        if cli_args.dry_run or cli_args.commit_changes or cli_args.list:
             pass
         else:
             raise RuntimeError(
                 "'--local' can only be used in conjunction with"
-                " '--dry-run' or '--list'."
+                " '--dry-run', '--commit-changes', or '--list'."
             )
 
     run_patches = get_patches(cli_args.run_local)
@@ -283,6 +381,11 @@ if __name__ == "__main__":
                 "'{}' is not an available patchfile.".format(cli_args.patch)
             )
         run_patches = [cli_args.patch]
+    if cli_args.commit_changes and not cli_args.patch:
+        raise RuntimeError(
+            "'--commit-changes' requires '-p <PATCH FILENAME>' so the"
+            " commit message can be derived from the patch."
+        )
     if cli_args.flags is not None:
         if not cli_args.patch:
             raise RuntimeError(
@@ -308,27 +411,69 @@ if __name__ == "__main__":
     apply_errors = []
     stats = [0, 0, 0]
 
-    print(".... Deleting any previously cloned libraries")
-    try:
-        libs = os.listdir(path=lib_directory)
-        for lib in libs:
-            shutil.rmtree(lib_directory + lib)
-    except FileNotFoundError:
-        pass
+    # --commit-changes and --push-changes operate on the libraries that
+    # were previously cloned (e.g. by a prior '--dry-run' invocation),
+    # so do not wipe or re-clone anything.
+    if cli_args.commit_changes or cli_args.push_changes:
+        try:
+            local_libs = sorted(os.listdir(path=lib_directory))
+        except FileNotFoundError:
+            local_libs = []
 
-    repos = get_repo_list()
-    print(".... Running Patch Checks On", len(repos), "Repos ....")
+        if cli_args.commit_changes:
+            patch = cli_args.patch
+            patch_filepath = patch_directory + patch
+            print(
+                ".... Committing local changes in",
+                len(local_libs),
+                "Repos ....",
+            )
+            for lib in local_libs:
+                repo_directory = lib_directory + lib
+                if not os.path.isdir(repo_directory):
+                    continue
+                result = commit_local_changes(
+                    repo_directory, patch_filepath, lib, patch
+                )
+                if result is True:
+                    stats[0] += 1
+                elif result is None:
+                    stats[1] += 1
+                else:
+                    stats[2] += 1
+        else:  # push_changes
+            print(".... Pushing commits in", len(local_libs), "Repos ....")
+            for lib in local_libs:
+                repo_directory = lib_directory + lib
+                if not os.path.isdir(repo_directory):
+                    continue
+                result = push_local_commits(repo_directory, lib)
+                if result:
+                    stats[0] += 1
+                else:
+                    stats[2] += 1
+    else:
+        print(".... Deleting any previously cloned libraries")
+        try:
+            libs = os.listdir(path=lib_directory)
+            for lib in libs:
+                shutil.rmtree(lib_directory + lib)
+        except FileNotFoundError:
+            pass
 
-    for repository in repos:
-        results = check_patches(
-            repository,
-            run_patches,
-            cmd_flags,
-            cli_args.use_apply,
-            cli_args.dry_run
-        )
-        for k in range(3):
-            stats[k] += results[k]
+        repos = get_repo_list()
+        print(".... Running Patch Checks On", len(repos), "Repos ....")
+
+        for repository in repos:
+            results = check_patches(
+                repository,
+                run_patches,
+                cmd_flags,
+                cli_args.use_apply,
+                cli_args.dry_run,
+            )
+            for k in range(3):
+                stats[k] += results[k]
 
     print(".... Patch Updates Completed ....")
     print(".... Patches Applied:", stats[0])
