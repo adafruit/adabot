@@ -322,7 +322,21 @@ def run_library_checks(validators, kw_args, error_depth):
         logger.info("  * %s", pull_request)
     print_issue_overview(blinka_insights)
     logger.info("* %s open issues", len(blinka_insights["open_issues"]))
-    logger.info("  * https://github.com/adafruit/Adafruit_Blinka/issues")
+    blinka_issue_counts = {}
+    for issue_link in blinka_insights["open_issues"]:
+        # issue_link is like
+        # "https://github.com/adafruit/<repo>/issues/<n> (Open <d> days)"
+        match = re.search(r"github\.com/adafruit/([^/]+)/issues/", issue_link)
+        if match:
+            blinka_issue_counts[match.group(1)] = (
+                blinka_issue_counts.get(match.group(1), 0) + 1
+            )
+    for repo_name in sorted(blinka_issue_counts):
+        logger.info(
+            "  * https://github.com/adafruit/%s/issues (%s)",
+            repo_name,
+            blinka_issue_counts[repo_name],
+        )
     logger.info("* Number of supported boards: %s", blinka_funcs.board_count())
 
 
