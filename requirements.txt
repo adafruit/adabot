@@ -12,7 +12,7 @@ requests==2.33.0
 sh==2.2.4
 requests-cache==0.5.2
 parse==1.19.0
-GitPython==3.1.50
+GitPython==3.1.52
 PyGithub==1.57
 typing-extensions~=4.0
 google-auth~=2.13
