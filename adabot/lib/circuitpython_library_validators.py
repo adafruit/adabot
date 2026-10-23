@@ -1068,6 +1068,9 @@ class LibraryValidator:
             )
             if "pull_request" in issue:
                 pr_info = gh_reqs.get(issue["pull_request"]["url"])
+                if not pr_info.ok:
+                    # PR can be deleted while its issue entry remains (e.g. Copilot PRs)
+                    continue
                 pr_info = pr_info.json()
                 if issue["state"] == "open":
                     if created > since:
