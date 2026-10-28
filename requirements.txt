@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-black==26.3.1
+black==26.10.1
 circuitpython-build-tools
 packaging==22.0
 pylint==3.2.6
