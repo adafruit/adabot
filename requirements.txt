@@ -5,7 +5,7 @@
 black==26.10.1
 circuitpython-build-tools
 packaging==22.0
-pylint==3.2.6
+pylint==4.0.9
 pytest
 pyyaml>=5.4.1
 requests==2.33.0
