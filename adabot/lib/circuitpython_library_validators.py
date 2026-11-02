@@ -1119,7 +1119,10 @@ class LibraryValidator:
                         else:
                             insights["pr_merged_authors"].add(pr_info["user"]["login"])
 
-                        insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
+                        # merged_by is null when GitHub marks a PR merged because its
+                        # commits landed via another PR (e.g. stacked PRs)
+                        if pr_info["merged_by"]:
+                            insights["pr_reviewers"].add(pr_info["merged_by"]["login"])
                         pr_reviews = gh_reqs.get(str(pr_info["url"]) + "/reviews")
                         if pr_reviews.ok:
                             for review in pr_reviews.json():
